@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+
+      
+    <!-- Molstar CSS & JS -->
+    <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-0.1.0.css">
+    <script type="text/javascript" src="build/pdbe-molstar-plugin-0.1.0.js"></script>
+
+    <style>
+      #myViewer{
+        float:left;
+        width:450px;
+        height: 450px;
+        position:relative;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h3>PDBe Molstar Plugin demo - Basic</h3>
+    
+    <!-- Molstar container -->
+    <div id="myViewer"></div>
+    
+    <!-- Actions Menu -->
+    <div style="float:right; border:1px solid lightgray; width:300px;padding:10px;">
+      
+      <h3><u>Canvas/ layout methods</u></h3>
+      
+      <strong>Set Background</strong><br>
+      <button onclick="viewerInstance.canvas.setBgColor({r:255, g:255, b:255})">White</button>&nbsp;
+      <button onclick="viewerInstance.canvas.setBgColor({r:0, g:0, b:0})">Black</button><br><br>
+      
+      <strong>Toggle controls menu</strong><br>
+      <button onclick="viewerInstance.canvas.toggleControls(false)">Hide</button>&nbsp;
+      <button onclick="viewerInstance.canvas.toggleControls(true)">Show</button>&nbsp;
+      <button onclick="viewerInstance.canvas.toggleControls()">Toggle</button><br><br>
+      
+      <strong>Toggle Fullscreen</strong><br>
+      <button onclick="viewerInstance.canvas.toggleExpanded(true)">Show Fullscreen</button><br>
+      
+      <h3><u>Visual Methods</u></h3>
+      <strong>Change the visual entities visibility</strong><br>
+      <button onclick="viewerInstance.visual.visibility({water:false})">Hide Water Visual</button>&nbsp;
+      <button onclick="viewerInstance.visual.visibility({water:true})">Show Water Visual</button><br><br>
+
+      <strong>Toggle Spin</strong><br>
+      <button onclick="viewerInstance.visual.toggleSpin(true)">Rotate</button>&nbsp;
+      <button onclick="viewerInstance.visual.toggleSpin(false)">Stop</button>&nbsp;
+      <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button><br><br>
+      
+      <strong>Focus</strong><br>
+      <button onclick="viewerInstance.visual.focus([{struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18}])">Focus on Chain A:14-18</button><br><br>
+      
+      <strong>Selection</strong><br>
+      <button onclick="viewerInstance.visual.selection([{struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color:{r:255,g:255,b:0}}], {r:255,g:255,b:255}, true)">Select & Focus on Chain B:1-6</button><br><br>
+      <button onclick="
+        var selectSections = [
+          {
+            struct_asym_id: 'B', 
+            start_residue_number: 8, 
+            end_residue_number: 10, 
+            color:{r:255,g:0,b:255}
+          },
+          {
+            struct_asym_id: 'B', 
+            start_residue_number: 2, 
+            end_residue_number: 5, 
+            color:{r:255,g:0,b:0}
+          }
+        ]
+        viewerInstance.visual.selection(selectSections, {r:255,g:255,b:255}, false)">Select on Chain B:2-5 & Chain B:8-10</button><br><br>
+        
+        <button onclick="viewerInstance.visual.selection([{struct_asym_id: 'B', color:{r:255,g:255,b:0}}], {r:255,g:255,b:255}, true)">Select & Focus on Chain B</button><br><br>
+      
+      <strong>Reset Visual</strong><br>
+      <button onclick="viewerInstance.visual.reset(true, false)">Camera</button>&nbsp;
+      <button onclick="viewerInstance.visual.reset(false, true)">Theme</button>&nbsp;
+      <button onclick="viewerInstance.visual.reset(true, true)">Camera & Theme</button><br><br>
+
+      <strong>Update data</strong><br>
+      <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'})">Update data to create new visual</button><br><br>
+
+      <h3><u>Interactivity Methods</u></h3>
+      <strong>Highlight</strong><br>
+      <button onclick="viewerInstance.interactivity.highlight([{struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18}])">Highlight Chain A:14-18</button>&nbsp;
+      <button onclick="viewerInstance.interactivity.clearHighlight()">Clear Highlight</button><br><br>
+
+      <strong>Selection</strong><br>
+      <button onclick="viewerInstance.interactivity.select([{struct_asym_id: 'A', start_residue_number: 73, end_residue_number: 81}])">Select Chain A:73-81</button><br><br>
+      <button onclick="viewerInstance.interactivity.select([{struct_asym_id: 'A', start_residue_number: 30, end_residue_number: 38, sideChain: true}])">Select Chain A:30-38 and show side-chain</button><br><br>
+      <button onclick="viewerInstance.interactivity.clearSelection()">Clear Selection</button><br><br>
+      
+      
+    </div>
+    
+    <script>
+      //Create plugin instance
+      var viewerInstance = new PDBeMolstarPlugin();
+  
+      //Set options (Checkout available options list in the documentation)
+      var options = {
+        moleculeId: '2nnu',
+        hideControls: true
+      }
+      
+      //Get element from HTML/Template to place the viewer 
+      var viewerContainer = document.getElementById('myViewer');
+  
+      //Call render method to display the 3D view
+      viewerInstance.render(viewerContainer, options);
+      
+    </script>
+  </body>
+
+</html>

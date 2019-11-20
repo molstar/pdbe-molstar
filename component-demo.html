@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <title>Mol* PDBe Wrapper</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+        </style>
+
+        <!-- Required for IE11 -->
+        <script src="https://cdn.jsdelivr.net/npm/babel-polyfill/dist/polyfill.min.js"></script>
+        <!-- Web component polyfill (only loads what it needs) -->
+        <script src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs/webcomponents-lite.js" charset="utf-8"></script>
+        <!-- Required to polyfill modern browsers as code is ES5 for IE... -->
+        <script src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs/custom-elements-es5-adapter.js" charset="utf-8"></script>
+
+        <link rel="stylesheet" type="text/css" href="https://wwwdev.ebi.ac.uk/pdbe/pdb-component-library/css/pdbe-molstar-light-0.1.0.css" />
+        <script type="text/javascript" src="build/pdbe-molstar-component-0.1.0.js"></script>
+        <style>
+            .msp-plugin .remove-header .msp-transform-header{
+                display: none !important;
+            }
+            .msp-plugin .msp-form-control[disabled]{
+                opacity: 0.3;
+                background-color: black;
+            }
+        </style>
+    </head>
+    <body>
+        
+        <div style="float:left;position: relative;width:400px;height: 400px;">
+            <pdbe-molstar 
+                id="pdbeMolstarComponent" 
+                molecule-id="3g46" hide-water="true" hide-expand-icon="true"
+                validation-annotation="true" 
+                bg-color-r="255" bg-color-g="255" bg-color-b="255">
+            </pdbe-molstar>
+        </div>
+
+        <!-- Actions Menu -->
+        <div style="float:right; border:1px solid lightgray; width:300px;padding:10px;">
+    
+            <h3><u>Canvas/ layout methods</u></h3>
+            <strong>Set Background</strong><br>
+            <button onclick="viewerInstance.canvas.setBgColor({r:255, g:255, b:255})">White</button>&nbsp;
+            <button onclick="viewerInstance.canvas.setBgColor({r:0, g:0, b:0})">Black</button><br><br>
+
+        </div>
+
+        <script>
+        var viewerInstance;
+        window.onload = function () {
+            var pdbeMolstarComponent = document.getElementById('pdbeMolstarComponent');
+            viewerInstance = pdbeMolstarComponent.viewerInstance;
+        };
+        </script>
+        
+    </body>
+</html>

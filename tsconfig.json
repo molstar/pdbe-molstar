@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "target": "es5",
+        "alwaysStrict": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "sourceMap": true,
+        "noUnusedLocals": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        // "downlevelIteration": true,
+        "jsx": "react",
+        "lib": [ "es6", "dom", "esnext.asynciterable", "es2016" ],
+        "rootDir": "src/app",
+        "outDir": "lib",
+        "baseUrl": "./",
+        "paths": {
+            "Molstar/*" : ["node_modules/molstar/src/*"]
+        }
+    },
+    "include": [ "src/app/*" ]
+}
