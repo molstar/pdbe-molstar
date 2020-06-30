@@ -8,6 +8,7 @@ class PdbeMolstar extends LitElement {
       assemblyId: { type: String, attribute: 'assembly-id' },
       customDataUrl: { type: String, attribute: 'custom-data-url' },
       customDataFormat: { type: String, attribute: 'custom-data-format' },
+      customDataBinary: { type: Boolean, attribute: 'custom-data-binary' },
       ligandLabelCompId: { type: String, attribute: 'ligand-label-comp-id' },
       ligandAuthAsymId: { type: String, attribute: 'ligand-auth-asym-Id' },
       ligandAuthSeqId: { type: String, attribute: 'ligand-auth-seq-id' },
@@ -37,13 +38,12 @@ class PdbeMolstar extends LitElement {
       hideWater: { type: Boolean, attribute: 'hide-water'},
       hideHet: { type: Boolean, attribute: 'hide-het'},
       hideCarbs: { type: Boolean, attribute: 'hide-carbs'},
+      hideNonStandard: { type: Boolean, attribute: 'hide-non-standard'},
+      hideCoarse: { type: Boolean, attribute: 'hide-coarse'},
       visualStyle: { type: String, attribute: 'visual-style' },
-      hideHelpIcon: { type: Boolean, attribute: 'hide-help-icon'},
-      hideSettingsIcon: { type: Boolean, attribute: 'hide-settings-icon'},
-      hideCameraIcon: { type: Boolean, attribute: 'hide-camera-icon'},
-      hideControlsIcon: { type: Boolean, attribute: 'hide-controls-icon'},
       hideExpandIcon: { type: Boolean, attribute: 'hide-expand-icon'},
-      hideResetIcon: { type: Boolean, attribute: 'hide-reset-icon'}
+      hideSelectionIcon: { type: Boolean, attribute: 'hide-selection-icon'},
+      hideAnimationIcon: { type: Boolean, attribute: 'hide-animation-icon'}
     };
   }
 
@@ -68,18 +68,17 @@ class PdbeMolstar extends LitElement {
       'hidePolymer': 'polymer', 
       'hideWater': 'water', 
       'hideHet': 'het', 
-      'hideCarbs': 'carbs'
+      'hideCarbs': 'carbs',
+      'hideNonStandard': 'nonStandard',
+      'hideCoarse': 'coarse'
     };
     const hideStructParams = Object.keys(hideStructParamsMap);
 
-    //hideQuickControls params
+    //hideCanvasControls params
     const hideIconsParamsMap = {
-      'hideHelpIcon': 'help', 
-      'hideSettingsIcon': 'settings', 
-      'hideCameraIcon': 'camera', 
-      'hideControlsIcon': 'controls',
-      'hideExpandIcon': 'expand',
-      'hideResetIcon': 'reset'
+      'hideExpandIcon': 'expand', 
+      'hideSelectionIcon': 'selection', 
+      'hideAnimationIcon': 'animation'
     };
     const hideIconsParams = Object.keys(hideIconsParamsMap);
 
@@ -114,11 +113,11 @@ class PdbeMolstar extends LitElement {
       });
 
     }else if((hideIconsParams.indexOf(propName) > -1)){
-      if(this.initParams.hideQuickControls)return;
-      this.initParams.hideQuickControls = [];
+      if(this.initParams.hideCanvasControls)return;
+      this.initParams.hideCanvasControls = [];
       hideIconsParams.forEach((hideIconsParam) => {
         if(this[hideIconsParam]){ 
-          this.initParams.hideQuickControls.push(hideIconsParamsMap[hideIconsParam]);
+          this.initParams.hideCanvasControls.push(hideIconsParamsMap[hideIconsParam]);
         }
       });
 
@@ -130,8 +129,8 @@ class PdbeMolstar extends LitElement {
     
     const specialProps = ['customDataUrl', 'customDataFormat', 'ligandLabelCompId', 'bgColorR', 'bgColorG', 'bgColorB',
     'ligandAuthAsymId', 'ligandAuthSeqId', 'ligandHydrogens', 'highlightColorR', 'highlightColorG', 'highlightColorB',
-    'selectColorR', 'selectColorG', 'selectColorB', 'hidePolymer', 'hideWater', 'hideHet', 'hideCarbs',
-    'hideHelpIcon', 'hideSettingsIcon', 'hideCameraIcon', 'hideControlsIcon', 'hideExpandIcon', 'hideResetIcon'];
+    'selectColorR', 'selectColorG', 'selectColorB', 'hidePolymer', 'hideWater', 'hideHet', 'hideCarbs', 'hideNonStandard', 'hideCoarse',
+    'hideExpandIcon', 'hideSelectionIcon', 'hideAnimationIcon'];
     const componentProps = this.constructor['properties'];
     if(componentProps){
       for(let propName in componentProps){

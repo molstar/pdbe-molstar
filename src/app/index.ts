@@ -1,52 +1,61 @@
-import { PluginSpec } from 'Molstar/mol-plugin/spec';
 import { createPlugin, DefaultPluginSpec, InitParams, DefaultParams } from './spec';
 import { PluginContext } from 'Molstar/mol-plugin/context';
-import { PluginCommands } from 'Molstar/mol-plugin/command';
-import { StateTransforms } from 'Molstar/mol-plugin/state/transforms';
-import { Color } from 'Molstar/mol-util/color';
-import { PluginStateObject as PSO, PluginStateObject } from 'Molstar/mol-plugin/state/objects';
-import { StateBuilder, StateObject } from 'Molstar/mol-state';
-import { createCustomTheme } from './custom-theme';
-import { LoadParams, SupportedFormats, ModelInfo, StateElements, QueryHelper, InteractivityHelper } from './helpers';
+import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { StateTransform } from 'Molstar/mol-state';
+import { Loci, EmptyLoci } from 'Molstar/mol-model/loci';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { ViewportWrapper, ControlsWrapper } from './ui/controls';
-import { PluginState } from 'Molstar/mol-plugin/state';
-import { Scheduler } from 'Molstar/mol-task';
-import { createStructureComplex } from './complex';
-import { toggleMap } from './maps';
-import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
-import { StructureRepresentationInteraction } from 'Molstar/mol-plugin/behavior/dynamic/selection/structure-representation-interaction';
-import { Binding } from 'Molstar/mol-util/binding';
-import { ButtonsType, ModifiersKeys } from 'Molstar/mol-util/input/input-observer';
-import { createNewEvent } from './custom-events'
-import { createLigandStructure } from './ligand'
-require('Molstar/mol-plugin/skin/dark.scss');
-// require('Molstar/mol-plugin/skin/light.scss');
+import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam, LigandQueryParam } from './helpers';
+import { PDBeStructureTools, PDBeSuperpositionStructureTools, PDBeLigandViewStructureTools } from './ui/pdbe-structure-controls';
+import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
+import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
+import { StateSelection } from 'Molstar/mol-state';
+import { StructureFocusRepresentation } from 'Molstar/mol-plugin/behavior/dynamic/selection/structure-focus-representation';
+import { PluginSpec } from 'Molstar/mol-plugin/spec';
+import { InitVolumeStreaming } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
+import { subscribeToComponentEvents } from './subscribe-events';
+import { LeftPanelControls } from './ui/pdbe-left-panel';
+import { initSuperposition } from './superposition';
+import { CustomEvents } from './custom-events';
+import { Asset } from 'Molstar/mol-util/assets';
+import { PluginConfig } from 'Molstar/mol-plugin/config';
+import { Color } from 'Molstar/mol-util/color/color';
+import { StructureComponentManager } from 'Molstar/mol-plugin-state/manager/structure/component';
+import { ParamDefinition } from 'Molstar/mol-util/param-definition';
+import { PDBeDomainAnnotations } from './domain-annotations/behavior';
+import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
+import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in';
+import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
+import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
+import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
+
+require('Molstar/mol-plugin-ui/skin/dark.scss');
+
+// Override carbon by chain-id theme default
+ElementSymbolColorThemeParams.carbonByChainId.defaultValue = false;
+
 
 class PDBeMolstarPlugin {
-    static VERSION_MAJOR = 1;
-    static VERSION_MINOR = 1;
 
     private _ev = RxEventHelper.create();
 
     readonly events = {
-        loadComplete: this._ev<boolean>(),
-        modelInfo: this._ev<ModelInfo>()
+        loadComplete: this._ev<boolean>()
     };
 
     plugin: PluginContext;
     initParams: InitParams;
-    selectedLoci: undefined | {loci: Loci, sideChain?: boolean};
-    selectedLociProvider: any;
     targetElement: HTMLElement;
-    pdbevents:any;
+    assemblyRef = '';
+    selectedParams: any;
+    defaultRendererProps: any;
+    isHighlightColorUpdated = false;
+    isSelectedColorUpdated = false;
 
     render(target: string | HTMLElement, options: InitParams) {
-
         if(!options) return;
-
-        this.initParams = {...DefaultParams }
-
+        this.initParams = {...DefaultParams};
         for(let param in DefaultParams){
             if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
         }
@@ -54,12 +63,31 @@ class PDBeMolstarPlugin {
         if(!this.initParams.moleculeId && !this.initParams.customData) return false;
         if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
 
-       
-        const pdbePluginSpec = DefaultPluginSpec;
-        if(!this.initParams.ligandView){
-            pdbePluginSpec.behaviors.push(
-                PluginSpec.Behavior(StructureRepresentationInteraction, {bindings: {clickInteractionAroundOnly: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create())], 'Show the volume around only the clicked element using ${trigger}.')}})
-            )
+        // Set PDBe Plugin Spec
+        const pdbePluginSpec: PluginSpec = {
+            actions: [...DefaultPluginSpec.actions],
+            behaviors: [...DefaultPluginSpec.behaviors],
+            animations: [...DefaultPluginSpec.animations || []],
+            customParamEditors: DefaultPluginSpec.customParamEditors,
+            config: DefaultPluginSpec.config
+        };
+
+        if(!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction){
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
+        }
+
+        if(this.initParams.superposition){
+            let displaySurroundings = true;
+            // if(this.initParams.superpositionParams && this.initParams.superpositionParams.ligandView) displaySurroundings = false;
+            if(displaySurroundings) pdbePluginSpec.behaviors.push(PluginSpec.Behavior(SuperpositionFocusRepresentation));
+        }
+
+        // Add custom properties
+        if(this.initParams.domainAnnotation) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, {autoAttach: true, showTooltip: false}));
+        }
+        if(this.initParams.validationAnnotation) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, {autoAttach: true, showTooltip: false}));
         }
 
         pdbePluginSpec.layout = {
@@ -68,716 +96,511 @@ class PDBeMolstarPlugin {
                 showControls: !this.initParams.hideControls
             },
             controls: {
-                top: "none",
-                bottom: "none",
-                left: "none",
-                right: ControlsWrapper
+                left: LeftPanelControls,
+                // right: DefaultStructureTools,
+                top: 'none',
+                bottom: 'none'
+            }
+        };
+
+        pdbePluginSpec.components = {
+            viewport: {
+                controls: PDBeViewportControls
             },
-            viewport: ViewportWrapper
+            remoteState: 'none',
+            structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
+        };
+
+        pdbePluginSpec.config = [
+            [PluginConfig.Structure.DefaultRepresentationPresetParams, { theme: { carbonByChainId: false, focus: { name: 'element-symbol', params: { carbonByChainId: false } } } }]
+        ];
+
+        // Add animation props
+        if(!this.initParams.ligandView && !this.initParams.superposition){
+            pdbePluginSpec['animations'] = [AnimateModelIndex];
         }
+
+        if(this.initParams.hideCanvasControls) {
+            // let hideCanvasControls: any = [];
+            if(this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
+            if(this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+            if(this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+            // pdbePluginSpec.config = hideCanvasControls;
+        };
 
         if(this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
 
         this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
-        this.plugin = createPlugin(this.targetElement, pdbePluginSpec);
 
-        (this.plugin.customState as any).initParams = this.initParams;
+        // Create/ Initialise Plugin
+        this.plugin = createPlugin(this.targetElement, pdbePluginSpec);
+        (this.plugin.customState as any).initParams = {...this.initParams};
+        (this.plugin.customState as any).events = {
+            segmentUpdate: this._ev<boolean>(),
+            superpositionInit: this._ev<boolean>(),
+            isBusy: this._ev<boolean>()
+        };
 
         // Set background colour
         if(this.initParams.bgColor){
             this.canvas.setBgColor(this.initParams.bgColor);
         }
 
-        //Load Molecule CIF or coordQuery and Parse
-        let urlAndFormatDetails = this.getMoleculeSrcUrl();
-        if(urlAndFormatDetails){
-            this.load({ url: urlAndFormatDetails.url, format: urlAndFormatDetails.format as SupportedFormats, assemblyId: this.initParams.assemblyId});
+        // Set selection granularity
+        if(this.initParams.granularity) {
+            this.plugin.managers.interactivity.setProps({ granularity: this.initParams.granularity });
         }
 
-        //Binding to other PDB Component events
-        if(this.initParams.subscribeEvents){
-        	this.subscribeToComponentEvents();
+        // Set default highlight and selection colors
+        if(this.initParams.highlightColor || this.initParams.selectColor) {
+            this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
         }
 
-        //Event handling
-        this.pdbevents = createNewEvent(['PDB.molstar.click','PDB.molstar.mouseover','PDB.molstar.mouseout']);
-        this.plugin.behaviors.interaction.click.subscribe((e: any) => { 
-            if(e.buttons && e.buttons == 1 && e.current && e.current.loci.kind != "empty-loci"){
-                const evData = InteractivityHelper.getDataFromLoci(e.current.loci);
-                this.dispatchCustomEvent(this.pdbevents['PDB.molstar.click'], evData);
-            }
-        });
-        this.plugin.behaviors.interaction.hover.subscribe((e: any) => { 
-            if(e.current && e.current.loci && e.current.loci.kind != "empty-loci"){
-                const evData = InteractivityHelper.getDataFromLoci(e.current.loci);
-                this.dispatchCustomEvent(this.pdbevents['PDB.molstar.mouseover'], evData);
-            }
+        // Save renderer defaults
+        this.defaultRendererProps = {...this.plugin.canvas3d!.props.renderer};
 
-            if(e.current && e.current.loci && e.current.loci.kind == "empty-loci"){
-                this.dispatchCustomEvent(this.pdbevents['PDB.molstar.mouseout'], {});
-            }
-        });
+        if(this.initParams.superposition){
+            // Set left panel tab
+            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
-    }
+            // Initialise superposition
+            initSuperposition(this.plugin);
 
-    dispatchCustomEvent(event:any, eventData:any) {
-        if(typeof eventData !== 'undefined'){
-            event['eventData'] = eventData;
-            this.targetElement.dispatchEvent(event);
-        }
-    }
-
-    get state() {
-        return this.plugin.state.dataState;
-    }
-
-    private download(b: StateBuilder.To<PSO.Root>, url: string, format: SupportedFormats) {
-        return b.apply(StateTransforms.Data.Download, { url, isBinary: format === 'bcif' ? true : false })
-    }
-
-    private model(b: StateBuilder.To<PSO.Data.Binary | PSO.Data.String>, format: SupportedFormats) {
-        const parsed = (format === 'cif' || format === 'bcif')
-            ? b.apply(StateTransforms.Data.ParseCif).apply(StateTransforms.Model.TrajectoryFromMmCif, {}, { ref: 'molecule' })
-            : b.apply(StateTransforms.Model.TrajectoryFromPDB);
-
-        return parsed
-            .apply(StateTransforms.Model.ModelFromTrajectory, { modelIndex: 0 }, { ref: StateElements.Model });
-    }
-
-    private structure(assemblyId: string, isHetView: boolean) {
-        const model = this.state.build().to(StateElements.Model);
-
-        const s = model
-            .apply(StateTransforms.Model.CustomModelProperties, { properties: [] }, { ref: StateElements.ModelProps, state: { isGhost: false } })
-            .apply(StateTransforms.Model.StructureAssemblyFromModel, { id: assemblyId || 'deposited' }, { ref: StateElements.Assembly });
-
-        if(!isHetView){
-            createStructureComplex(this.plugin, s);
-        }
-
-        return s;
-    }
-
-    private getObj<T extends StateObject>(ref: string): T['data'] {
-        const state = this.state;
-        const cell = state.select(ref)[0];
-        if (!cell || !cell.obj) return void 0;
-        return (cell.obj as T).data;
-    }
-
-    private async doInfo(checkPreferredAssembly: boolean) {
-        const model = this.getObj<PluginStateObject.Molecule.Model>('model');
-        if (!model) return;
-        let checkValidationApi = false;
-        let getMappings = false;
-        if(this.initParams.validationAnnotation) checkValidationApi = true;
-        if(this.initParams.domainAnnotation) getMappings = true;
-        const info = await ModelInfo.get(this.plugin, model, checkPreferredAssembly, checkValidationApi, getMappings);
-        this.events.modelInfo.next(info);
-        return info;
-    }
-
-    private applyState(tree: StateBuilder) {
-        return PluginCommands.State.Update.dispatch(this.plugin, { state: this.plugin.state.dataState, tree });
-    }
-
-    async ligandRepresentation(params?: {label_comp_id?: string, auth_asym_Id?: string, auth_seq_id?: string}){
-        await createLigandStructure(this.plugin, this.state, params);
-    }
-
-    async load({ url, format = 'cif', assemblyId = 'deposited' }: LoadParams) {
-        const state = this.plugin.state.dataState;
-        const isHetView = this.initParams.ligandView ? true : false;
-
-        await PluginCommands.State.RemoveObject.dispatch(this.plugin, { state, ref: state.tree.root.ref });
-        const modelTree = this.model(this.download(state.build().toRoot(), url, format), format);
-        await this.applyState(modelTree);
-        const info = await this.doInfo(true);
-        (this.plugin.customState as any).info = info;
-        const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
-        const structureTree = this.structure(asmId, isHetView);
-        await this.applyState(structureTree);
-            
-        if(isHetView){
-            await this.ligandRepresentation();
         }else{
-            await Scheduler.setImmediate(() => PluginCommands.Camera.Reset.dispatch(this.plugin, { }));
-            if(this.initParams.loadMaps){
-                toggleMap(true, this.plugin, this.state, false);
-            }
-        }        
 
-        this.events.loadComplete.next(true);
+            // Collapse left panel
+            PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
+
+            // Load Molecule CIF or coordQuery and Parse
+            let dataSource = this.getMoleculeSrcUrl();
+            if(dataSource){
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary});
+            }
+
+            // Binding to other PDB Component events
+            if(this.initParams.subscribeEvents){
+                subscribeToComponentEvents(this);
+            }
+
+            // Event handling
+            CustomEvents.add(this.plugin, this.targetElement);
+
+        }
 
     }
 
     getMoleculeSrcUrl() {
+        const supportedFormats = ['mmcif', 'pdb', 'sdf'];
         let id = this.initParams.moleculeId;
 
-        if(!id && !(this.initParams.customData && this.initParams.customData.url && this.initParams.customData.format)) return void 0;
+        if(!id && !this.initParams.customData){
+            throw new Error(`Mandatory parameters missing!`);
+        }
 
-        let query = this.initParams.loadCartoonsOnly == true ? 'cartoon' : 'full';
+        let query = 'full';
         let sep = '?';
         if(this.initParams.ligandView){
             let queryParams = [];
-            if(this.initParams.ligandView.label_comp_id) queryParams.push('name='+this.initParams.ligandView.label_comp_id);
-            if(this.initParams.ligandView.auth_seq_id) queryParams.push('authSequenceNumber='+this.initParams.ligandView.auth_seq_id);
-            if(this.initParams.ligandView.auth_asym_id) queryParams.push('authAsymId='+this.initParams.ligandView.auth_asym_id);
-            // if(this.initParams.ligandView.hydrogens) queryParams.push('dataSource=hydrogens');
-            query = 'ligandInteraction?'+queryParams.join('&')
+            if(this.initParams.ligandView.label_comp_id) {
+                queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
+            } else if(this.initParams.ligandView.auth_seq_id) {
+                queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
+            }
+            if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
+            if(this.initParams.ligandView.hydrogens) queryParams.push('data_source=hydrogens');
+            query = 'residueInteraction?' + queryParams.join('&');
             sep = '&';
         }
-        let url = this.initParams.pdbeUrl +  'coordinates/' + id + "/" + query + ""+ sep + "" + "encoding=bcif&lowPrecisionCoords=" + (this.initParams.lowPrecisionCoords ? '1' : '0');
+        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=${this.initParams.encoding}${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
+        let isBinary = this.initParams.encoding === 'bcif' ? true : false;
+        let format = 'mmcif';
 
-        let customFormat: any;
-        if(this.initParams.customData && this.initParams.customData.url && this.initParams.customData.format){
-            if(!this.initParams.customData.format){
-                // Bootstrap.Command.Toast.Show.dispatch(plugin.context, { key: 'format-issue', title: 'Source Format', message: 'Please specify data format!' });
-                return void 0;
+        if(this.initParams.customData){
+            if(!this.initParams.customData.url || !this.initParams.customData.format){
+                throw new Error(`Provide all custom data parameters`);
             }
             url = this.initParams.customData.url;
-            customFormat = this.initParams.customData.format;
-        }
-
-        //Decide Format from arguments
-        if(new RegExp("encoding=bcif", "i").test(url)){
-            customFormat = 'bcif';
-        }
-
-        let format = 'cif';
-        if (customFormat) {
-            if (customFormat == 'cif' || customFormat == 'bcif' || customFormat == 'pdb' || customFormat == 'sdf') {
-                format = customFormat;
+            format = this.initParams.customData.format;
+            if(format === 'cif' || format === 'bcif') format = 'mmcif';
+            // Validate supported format
+            if (supportedFormats.indexOf(format) === -1) {
+                throw new Error(`${format} not supported.`);
             }
-            else {
-                // let f = LiteMol.Core.Formats.FormatInfo.fromShortcut(LiteMol.Core.Formats.Molecule.SupportedFormats.All, customFormat);
-                // if (!f) {
-                //     throw new Error("'" + customFormat + "' is not a supported format.");
-                // }
-                // format = f;
-                return void 0;
-            }
+            isBinary = this.initParams.customData.binary ? this.initParams.customData.binary : false;
         }
 
         return {
             url: url,
-            format: format
+            format: format,
+            isBinary: isBinary
+        };
+    }
+
+    get state() {
+        return this.plugin.state.data;
+    }
+
+    async ligandRepresentation(params: LigandQueryParam) {
+        await this.createLigandStructure(params);
+    }
+
+    async createLigandStructure(params: LigandQueryParam) {
+        if(this.assemblyRef === '') return;
+        for await (const comp of this.plugin.managers.structure.hierarchy.currentComponentGroups) {
+            await PluginCommands.State.RemoveObject(this.plugin, { state: comp[0].cell.parent!, ref: comp[0].cell.transform.ref, removeParentGhosts: true });
+        }
+        
+        const structure = this.state.select(this.assemblyRef)[0];
+        const ligandQuery = LigandView.query(params);
+
+        const ligandVis = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.core, 'pivot', {label: 'Ligand'});
+        if (ligandVis) await this.plugin.builders.structure.representation.addRepresentation(ligandVis, { type: 'ball-and-stick', color: 'element-symbol', colorParams: { carbonByChainId: false }, size: 'uniform', sizeParams: { value: 2.5 } }, { tag: 'ligand-vis' });
+
+        const ligandSurr = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.surroundings, 'rest', {label: 'Surroundings'});
+        if (ligandSurr) await this.plugin.builders.structure.representation.addRepresentation(ligandSurr, { type: 'ball-and-stick', color: 'element-symbol', colorParams: { carbonByChainId: false }, size: 'uniform', sizeParams: { value: 0.8 } });
+
+        // Focus ligand
+        const ligRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'ligand-vis');
+        if(!ligRef) return;
+        const cell = this.plugin.state.data.cells.get(ligRef)!;
+        if(cell) {
+            const ligLoci = cell.obj!.data.repr.getLoci();
+            this.plugin.managers.structure.focus.setFromLoci(ligLoci);
+            setTimeout(() => {
+                // focus-add is not handled in camera behavior, doing it here
+                const current = this.plugin.managers.structure.focus.current?.loci;
+                if (current) this.plugin.managers.camera.focusLoci(current);
+            }, 500);
         }
     }
 
-    snapshot = {
-        get: () => {
-            return this.plugin.state.getSnapshot();
-        },
-        set: (snapshot: PluginState.Snapshot) => {
-            return this.plugin.state.setSnapshot(snapshot);
-        },
-        download: async (url: string) => {
-            try {
-                const data = await this.plugin.runTask(this.plugin.fetch({ url }));
-                const snapshot = JSON.parse(data);
-                await this.plugin.state.setSnapshot(snapshot);
-            } catch (e) {
-                console.log(e);
+    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '' }: LoadParams, fullLoad = true) {
+        // if(fullLoad) await this.plugin.clear();
+        if(fullLoad) this.clear();
+        const isHetView = this.initParams.ligandView ? true : false;
+        const data = await this.plugin.builders.data.download({ url: Asset.Url(url), isBinary }, { state: { isGhost: true } });
+        const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
+
+        if(!isHetView){
+
+            await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default', {
+                structure: assemblyId ? (assemblyId === 'preffered') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: { } },
+                showUnitcell: false,
+                representationPreset: 'auto'
+            });
+
+            if(this.initParams.hideStructure || this.initParams.visualStyle){
+                this.applyVisualParams();
+            }
+
+        }else{
+
+            const model = await this.plugin.builders.structure.createModel(trajectory);
+            await this.plugin.builders.structure.createStructure(model, { name: 'model', params: { } });
+        }
+
+        // show selection if param is set
+        if(this.initParams.selection) {
+            this.visual.select(this.initParams.selection);
+        }
+
+        // Store assembly ref
+        const pivotIndex = this.plugin.managers.structure.hierarchy.selection.structures.length - 1;
+        const pivot = this.plugin.managers.structure.hierarchy.selection.structures[pivotIndex];
+        if(pivot && pivot.cell.parent) this.assemblyRef = pivot.cell.transform.ref;
+
+        // Load Volume
+        if(this.initParams.loadMaps) {
+            if(this.assemblyRef === '') return;
+            const asm = this.state.select(this.assemblyRef)[0].obj!;
+            const defaultMapParams = InitVolumeStreaming.createDefaultParams(asm, this.plugin);
+            const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings, '');
+            if(pdbeMapParams){
+                await this.plugin.runTask(this.state.applyAction(InitVolumeStreaming, pdbeMapParams, this.assemblyRef));
+                if(pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);
             }
         }
 
-    }
-
-    interactionEvents = {
-        highlight: (interactions: {pdb_res_id: string, auth_asym_id: string, auth_ins_code_id: string, auth_seq_id: number, atoms?: string[]}[]) => {
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
-            const nodeLoci = QueryHelper.interactionsNodeLoci(interactions, data);
-            this.plugin.interactivity.lociHighlights.highlightOnly({ loci: nodeLoci });
-        },
-        select: async (interactions: {pdb_res_id: string, auth_asym_id: string, auth_ins_code_id: string, auth_seq_id: string | number, atoms?: string[]}[]) => {
-            await this.interactivity.clearSelection();
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
-            const loci = QueryHelper.interactionsNodeLoci(interactions, data);
-            const buttons = 1 as ButtonsType;
-            const modifiers =  ModifiersKeys.create();
-            const ev = { current: {loci: loci}, buttons, modifiers }
-            await this.plugin.behaviors.interaction.click.next(ev);
-           
-            ev.modifiers.shift = true;
-            await this.plugin.behaviors.interaction.click.next(ev);
-
-            this.selectedLoci = {loci, sideChain: false};
-
+        // Create Ligand Representation
+        if(isHetView){
+            await this.ligandRepresentation(this.initParams.ligandView!);
         }
+
+        this.events.loadComplete.next(true);
     }
 
-    interactivity ={
-        highlight: (params: {entity_id?: string, struct_asym_id?: string, start_residue_number?: number, end_residue_number?: number, color?: any, showSideChain?: boolean}[]) => {
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
-            const loci = QueryHelper.getInteractivityLoci(params, data);
-            this.plugin.interactivity.lociHighlights.highlightOnly({ loci });
-        },
-        clearHighlight: async() => {
-            this.plugin.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
-        },
-        select: async (params: {entity_id?: string, struct_asym_id?: string, start_residue_number?: number, end_residue_number?: number, sideChain?: boolean}[]) => {
-            await this.interactivity.clearHighlight();
-            await this.interactivity.clearSelection();
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
-            const loci = QueryHelper.getInteractivityLoci(params, data);
-            const buttons = 1 as ButtonsType;
-            const modifiers =  ModifiersKeys.create();
-            const ev = { current: {loci: loci}, buttons, modifiers }
-            await this.plugin.behaviors.interaction.click.next(ev);
-           
-            if(!params[0].sideChain){
-                // ev.buttons = 2;
-                await this.plugin.behaviors.interaction.click.next(ev);
+    applyVisualParams = () => {
+        const TagRefs: any = {
+            'structure-component-static-polymer': 'polymer',
+            'structure-component-static-ligand' : 'het',
+            'structure-component-static-branched': 'carbs',
+            'structure-component-static-water': 'water',
+            'structure-component-static-coarse': 'coarse',
+            'non-standard': 'nonStandard'
+        };
+
+        const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
+        componentGroups.forEach((compGrp) => {
+            const key = compGrp[0].key;
+            let rm = false;
+            if(key && this.initParams.hideStructure){
+                const structType: any = TagRefs[key];
+                if(structType && this.initParams.hideStructure?.indexOf(structType) > -1) rm = true;
+            }
+            if(rm){
+                this.plugin.managers.structure.hierarchy.remove(compGrp);
             }
 
-            ev.buttons = 1
-            ev.modifiers.shift = true;
-            await this.plugin.behaviors.interaction.click.next(ev);
-
-            this.selectedLoci = {loci, sideChain: params[0].sideChain};
-
-        },
-        clearSelection: async () => {
-            if(this.selectedLoci){
-                const buttons = 1 as ButtonsType;
-                const modifiers =  ModifiersKeys.create();
-                const ev = { current: {loci: this.selectedLoci.loci}, buttons, modifiers }
-                ev.modifiers.shift = true;
-                await this.plugin.behaviors.interaction.click.next(ev);
-
-                if(this.selectedLoci.sideChain){
-                    // ev.buttons = 2;
-                    ev.modifiers.shift = false;
-                    await this.plugin.behaviors.interaction.click.next(ev);
+            if(!rm && this.initParams.visualStyle){
+                if(compGrp[0] && compGrp[0].representations){
+                    compGrp[0].representations.forEach(rep => {
+                        const currentParams = createStructureRepresentationParams(this.plugin, void 0, { type: this.initParams.visualStyle });
+                        this.plugin.managers.structure.component.updateRepresentations(compGrp, rep, currentParams);
+                    });
                 }
-
-                this.selectedLoci = undefined;
             }
-        }
+        });
     }
 
     canvas = {
-        toggleControls: (isVisible?:boolean) => {
+        toggleControls: (isVisible?: boolean) => {
             if(typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
-            PluginCommands.Layout.Update.dispatch(this.plugin, { state: { showControls: isVisible } });
+            PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
         },
-    
-        toggleExpanded: (isExpanded?:boolean) => {
+
+        toggleExpanded: (isExpanded?: boolean) => {
             if(typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
-            PluginCommands.Layout.Update.dispatch(this.plugin, { state: { isExpanded: isExpanded } });
+            PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
         },
-    
-        setBgColor: (color?:{r:number, g:number, b:number}) => {
+
+        setBgColor: (color?: {r: number, g: number, b: number}) => {
             if(!color) return;
-            const renderer = this.plugin.canvas3d.props.renderer;
-            PluginCommands.Canvas3D.SetSettings.dispatch(this.plugin, { settings: { renderer: { ...renderer, backgroundColor: Color.fromRgb(color.r, color.g, color.b) } } });
+            const renderer = this.plugin.canvas3d!.props.renderer;
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, backgroundColor: Color.fromRgb(color.r, color.g, color.b) } } });
         },
 
     }
 
-    visual = {
-        update: (options: InitParams) => {
+    getLociForParams(params: QueryParam[]) {
+        if(this.assemblyRef === '') return EmptyLoci;
+        const data = (this.plugin.state.data.select(this.assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
+        if(!data) return EmptyLoci;
+        return QueryHelper.getInteractivityLoci(params, data);
+    }
 
-            if(!options) return;
-    
-            for(let param in this.initParams){
-                if(options[param]) this.initParams[param] = options[param];
+
+
+    normalizeColor(colorVal: any, defaultColor?: Color){
+        let color = Color.fromRgb(170, 170, 170);
+        try {
+            if(colorVal.r) {
+                color = Color.fromRgb(colorVal.r, colorVal.g, colorVal.b);
+            } else if(colorVal[0] === '#') {
+                color = Color(Number(`0x${colorVal.substr(1)}`));
+            } else {
+                color = Color(colorVal);
             }
-    
+        } catch (e) {
+            if(defaultColor) color = defaultColor;
+        }
+        return color;
+    }
+
+    visual = {
+        highlight: (params: { data: QueryParam[], color?: any, focus?: boolean }) => {
+            const loci = this.getLociForParams(params.data);
+            if(Loci.isEmpty(loci)) return;
+            if(params.color) {
+                this.visual.setColor({highlight: params.color});
+            }
+            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci });
+            if(params.focus) this.plugin.managers.camera.focusLoci(loci);
+
+        },
+        clearHighlight: async() => {
+            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
+            if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
+        },
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean }) => {
+
+            // clear prvious selection
+            if(this.selectedParams){
+                await this.visual.clearSelection();
+            }
+
+            // set non selected theme color
+            if(params.nonSelectedColor) {
+                for await (const s of this.plugin.managers.structure.hierarchy.current.structures) {
+                    await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+                }
+            }
+
+            // apply individual selections
+            for await (const param of params.data) {
+                // get loci from param
+                const loci = this.getLociForParams([param]);
+                if(Loci.isEmpty(loci)) return;
+                // set default selection color to minimise change display
+                this.visual.setColor({select: param.color ? param.color : { r:255, g:112, b:3}});
+                // apply selection
+                this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
+                // create theme param values and apply them to create overpaint
+                const themeParams = StructureComponentManager.getThemeParams(this.plugin, this.plugin.managers.structure.component.pivotStructure);
+                const colorValue = ParamDefinition.getDefaultValues(themeParams);
+                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
+                await this.plugin.managers.structure.component.applyTheme(colorValue, this.plugin.managers.structure.hierarchy.current.structures);
+                // add new representations
+                if(param.sideChain || param.representation){
+                    let repr = 'ball-and-stick';
+                    if(param.representation) repr = param.representation;
+                    const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
+                    let defaultValues = ParamDefinition.getDefaultValues(defaultParams);
+                    defaultValues.options = { label: 'selection-by-script', checkExisting: true };
+                    const values = {...defaultValues, ...{representation: repr} };
+                    const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
+                    await this.plugin.managers.structure.component.add(values, structures);
+                    params.addedRepr = true;
+                }
+                // focus loci
+                if(param.focus) this.plugin.managers.camera.focusLoci(loci);
+                // remove selection
+                this.plugin.managers.interactivity.lociSelects.deselect({ loci });
+            }
+
+            // reset selection color
+            this.visual.reset({ selectColor: true });
+            // save selection params to optimise clear
+            this.selectedParams = params;
+
+        },
+        clearSelection: async () => {
+            this.plugin.managers.interactivity.lociSelects.deselectAll();
+            // reset theme to default
+            if(this.selectedParams && this.selectedParams.nonSelectedColor) {
+                this.visual.reset({ theme: true});
+            }
+            // remove overpaints
+            await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[0].components);
+            // remove selection representations
+            if(this.selectedParams && this.selectedParams.addedRepr) {
+                let selReprCells: any = [];
+                for(const c of this.plugin.managers.structure.hierarchy.current.structures[0].components) {
+                    if(c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
+                }
+                if(selReprCells.length > 0) {
+                    for await (const selReprCell of selReprCells) {
+                        await PluginCommands.State.RemoveObject(this.plugin, { state: selReprCell.parent!, ref: selReprCell.transform.ref });
+                    };
+                }
+
+            }
+            this.selectedParams = undefined;
+        },
+        update: async (options: InitParams, fullLoad?: boolean) => {
+            if(!options) return;
+
+            // for(let param in this.initParams){
+            //     if(options[param]) this.initParams[param] = options[param];
+            // }
+
+            this.initParams = {...DefaultParams };
+            for(let param in DefaultParams){
+                if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
+            }
+
             if(!this.initParams.moleculeId && !this.initParams.customData) return false;
             if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
-           
             (this.plugin.customState as any).initParams = this.initParams;
-    
+
             // Set background colour
             if(this.initParams.bgColor){
                 this.canvas.setBgColor(this.initParams.bgColor);
             }
-    
-            //Load Molecule CIF or coordQuery and Parse
-            let urlAndFormatDetails = this.getMoleculeSrcUrl();
-            if(urlAndFormatDetails){
-                this.load({ url: urlAndFormatDetails.url, format: urlAndFormatDetails.format as SupportedFormats, assemblyId: this.initParams.assemblyId});
+
+            // Load Molecule CIF or coordQuery and Parse
+            let dataSource = this.getMoleculeSrcUrl();
+            if(dataSource){
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary}, fullLoad);
             }
-    
         },
         visibility: (data: {polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any}) => {
 
             if(!data) return;
 
-            const refMap:any = {
-                polymer: [StateElements.SequenceVisual],
-                het: [StateElements.HetVisual],
-                hetSurroundingVisual: [StateElements.HetSurroundingVisual],
-                water: [StateElements.WaterVisual],
-                carbs: [StateElements.Carbs3DVisual, StateElements.CarbsVisual],
-                maps: ['densityRef']              
-            }
+            const refMap: any = {
+                polymer: 'structure-component-static-polymer',
+                het: 'structure-component-static-ligand',
+                water: 'structure-component-static-water',
+                carbs: 'structure-component-static-branched',
+                maps: 'volume-streaming-info'
+            };
 
             for(let visual in data){
-                if(refMap[visual]){
-                    if(visual == 'maps'){
-                        const showMap = data.maps ? data.maps : false;
-                        toggleMap(showMap, this.plugin, this.state, false);
-
-                    }else{
-
-                        refMap[visual].forEach((vType: string) => {
-                            const visualState = this.plugin.state.dataState.select(vType)[0];
-                            if(visualState && visualState.obj){
-                                const currentlyVisible = visualState.obj.data.repr.state.visible;
-                                if(data[visual] !== currentlyVisible){
-                                    PluginCommands.State.ToggleVisibility.dispatch(this.plugin, { state: this.state, ref: vType });
-                                }
-                            }
-                            
-                        });
+                const tagName = refMap[visual];
+                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
+                if(componentRef){
+                    const compVisual = this.plugin.state.data.select(componentRef)[0];
+                    if(compVisual && compVisual.obj){
+                        const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
+                        if(data[visual] !== currentlyVisible){
+                            PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
+                        }
                     }
                 }
+
             }
 
         },
-
         toggleSpin: (isSpinning?: boolean, resetCamera?: boolean) => {
+            if (!this.plugin.canvas3d) return;
             const trackball =  this.plugin.canvas3d.props.trackball;
             if(typeof isSpinning === 'undefined') isSpinning = !trackball.spin;
-            PluginCommands.Canvas3D.SetSettings.dispatch(this.plugin, { settings: { trackball: { ...trackball, spin: isSpinning } } });
-            //const spinning = trackball.spin;
-            //if (!spinning && !disableReset) PluginCommands.Camera.Reset.dispatch(this.plugin, { });
-            if (resetCamera) PluginCommands.Camera.Reset.dispatch(this.plugin, { });
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, spin: isSpinning } } });
+            if (resetCamera) PluginCommands.Camera.Reset(this.plugin, { });
         },
-
-        focus: async (params: {entity_id?: string, struct_asym_id?: string, start_residue_number?: number, end_residue_number?: number}[]) => {
-            
-            
-            if (!this.state.transforms.has(StateElements.Assembly)) return;
-            // await PluginCommands.Camera.Reset.dispatch(this.plugin, { });
-
-            const update = this.state.build();
-
-            update.delete('focus-sel-group');
-
-            const core = QueryHelper.getQueryObject(params);
-            
-            const group = update.to(StateElements.Assembly).group(StateTransforms.Misc.CreateGroup, { label: 'Focus' }, { ref: 'focus-sel-group' });
-            group.apply(StateTransforms.Model.StructureSelectionFromExpression, { label: 'Core', expression: core }, { ref: 'focus-sel' })
-            
-            await PluginCommands.State.Update.dispatch(this.plugin, { state: this.state, tree: update });
-
-            const focus = (this.state.select('focus-sel')[0].obj as PluginStateObject.Molecule.Structure).data;
-            const sphere = focus.boundary.sphere;
-            const snapshot = this.plugin.canvas3d.camera.getFocus(sphere.center, Math.max(sphere.radius, 15));
-            PluginCommands.Camera.SetSnapshot.dispatch(this.plugin, { snapshot, durationMs: 250 });
-           
+        focus: async (params: QueryParam[]) => {
+            const loci = this.getLociForParams(params);
+            this.plugin.managers.camera.focusLoci(loci);
         },
+        setColor: (param: { highlight?: any, select?: any }) => {
+            if (!this.plugin.canvas3d) return;
+            const renderer = this.plugin.canvas3d.props.renderer;
+            let rParam: any = {};
+            if(param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
+            if(param.select) rParam['selectColor'] = this.normalizeColor(param.select);
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
+            if(rParam.highlightColor) this.isHighlightColorUpdated = true;
+        },
+        reset: async(params: {camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean}) => {
 
-        selection: async (params: {entity_id: string, struct_asym_id: string, start_residue_number: number, end_residue_number: number, color?: any, showSideChain?: boolean}[], defaultColor?:{r:number, g:number, b:number}, focus?:boolean) => {
-            
-            await this.interactivity.clearHighlight();
-            await this.interactivity.clearSelection();
-            
-            const selRef = 'show-sel-int';
+            if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
 
-            //remove previous selection theme
-            if(this.selectedLociProvider){
-                this.plugin.structureRepresentation.themeCtx.colorThemeRegistry.remove(selRef);
-                this.plugin.lociLabels.removeProvider(this.selectedLociProvider);
-                this.plugin.customModelProperties.unregister(selRef);
+            if(params.theme){
+                const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
+                componentGroups.forEach((compGrp) => {
+                    this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, {color: 'default'});
+                });
             }
 
-            // await this.selection.applyCustomTheme(params);
-            const customColoring = createCustomTheme(params, undefined, selRef, defaultColor);
-            
-            //register new selection theme
-            this.plugin.structureRepresentation.themeCtx.colorThemeRegistry.add(customColoring.Descriptor.name, customColoring.colorTheme!);
-            this.plugin.lociLabels.addProvider(customColoring.labelProvider);
-            this.plugin.customModelProperties.register(customColoring.propertyProvider);
-
-            this.selectedLociProvider = customColoring.labelProvider;
-
-            //apply new selction theme
-            const state = this.state;
-            const tree = state.build();
-            tree.to(StateElements.ModelProps).update(StateTransforms.Model.CustomModelProperties, () => ({ properties: [selRef] }))
-            
-            // const visuals = state.selectQ(q => q.ofTransformer(StateTransforms.Representation.StructureRepresentation3D));
-            const visuals = state.select(StateElements.SequenceVisual);
-            const colorTheme = { name: customColoring.Descriptor.name, params: this.plugin.structureRepresentation.themeCtx.colorThemeRegistry.get(customColoring.Descriptor.name).defaultValues };
-
-            for (const v of visuals) {
-                tree.to(v).update((old:any) => ({ ...old, colorTheme }));
-            }
-
-            await PluginCommands.State.Update.dispatch(this.plugin, { state, tree });
-
-            if(typeof focus == 'undefined' || focus == true) this.visual.focus(params);
-            
-        },
-
-        reset: async(resetCamera?:boolean, resetTheme?:boolean) => {
-
-            if (resetCamera) await PluginCommands.Camera.Reset.dispatch(this.plugin, { durationMs: 250 });
-
-            if(resetTheme){
-                let applyParams = {
-                    showTooltip: false,
-                    props: "",
-                    themeName: "polymer-id"
-                }
-
-                // const behaviorState = this.plugin.state.behaviorState;
-                // const behaviorTree = behaviorState.build().to(PDBeStructureQualityReport.id).update(PDBeStructureQualityReport, p => ({ ...p, showTooltip: applyParams.showTooltip }));
-                // await PluginCommands.State.Update.dispatch(this.plugin, { state: behaviorState, tree: behaviorTree });
-
-
-                const tree = this.state.build();
-                tree.to('model-props').update(StateTransforms.Model.CustomModelProperties, () => ({ properties: [applyParams.props] }))
-                
-                const visuals = this.state.select(StateElements.SequenceVisual)
-                const colorTheme = { name: applyParams.themeName, params: this.plugin.structureRepresentation.themeCtx.colorThemeRegistry.get(applyParams.themeName).defaultValues };
-
-                for (const v of visuals) {
-                    tree.to(v).update((old: any) => ({ ...old, colorTheme }));
-                }
-
-                await PluginCommands.State.Update.dispatch(this.plugin, { state: this.state, tree });
+            if(params.highlightColor || params.selectColor){
+                if (!this.plugin.canvas3d) return;
+                const renderer = this.plugin.canvas3d.props.renderer;
+                let rParam: any = {};
+                if(params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
+                if(params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
+                PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
+                if(rParam.highlightColor) this.isHighlightColorUpdated = false;
             }
 
         }
-            
     }
 
-    subscribeToComponentEvents(){
-        var _this = this;
-
-        document.addEventListener('PDB.interactions.click', function(e: any){ //do something on event
-            
-            if(typeof e.detail !== 'undefined'){
-                const data = e.detail.interacting_nodes ? e.detail.interacting_nodes : [e.detail.selected_node];
-                _this.interactionEvents.select(data);
-                
-	   		}
-        });
-
-        document.addEventListener('PDB.interactions.mouseover', function(e: any){ //do something on event
-            
-            if(typeof e.detail !== 'undefined'){
-                const data = e.detail.interacting_nodes ? e.detail.interacting_nodes : [e.detail.selected_node];
-                _this.interactionEvents.highlight(data);
-                
-	   		}
-        });
-
-        document.addEventListener('PDB.interactions.mouseout', function(e: any){
-            //Remove highlight
-            _this.interactivity.clearHighlight();
-        });
-
-        document.addEventListener('PDB.topologyViewer.click', function(e: any){ //do something on event
-            
-            if(typeof e.eventData !== 'undefined'){
-	   			
-	   			//Create query object from event data					
-	   			let highlightQuery = {
-	   				entity_id: e.eventData.entityId,
-	   				struct_asym_id: e.eventData.structAsymId,
-	   				start_residue_number: e.eventData.residueNumber,
-                    end_residue_number: e.eventData.residueNumber,
-                    sideChain: true
-                }
-	   			
-	   			//Call highlightAnnotation
-                _this.interactivity.select([highlightQuery]);
-                
-	   		}
-        });
-        
-        document.addEventListener('PDB.topologyViewer.mouseover', function(e: any){
-            if(typeof e.eventData !== 'undefined'){
-                //Abort if entryid do not match or viewer type is unipdb
-                //if(e.eventData.entryId != scope.pdbId) return;
-                
-                //Create query object from event data					
-                let highlightQuery = {
-                    entity_id: e.eventData.entityId,
-                    struct_asym_id: e.eventData.structAsymId,
-                    start_residue_number: e.eventData.residueNumber,
-                    end_residue_number: e.eventData.residueNumber
-                }
-                
-                //Call highlightAnnotation
-                _this.interactivity.highlight([highlightQuery]);
-                
-            }
-        });
-
-        document.addEventListener('PDB.topologyViewer.mouseout', function(e: any){
-            //Remove highlight
-            _this.interactivity.clearHighlight();
-        });
-
-        document.addEventListener('protvista-mouseover', function(e: any){
-            if(typeof e.detail !== 'undefined'){
-
-                let highlightQuery: any = undefined;
-
-                //Create query object from event data	
-                if(e.detail.start && e.detail.end){				
-                    highlightQuery = {
-                        start_residue_number: parseInt(e.detail.start),
-                        end_residue_number: parseInt(e.detail.end)
-                    }
-                }
-
-                if(e.detail.feature && e.detail.feature.entityId) highlightQuery['entity_id'] = e.detail.feature.entityId+'';
-                if(e.detail.feature && e.detail.feature.bestChainId) highlightQuery['struct_asym_id'] = e.detail.feature.bestChainId;
-                
-                
-                if(highlightQuery) _this.interactivity.highlight([highlightQuery]);
-	   				
-	   		}
-        });
-           
-        document.addEventListener('protvista-mouseout', function(e: any){
-            //Remove highlight
-            _this.interactivity.clearHighlight();
-        });
-
-        document.addEventListener('protvista-click', function(e: any){
-            if(typeof e.detail !== 'undefined'){
-
-                let showInteraction = false;
-
-                let highlightQuery: any = undefined;
-
-                //Create query object from event data	
-                if(e.detail.start && e.detail.end){				
-                    highlightQuery = {
-                        start_residue_number: parseInt(e.detail.start),
-                        end_residue_number: parseInt(e.detail.end)
-                    }
-                }
-
-                if(e.detail.feature && e.detail.feature.entityId) highlightQuery['entity_id'] = e.detail.feature.entityId+'';
-                if(e.detail.feature && e.detail.feature.bestChainId) highlightQuery['struct_asym_id'] = e.detail.feature.bestChainId;
-                
-                if(e.detail.feature && e.detail.feature.accession && e.detail.feature.accession.split(' ')[0] == 'Chain' || e.detail.feature.tooltipContent == 'Ligand binding site') {
-                    showInteraction = true;
-                }
-
-                if(e.detail.start == e.detail.end) showInteraction = true;
-
-                if(highlightQuery){
-
-                    if(showInteraction){
-                        highlightQuery['sideChain'] = true;
-                        _this.interactivity.select([highlightQuery]);
-                    }else{
-                    
-                        var selColor = undefined;
-                        if(e.detail.trackIndex > -1 && e.detail.feature.locations && e.detail.feature.locations[0].fragments[e.detail.trackIndex].color) selColor = e.detail.feature.locations[0].fragments[e.detail.trackIndex].color;
-                        if(typeof selColor == 'undefined' && e.detail.feature.color) selColor = e.detail.feature.color;
-                        if(typeof selColor == 'undefined' && e.detail.color) selColor = e.detail.color;
-
-                        
-                        if(typeof selColor == 'undefined'){ 
-                            selColor = {r:65, g:96, b:91}; //CoreVis.Theme.Default.SelectionColor;
-                        }else{
-                            let isRgb = /rgb/g;
-                            if(isRgb.test(selColor)){
-                                let rgbArr = selColor.substring(4, selColor.length - 1).split(',');
-                                selColor = {r:rgbArr[0], g:rgbArr[1], b:rgbArr[2]}
-                            }
-                        }
-
-                        highlightQuery['color'] = selColor;
-                        _this.visual.selection([highlightQuery]);
-                    }
-                }
-	   				
-	   		}
-        });
-
-        const elementTypeArrForRange = ['uniprot', 'pfam', 'cath', 'scop', 'strand', 'helice']
-	   	const elementTypeArrForSingle = ['chain', 'quality', 'quality_outlier', 'binding site', 'alternate conformer']
-	   	document.addEventListener('PDB.seqViewer.click', function(e: any){
-            if(typeof e.eventData !== 'undefined'){
-	   			//Abort if entryid and entityid do not match or viewer type is unipdb
-                   //if(e.eventData.entryId != scope.pdbId) return;
-                   
-                if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForSingle.indexOf(e.eventData.elementData.elementType) > -1){
-	   				
-	   				//Create query object from event data					
-	   				const highlightQuery = {
-	   					entity_id: e.eventData.entityId,
-	   					struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-	   					start_residue_number: e.eventData.residueNumber,
-                        end_residue_number: e.eventData.residueNumber,
-                        sideChain: true
-	   				}
-	   				
-	   				//Call highlightAnnotation
-                    _this.interactivity.select([highlightQuery]);
-                    
-	   			
-	   			}else if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1){
-	   				
-	   				const seqColorArray =  e.eventData.elementData.color;
-	   				
-	   				//Create query object from event data					
-	   				const highlightQuery = {
-                        entity_id: e.eventData.entityId,
-                        struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                        start_residue_number: e.eventData.elementData.pathData.start.residue_number,
-                        end_residue_number: e.eventData.elementData.pathData.end.residue_number,
-                        color: {r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2]}
-                    }
-
-                    _this.visual.selection([highlightQuery]);
-	   			}
-	   				
-	   		}
-           });
-           
-           document.addEventListener('PDB.seqViewer.mouseover', function(e: any){
-            if(typeof e.eventData !== 'undefined'){
-                //Abort if entryid and entityid do not match or viewer type is unipdb
-                //if(e.eventData.entryId != scope.pdbId) return;
-                
-                if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForSingle.indexOf(e.eventData.elementData.elementType) > -1){
-                    
-                    //Create query object from event data					
-                    let highlightQuery = {
-                        entity_id: e.eventData.entityId,
-                        struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                        start_residue_number: e.eventData.residueNumber,
-                        end_residue_number: e.eventData.residueNumber
-                    }
-                    
-                    _this.interactivity.highlight([highlightQuery]);
-                    
-                }else if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1){
-                    
-                    //Create query object from event data					
-                    let highlightQuery = {
-                        entity_id: e.eventData.entityId,
-                        struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                        start_residue_number: e.eventData.elementData.pathData.start.residue_number,
-                        end_residue_number: e.eventData.elementData.pathData.end.residue_number
-                    }
-                    
-                    //Call highlightAnnotation
-                    _this.interactivity.highlight([highlightQuery]);
-                }
-                
-            }
-        });
-        
-        document.addEventListener('PDB.seqViewer.mouseout', function(e){
-            _this.interactivity.clearHighlight();
-        });
-
+    async clear() {
+        this.plugin.clear();
+        this.assemblyRef = '';
+        this.selectedParams = void 0;
+        this.isHighlightColorUpdated = false;
+        this.isSelectedColorUpdated = false;
     }
 }
 

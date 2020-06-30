@@ -1,0 +1,32 @@
+import { PluginContext } from 'Molstar/mol-plugin/context';
+import { PluginBehavior } from 'Molstar/mol-plugin/behavior';
+import { Loci } from 'Molstar/mol-model/loci';
+// import { StructureElement, StructureProperties } from '../../mol-model/structure';
+import { lociLabel } from 'Molstar/mol-theme/label';
+import { LociLabel } from 'Molstar/mol-plugin-state/manager/loci-label';
+
+export const PDBeLociLabelProvider = PluginBehavior.create({
+    name: 'pdbe-loci-label-provider',
+    category: 'interaction',
+    ctor: class implements PluginBehavior<undefined> {
+        private f = {
+            label: (loci: Loci) => {
+                const label: string[] = [];
+                // if (StructureElement.Loci.is(loci) && loci.elements.length === 1) {
+                //     const { unit: u } = loci.elements[0];
+                //     const l = StructureElement.Location.create(loci.structure, u, u.elements[0]);
+                //     const name = StructureProperties.entity.pdbx_description(l).join(', ');
+                //     label.push(name);
+                // }
+                label.push(lociLabel(loci));
+                return label.filter(l => !!l).join('</br>');
+            },
+            group: (label: LociLabel) => label.toString().replace(/Model [0-9]+/g, 'Models'),
+            priority: 100
+        };
+        register() { this.ctx.managers.lociLabels.addProvider(this.f); }
+        unregister() { this.ctx.managers.lociLabels.removeProvider(this.f); }
+        constructor(protected ctx: PluginContext) { }
+    },
+    display: { name: 'Provide PDBe Loci Label' }
+});

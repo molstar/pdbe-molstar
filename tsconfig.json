@@ -9,14 +9,18 @@
         "noUnusedLocals": true,
         "strictNullChecks": true,
         "strictFunctionTypes": true,
-        // "downlevelIteration": true,
+        "module": "CommonJS",
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "importHelpers": true,
+        "noEmitHelpers": true,
         "jsx": "react",
         "lib": [ "es6", "dom", "esnext.asynciterable", "es2016" ],
         "rootDir": "src/app",
         "outDir": "lib",
         "baseUrl": "./",
         "paths": {
-            "Molstar/*" : ["node_modules/molstar/src/*"]
+            "Molstar/*" : ["node_modules/molstar/lib/*"]
         }
     },
     "include": [ "src/app/*" ]

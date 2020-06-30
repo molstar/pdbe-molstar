@@ -1,20 +1,26 @@
 {
   "name": "pdbe-molstar",
-  "version": "0.1.0",
+  "version": "1.1.0-dev.1",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
-    "build-tsc": "tsc",
-    "build-extra": "cpx \"src/*.{scss,woff,woff2,ttf,otf,eot,svg,html,ico}\" lib/",
-    "build-webpack": "webpack --mode production",
-    "watch": "concurrently --kill-others \"npm:watch-tsc\" \"npm:watch-extra\" \"npm:watch-webpack\"",
-    "watch-tsc": "tsc -watch",
-    "watch-extra": "cpx \"src/*.{scss,woff,woff2,ttf,otf,eot,svg,html,ico}\" lib/ --watch",
+    "build-tsc": "concurrently \"tsc --incremental\" \"tsc --build tsconfig.json --incremental\"",
+    "build-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/",
+    "webpack": "webpack",
+    "build-webpack": "webpack --mode production --config ./webpack.config.js",
+    "watch": "concurrently -c \"green,green,gray,gray\" --names \"tsc,srv,ext,wpc\" --kill-others \"npm:watch-tsc\" \"npm:watch-extra\" \"npm:watch-webpack\"",
+    "watch-tsc": "tsc --watch --incremental",
+    "watch-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/ --watch",
     "watch-webpack": "webpack -w --mode development --display minimal",
+    "serve": "http-server -p 1338",
     "bundle-webcomponent": "gulp"
   },
+  "files": [
+    "lib/",
+    "build/"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PDBeurope/pdbe-molstar.git"
@@ -26,36 +32,38 @@
     "biojs"
   ],
   "author": "Mandar Deshpande <mandar@ebi.ac.uk>",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/PDBeurope/pdbe-molstar/issues"
   },
   "homepage": "https://github.com/PDBeurope/pdbe-molstar#readme",
   "devDependencies": {
-    "@babel/core": "^7.1.5",
-    "@babel/plugin-transform-runtime": "^7.6.2",
-    "@babel/preset-env": "^7.1.5",
-    "@babel/runtime": "^7.7.2",
-    "babel-loader": "^8.0.6",
-    "concurrently": "^5.0.0",
-    "cpx": "^1.5.0",
-    "css-loader": "^3.2.0",
+    "@babel/core": "^7.10.3",
+    "@babel/plugin-transform-runtime": "^7.10.3",
+    "@babel/preset-env": "^7.10.3",
+    "@babel/runtime": "^7.10.3",
+    "babel-loader": "^8.1.0",
+    "concurrently": "^5.2.0",
+    "cpx2": "^2.0.0",
+    "css-loader": "^3.5.3",
     "del": "^5.1.0",
     "extra-watch-webpack-plugin": "^1.0.3",
-    "file-loader": "^4.2.0",
+    "file-loader": "^6.0.0",
     "gulp": "^4.0.2",
     "gulp-concat": "^2.6.1",
     "gulp-header": "^2.0.9",
-    "mini-css-extract-plugin": "^0.8.0",
-    "node-sass": "^4.12.0",
-    "resolve-url-loader": "^3.1.0",
-    "sass-loader": "^8.0.0",
-    "typescript": "^3.6.4",
-    "webpack": "^4.41.2",
-    "webpack-cli": "^3.3.9"
+    "http-server": "^0.12.3",
+    "mini-css-extract-plugin": "^0.9.0",
+    "node-sass": "^4.14.1",
+    "raw-loader": "^4.0.1",
+    "sass-loader": "^8.0.2",
+    "style-loader": "^1.2.1",
+    "typescript": "^3.9.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.12"
   },
   "dependencies": {
     "lit-element": "^2.2.1",
-    "molstar": "https://github.com/molstar/molstar/archive/v0.4.2.tar.gz"
+    "molstar": "^1.1.1"
   }
 }

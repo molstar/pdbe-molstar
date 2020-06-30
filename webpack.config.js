@@ -7,13 +7,13 @@ const PACKAGE_ROOT_PATH = process.cwd();
 const PKG_JSON = require(path.join(PACKAGE_ROOT_PATH, "package.json"));
 
 const molstarConfig = {
-    node: { fs: 'empty' }, // TODO find better solution? Currently used in file-handle.ts
+    node: { fs: 'empty' },
     entry: path.resolve(__dirname, `lib/index.js`),
     output: { filename: `${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`, path: path.resolve(__dirname, `build/`) },
     module: {
         rules: [
             {
-                test: /\.(woff2?|ttf|otf|eot|svg|html|ico)$/,
+                test: /\.(html|ico)$/,
                 use: [{
                     loader: 'file-loader',
                     options: { name: '[name].[ext]' }
@@ -22,35 +22,39 @@ const molstarConfig = {
             {
                 test: /\.(s*)css$/,
                 use: [
-                    MiniCssExtractPlugin.loader,
-                    'css-loader', 'resolve-url-loader', 'sass-loader'
+                  MiniCssExtractPlugin.loader,
+                  { loader: 'css-loader', options: { sourceMap: false } },
+                  { loader: 'sass-loader', options: { sourceMap: false } },
                 ]
             }
         ]
     },
     plugins: [
-        // new CircularDependencyPlugin({
-        //     include: [ path.resolve(__dirname, 'lib/') ],
-        //     failOnError: false,
-        //     cwd: process.cwd(),
-        // }),
         new ExtraWatchWebpackPlugin({
             files: [
-                './lib/*.scss',
-                './lib/*.html'
+                './lib/**/*.scss',
+                './lib/**/*.html'
             ],
         }),
         new webpack.DefinePlugin({
-            __PLUGIN_VERSION_TIMESTAMP__: webpack.DefinePlugin.runtimeValue(() => `${new Date().valueOf()}`, true),
-            'process.env.DEBUG': JSON.stringify(process.env.DEBUG)
+          'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
+          '__MOLSTAR_DEBUG_TIMESTAMP__': webpack.DefinePlugin.runtimeValue(() => `${new Date().valueOf()}`, true)
         }),
         new MiniCssExtractPlugin({ filename: `${PKG_JSON.name}-${PKG_JSON.version}.css` })
     ],
     resolve: {
-        alias:{
-            Molstar: 'molstar/lib'
-        }
-    }
+      modules: [
+        'node_modules',
+        path.resolve(__dirname, 'lib/')
+      ],
+      alias:{
+          Molstar: 'molstar/lib'
+      }
+    },
+    watchOptions: {
+        aggregateTimeout: 750
+    },
+    devtool: ''
 }
 
 const componentConfig = {
@@ -101,18 +105,18 @@ const componentConfig = {
             loader: "babel-loader",
             options: {
               babelrc: false,
-              presets: [
-                [
-                  "@babel/preset-env",
-                  {
-                    targets: {
-                      ie: 11,
-                      browsers: "last 2 versions"
-                    },
-                    modules: false
-                  }
-                ]
-              ],
+              // presets: [
+              //   [
+              //     "@babel/preset-env",
+              //     {
+              //       targets: {
+              //         ie: 11,
+              //         browsers: "last 2 versions"
+              //       },
+              //       modules: false
+              //     }
+              //   ]
+              // ],
               plugins: [
                 [
                   "@babel/plugin-transform-runtime",

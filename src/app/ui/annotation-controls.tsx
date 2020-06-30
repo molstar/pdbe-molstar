@@ -1,233 +1,207 @@
-
+// import TextsmsOutlined from '@material-ui/icons/TextsmsOutlined';
 import * as React from 'react';
-import { PluginUIComponent } from 'Molstar/mol-plugin/ui/base';
-import { StateTransform } from 'Molstar/mol-state';
-import { StateTransforms } from 'Molstar/mol-plugin/state/transforms';
-import { PluginCommands } from 'Molstar/mol-plugin/command';
-import { StateElements } from '../helpers';
-import { PDBeStructureQualityReport } from 'Molstar/mol-plugin/behavior/dynamic/custom-props';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { ParameterControls, ParamOnChange } from 'Molstar/mol-plugin/ui/controls/parameters';
-import { createCustomTheme } from '../custom-theme';
+import { IconButton, Button } from 'Molstar/mol-plugin-ui/controls/common';
+import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { StructureQualityReportColorThemeProvider } from 'Molstar/extensions/pdbe/structure-quality-report/color';
+import { StateSelection, StateTransform } from 'Molstar/mol-state';
+import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
+import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
+import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe/structure-quality-report/behavior';
+import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
+import { Icon, ArrowRightSvg, ArrowDropDownSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg, MoreHorizSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { StructureHierarchyManager } from 'Molstar/mol-plugin-state/manager/structure/hierarchy';
 
-export class AnnotationsControl extends PluginUIComponent<{ }, { validationApplied: boolean, domainAtnApplied: boolean, mapApplied: boolean, domainType: any, labelProvider?: any  }> {
-    
-    get current() {
-        return this.plugin.state.behavior.currentObject.value;
-    }
+const _TextsmsOutlined = <svg width='24px' height='24px' viewBox='0 0 24 24'><path fill="none" d="M0 0h24v24H0V0z" /><g><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" /><path d="M7 9h2v2H7zM11 9h2v2h-2zM15 9h2v2h-2z" /></g></svg>;
+export function TextsmsOutlinedSvg() { return _TextsmsOutlined; }
 
-    get currentInstance() {
-        return this;
-    }
+export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { isCollapsed: boolean, validationApplied: boolean, domainAtnApplied: boolean, validationParams: any, domainAtnParams: any, validationOptions: any, domainAtnOptions: any, description?: string}> {
 
-    mapApplied() { return this.state.mapApplied; }
-    validatationApplied() { return this.state.validationApplied; }
-    domainAtnApplied() { return this.state.domainAtnApplied; }
-    domainType() { 
-        if(this.state.domainType.type.name !== ''){
-            return this.state.domainType;
-        } else {
-            const mappings = (this.plugin.customState as any).info.domainMappings;
-            return {type:{name:mappings.types[0][0], params: '0_0'}};
-        }
+    state: any = {
+        isCollapsed: false,
+        validationApplied: false,
+        domainAtnApplied: false,
+        validationOptions: false,
+        domainAtnOptions: false
     }
 
     componentDidMount() {
-        this.subscribe(this.plugin.state.behavior.currentObject, o => {
+        this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, () => {
+            this.getOptionParams();
             this.forceUpdate();
         });
+        this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, c => this.setState({
+            description: StructureHierarchyManager.getSelectedStructuresDescription(this.plugin)
+        }));
     }
 
-    state: any = { validationApplied: false, domainAtnApplied: false, mapApplied: false, domainType: {type:{name:''}} };
-
-    async applyValidationTheme(appyTheme: boolean){
-
-        let applyParams = {
-            showTooltip: false,
-            props: "",
-            themeName: "chain-id"
+    getOptionParams = () => {
+        let validationAnnotationCtrl = false;
+        let domainAnnotationCtrl = false;
+        const customState = this.plugin.customState as any;
+        if(customState && customState.initParams){
+            if(customState.initParams.validationAnnotation) validationAnnotationCtrl = true;
+            if(customState.initParams.domainAnnotation) domainAnnotationCtrl = true;
         }
-        if(appyTheme){
-            applyParams = {
-                showTooltip: true,
-                props: "pdbe_structure_quality_report",
-                themeName: "pdbe-structure-quality-report"
+        if((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainAtnParams)){
+
+            const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
+            if(groupRef){
+                const struct = this.plugin.state.data.select(groupRef)[0].obj;
+                if(struct){
+                    const themeDataCtx = { structure: struct.data };
+
+                    if(validationAnnotationCtrl && !this.state.validationParams){
+                        const validationActionsParams = StructureQualityReportColorThemeProvider.getParams(themeDataCtx);
+                        if(validationActionsParams){
+                            this.setState({validationParams: {
+                                params: validationActionsParams,
+                                values: { type: validationActionsParams.type.defaultValue}
+                            }});
+                        }
+                    }
+
+                    if(domainAnnotationCtrl && !this.state.domainAtnParams){
+                        const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
+                        if(domainActionsParams){
+                            this.setState({domainAtnParams: {
+                                params: domainActionsParams,
+                                values: { type: domainActionsParams.type.defaultValue }
+                            }});
+                        }
+                    }
+                }
             }
+
         }
-
-        const behaviorState = this.plugin.state.behaviorState;
-        const behaviorTree = behaviorState.build().to(PDBeStructureQualityReport.id).update(PDBeStructureQualityReport, p => ({ ...p, showTooltip: applyParams.showTooltip }));
-        await PluginCommands.State.Update.dispatch(this.plugin, { state: behaviorState, tree: behaviorTree });
-
-
-        const tree = this.current.state.build();
-        tree.to('model-props').update(StateTransforms.Model.CustomModelProperties, () => ({ properties: [applyParams.props] }))
-        
-        const visuals = this.current.state.select(StateElements.SequenceVisual)
-        const colorTheme = { name: applyParams.themeName, params: this.plugin.structureRepresentation.themeCtx.colorThemeRegistry.get(applyParams.themeName).defaultValues };
-
-        for (const v of visuals) {
-            tree.to(v).update((old: any) => ({ ...old, colorTheme }));
-        }
-
-        PluginCommands.State.Update.dispatch(this.plugin, { state: this.current.state, tree });
-
-        if(applyParams.props == "" && this.state.domainAtnApplied){
-            const params = this.domainType();
-            this.applyDomainAtn(params);
-        }
-
     }
 
-    toggleValidation(){
-        
-        const applyValidation = !this.state.validationApplied;
-        this.setState({ validationApplied: applyValidation });
-
-        this.applyValidationTheme(applyValidation);
-        
-
+    toggleCollapsed = () => {
+        this.setState({ isCollapsed: !this.state.isCollapsed });
     }
 
-    removeDomainAtn(){
-        const ctx = this.current.state.globalContext as any;
-        ctx.state.plugin.structureRepresentation.themeCtx.colorThemeRegistry.remove('domain-annotation');
-        if(this.state.labelProvider) ctx.state.plugin.lociLabels.removeProvider(this.state.labelProvider);
-        ctx.state.plugin.customModelProperties.unregister('domain-annotation');
+    toggleOptions = (type: number) => {
+        if(type === 0) this.setState({ validationOptions: !this.state.validationOptions });
+        if(type === 1) this.setState({ domainAtnOptions: !this.state.domainAtnOptions });
     }
 
-    applyDomainAtn(params: any){
-        
-        // const params = this.domainType();
-        
-        const mappingIndexs = params.type.params.split('_');
-        const ctx = this.current.state.globalContext as any;
-        const mappings = ctx.customState.info.domainMappings.mappings[mappingIndexs[0]][mappingIndexs[1]];
+    applyAnnotation = (type: number, visibleState: boolean, params?: any) => {
+        // Defaults
+        let themeName: any = 'polymer-id';
+        let themePropsToAdd = PDBeStructureQualityReport;
+        let themePropsToRemove = this.state.domainAtnParams ? PDBeDomainAnnotations : void 0;
 
-        let domainLabel = params.type.name as string;
-        domainLabel += ': '+ctx.customState.info.domainMappings.mappingsSelect[mappingIndexs[0]][mappingIndexs[1]][1];
-    
-        const customColoring = createCustomTheme(mappings, domainLabel, 'domain-annotation');
-
-        //remove previous selection theme
-        this.removeDomainAtn();
-        
-        //register new selection theme
-        ctx.state.plugin.structureRepresentation.themeCtx.colorThemeRegistry.add('domain-annotation', customColoring.colorTheme!);
-        ctx.state.plugin.lociLabels.addProvider(customColoring.labelProvider);
-        ctx.state.plugin.customModelProperties.register(customColoring.propertyProvider);
-
-        //save the label provider in state to remove it
-        this.setState({ labelProvider: customColoring.labelProvider });
-
-        //apply new selction theme
-        const newPropName = customColoring.Descriptor.name;
-        const tree = this.current.state.build();
-        tree.to(StateElements.ModelProps).update(StateTransforms.Model.CustomModelProperties, () => ({ properties: [newPropName] }))
-        
-        //const visuals = this.current.state.selectQ(q => q.ofTransformer(StateTransforms.Representation.StructureRepresentation3D));
-        const visuals = this.current.state.select(StateElements.SequenceVisual);
-        const colorTheme = { name: customColoring.Descriptor.name, params: ctx.state.plugin.structureRepresentation.themeCtx.colorThemeRegistry.get(customColoring.Descriptor.name).defaultValues };
-
-        for (const v of visuals) {
-            tree.to(v).update((old:any) => ({ ...old, colorTheme }));
-        }
-
-        PluginCommands.State.Update.dispatch(ctx.state.plugin, { state: this.current.state, tree });
-       
-    }
-
-    toggleDomainAtn(){
-        const applyDomainAtn = !this.state.domainAtnApplied;
-        this.setState({ domainAtnApplied: applyDomainAtn });
-        if(applyDomainAtn){
-            const params = this.domainType();
-            this.applyDomainAtn(params);
+        // Set Theme Params
+        if(type === 0){
+            if(visibleState){
+                themeName = 'pdbe-structure-quality-report';
+            }
+            this.setState({ validationApplied: visibleState });
+            this.setState({ domainAtnApplied: false });
         }else{
-            this.removeDomainAtn();
-            //update style
-            if(this.state.validationApplied){
-                this.applyValidationTheme(true);
-            }else{
-                this.applyValidationTheme(false);
+            themePropsToAdd = PDBeDomainAnnotations;
+            themePropsToRemove = this.state.validationParams ? PDBeStructureQualityReport : void 0;
+            if(visibleState) themeName = 'pdbe-domain-annotations';
+            this.setState({ domainAtnApplied: visibleState });
+            this.setState({ validationApplied: false });
+        }
+
+        // Update Tooltip
+        if(visibleState && themeName !== 'polymer-id'){
+            const addTooltipUpdate = this.plugin.state.behaviors.build().to(themePropsToAdd.id).update(themePropsToAdd, (old: any) => { old.showTooltip = true; });
+            this.plugin.runTask(this.plugin.state.behaviors.updateTree(addTooltipUpdate));
+
+            if(themePropsToRemove) {
+                const removeTooltipUpdate = this.plugin.state.behaviors.build().to(themePropsToRemove.id).update(themePropsToRemove, (old: any) => { old.showTooltip = false; });
+                this.plugin.runTask(this.plugin.state.behaviors.updateTree(removeTooltipUpdate));
             }
         }
 
+        let polymerGroup: any;
+        const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
+        componentGroups.forEach((compGrp) => {
+            if(compGrp[0].key === 'structure-component-static-polymer') polymerGroup = compGrp;
+        });
+        if (polymerGroup){
+            this.plugin.managers.structure.component.updateRepresentationsTheme(polymerGroup, {color: themeName, colorParams: params ? params : void 0});
+        }
     }
 
-    changeDomainsOption: ParamOnChange = ({ value }) => {
-        this.setState({ domainType: {type:value} });
-        const params = {type:value};
-        this.applyDomainAtn(params);
+    initApplyAnnotation = (type: number) => {
+        if(type === 0 )this.applyAnnotation(0, !this.state.validationApplied, this.state.validationParams.values);
+        if(type === 1 )this.applyAnnotation(1, !this.state.domainAtnApplied, this.state.domainAtnParams.values);
     };
 
-    domainLayout(){
-
-        const mappings = (this.plugin.customState as any).info.domainMappings;
-
-        let subOptions:any = {};
-        mappings.types.forEach((type:string, typeIndex:number) => {
-            subOptions[type[0]] = PD.Select( mappings.mappingsSelect[typeIndex][0][0], mappings.mappingsSelect[typeIndex], {label: 'Name'});
-        });
-
-        let parmaObj = {
-            type: PD.MappedStatic(mappings.types[0][0], subOptions, { options: mappings.types })
-        };
-
-        return <>
-            <ParameterControls onChange={this.changeDomainsOption} params={parmaObj} values={this.domainType()} />
-        </>
+    updateValidationParams = (val: any) => {
+        const updatedParams = {...this.state.validationParams};
+        updatedParams.values = val;
+        this.setState({ validationParams: updatedParams });
+        if(this.state.validationApplied) this.applyAnnotation(0, this.state.validationApplied, val);
     }
-
-    toggleMap(){
-        const applyMap = !this.state.mapApplied;
-        this.setState({ mapApplied: applyMap });
+    updateDomainAtnParams = (val: any) => {
+        const updatedParams = {...this.state.domainAtnParams};
+        updatedParams.values = val;
+        this.setState({ domainAtnParams: updatedParams });
+        if(this.state.domainAtnApplied) this.applyAnnotation(1, this.state.domainAtnApplied, val);
     }
 
     render() {
 
-        const current = this.current;
-        const ref = current.ref;
-        
-        let showActions = true;
-        if (ref === StateTransform.RootRef) {
-            const children = current.state.tree.children.get(ref);
-            showActions = children.size !== 0;
-        }
+        if(!this.state.validationParams && !this.state.domainAtnParams) return <></>;
 
-        if (!showActions) return null;
-        
-        let showValidationControls = false;
-        let showDomainsControls = false;
-        const gbCtx:any = current.state.globalContext as any;
-        if(gbCtx.customState && gbCtx.customState.info && gbCtx.customState.info.validationApi) showValidationControls = true;
-        if(gbCtx.customState && gbCtx.customState.info && gbCtx.customState.info.domainMappings) showDomainsControls = true;
-        
-        const assmeblyCreated = current.state.cells.get('assembly')!;
-       
-        return <>
-            {assmeblyCreated && (showValidationControls || showDomainsControls) &&
-            <div className='msp-transform-wrapper'>
-                <div className="msp-transform-header">
-                    <button className="msp-btn msp-btn-block">Annotations</button>
+        const brand = {
+            accent: 'green',
+            svg: TextsmsOutlinedSvg
+        };
+
+        const wrapClass = this.state.isCollapsed
+            ? 'msp-transform-wrapper msp-transform-wrapper-collapsed'
+            : 'msp-transform-wrapper';
+
+        return <div className={wrapClass}>
+            <div className='msp-transform-header'>
+                <Button icon={brand ? void 0 : this.state.isCollapsed ? ArrowRightSvg : ArrowDropDownSvg} noOverflow onClick={this.toggleCollapsed}
+                    className={brand ? `msp-transform-header-brand msp-transform-header-brand-${brand.accent}` : void 0} title={`Click to ${this.state.isCollapsed ? 'expand' : 'collapse'}`}>
+                    {/* {brand && <div className={`msp-accent-bg-${brand.accent}`}>{brand.name}</div>} */}
+                    <Icon svg={brand?.svg} inline />
+                    Annotations
+                    <small style={{ margin: '0 6px' }}>{this.state.isCollapsed ? '' : this.state.description}</small>
+                </Button>
+            </div>
+
+            {!this.state.isCollapsed && this.state.validationParams &&
+            <div className='msp-flex-row'>
+                <Button noOverflow className='msp-control-button-label' title={`Validation Report Annotations.`} style={{ textAlign: 'left' }}>
+                    Validation Report
+                </Button>
+                <IconButton onClick={() => this.initApplyAnnotation(0)} toggleState={false} svg={!this.state.validationApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg}  title={`Click to ${this.state.validationApplied ? 'Hide' : 'Show'} Validation Report Annotation`} small className='msp-form-control' flex />
+                <IconButton onClick={() => this.toggleOptions(0)} svg={MoreHorizSvg} title='Actions' toggleState={this.state.validationOptions} className='msp-form-control' flex />
+            </div>
+            }
+            {!this.state.isCollapsed && this.state.validationParams && this.state.validationOptions && <div style={{ marginBottom: '6px' }}>
+                <div className="msp-accent-offset">
+                    <div className='msp-representation-entry'>
+                        <ParameterControls params={this.state.validationParams.params} values={this.state.validationParams.values} onChangeValues={this.updateValidationParams} />
+                    </div>
                 </div>
-                
-                {showValidationControls && <div className="msp-control-row">
-                    <span>Validation report</span>
-                    <div>
-                        <button onClick={(e) => this.toggleValidation()}><span className={`msp-icon msp-icon-${this.validatationApplied() ? 'off' : 'ok'}`}></span>{this.validatationApplied() ? 'Hide' : 'Show'}</button>
-                    </div>
-                </div>}
-                
-                {showDomainsControls && <div className="msp-control-row">
-                    <span>Domains</span>
-                    <div>
-                        <button onClick={(e) => this.toggleDomainAtn()}><span className={`msp-icon msp-icon-${this.domainAtnApplied() ? 'off' : 'ok'}`}></span>{this.domainAtnApplied() ? 'Hide' : 'Show'}</button>
-                    </div>
-                </div>}
-                {showDomainsControls && this.domainAtnApplied() && this.domainLayout()}
-                
             </div>}
-        </>
+            {!this.state.isCollapsed && this.state.domainAtnParams &&
+            <div className='msp-flex-row'>
+                <Button noOverflow className='msp-control-button-label' title={`Domain Annotations.`} style={{ textAlign: 'left' }}>
+                    Domains
+                </Button>
+                <IconButton onClick={() => this.initApplyAnnotation(1)} toggleState={false} svg={!this.state.domainAtnApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg}  title={`Click to ${this.state.domainAtnApplied ? 'Hide' : 'Show'} Domain Annotation`} small className='msp-form-control' flex />
+                <IconButton onClick={() => this.toggleOptions(1)} svg={MoreHorizSvg} title='Actions' toggleState={this.state.domainAtnOptions} className='msp-form-control' flex />
+
+            </div>
+            }
+            {!this.state.isCollapsed && this.state.domainAtnParams && this.state.domainAtnOptions && <div style={{ marginBottom: '6px' }}>
+                <div className="msp-accent-offset">
+                    <div className='msp-representation-entry'>
+                        <ParameterControls params={this.state.domainAtnParams.params} values={this.state.domainAtnParams.values} onChangeValues={this.updateDomainAtnParams} />
+                    </div>
+                </div>
+            </div>}
+
+        </div>;
     }
 }
