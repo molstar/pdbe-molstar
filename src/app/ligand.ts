@@ -7,7 +7,7 @@ import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import { createCoreVisualParams, createSurVisualParams } from './complex';
 import { toggleMap } from './maps';
 import { ButtonsType, ModifiersKeys } from 'Molstar/mol-util/input/input-observer';
-import { State } from 'molstar/src/mol-state';
+import { State } from 'Molstar/mol-state';
 
 export async function createLigandStructure (plugin: PluginContext, state: State, params?: {label_comp_id?: string, auth_asym_Id?: string, auth_seq_id?: string}) {
 

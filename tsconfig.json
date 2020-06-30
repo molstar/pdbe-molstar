@@ -16,7 +16,7 @@
         "outDir": "lib",
         "baseUrl": "./",
         "paths": {
-            "Molstar/*" : ["node_modules/molstar/src/*"]
+            "Molstar/*" : ["node_modules/molstar/lib/*"]
         }
     },
     "include": [ "src/app/*" ]
