@@ -417,3 +417,40 @@ export enum StateElements {
     Carbs3DVisual = 'carb-3d-visual',
     CarbsVisual = 'carb-visual'
 }
+
+import { PluginStateTransform, PluginStateObject as SO } from 'Molstar/mol-plugin/state/objects';
+import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import { Task } from 'Molstar/mol-task';
+import { StateTransformer } from 'Molstar/mol-state';
+
+export { DownloadPost }
+type DownloadPost = typeof DownloadPost
+const DownloadPost = PluginStateTransform.BuiltIn({
+    name: 'download-post',
+    display: { name: 'Download Post', description: 'Download string or binary data from the specified URL using POST request' },
+    from: [SO.Root],
+    to: [SO.Data.String, SO.Data.Binary],
+    params: {
+        url: PD.Text('https://www.ebi.ac.uk/pdbe/static/entry/1cbs_updated.cif', { description: 'Resource URL. Must be the same domain or support CORS.' }),
+        label: PD.Optional(PD.Text('')),
+        body: PD.Optional(PD.Text('')),
+        isBinary: PD.Optional(PD.Boolean(false, { description: 'If true, download data as binary (string otherwise)' }))
+    }
+})({
+    apply({ params: p }, globalCtx: PluginContext) {
+        return Task.create('Download', async ctx => {
+            const data = await globalCtx.fetch({ url: p.url, type: p.isBinary ? 'binary' : 'string', body: p.body }).runInContext(ctx);
+            return p.isBinary
+                ? new SO.Data.Binary(data as Uint8Array, { label: p.label ? p.label : p.url })
+                : new SO.Data.String(data as string, { label: p.label ? p.label : p.url });
+        });
+    },
+    update({ oldParams, newParams, b }) {
+        if (oldParams.url !== newParams.url || oldParams.isBinary !== newParams.isBinary) return StateTransformer.UpdateResult.Recreate;
+        if (oldParams.label !== newParams.label) {
+            b.label = newParams.label || newParams.url;
+            return StateTransformer.UpdateResult.Updated;
+        }
+        return StateTransformer.UpdateResult.Unchanged;
+    }
+});

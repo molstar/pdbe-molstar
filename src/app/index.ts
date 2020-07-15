@@ -7,7 +7,7 @@ import { Color } from 'Molstar/mol-util/color';
 import { PluginStateObject as PSO, PluginStateObject } from 'Molstar/mol-plugin/state/objects';
 import { StateBuilder, StateObject } from 'Molstar/mol-state';
 import { createCustomTheme } from './custom-theme';
-import { LoadParams, SupportedFormats, ModelInfo, StateElements, QueryHelper, InteractivityHelper } from './helpers';
+import { LoadParams, SupportedFormats, ModelInfo, StateElements, QueryHelper, InteractivityHelper, DownloadPost } from './helpers';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { ViewportWrapper, ControlsWrapper } from './ui/controls';
 import { PluginState } from 'Molstar/mol-plugin/state';
@@ -16,10 +16,12 @@ import { createStructureComplex } from './complex';
 import { toggleMap } from './maps';
 import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
 import { StructureRepresentationInteraction } from 'Molstar/mol-plugin/behavior/dynamic/selection/structure-representation-interaction';
+import { SelectLoci } from 'Molstar/mol-plugin/behavior/dynamic/representation';
 import { Binding } from 'Molstar/mol-util/binding';
 import { ButtonsType, ModifiersKeys } from 'Molstar/mol-util/input/input-observer';
 import { createNewEvent } from './custom-events'
 import { createLigandStructure } from './ligand'
+import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
 require('Molstar/mol-plugin/skin/dark.scss');
 // require('Molstar/mol-plugin/skin/light.scss');
 
@@ -61,6 +63,30 @@ class PDBeMolstarPlugin {
                 PluginSpec.Behavior(StructureRepresentationInteraction, {bindings: {clickInteractionAroundOnly: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create())], 'Show the volume around only the clicked element using ${trigger}.')}})
             )
         }
+
+        // Override defualt bindings
+        pdbePluginSpec.behaviors.push(
+            PluginSpec.Behavior(SelectLoci, 
+                {   
+                    bindings: {
+                        clickSelect: Binding.Empty,
+                        clickSelectExtend: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create({ shift: true }))], 'Extend selection to clicked element along polymer using ${triggers}.'),
+                        clickSelectOnly: Binding.Empty,
+                        clickSelectToggle: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create({ alt: true }))], 'Toggle selection of clicked element using ${triggers}.'),
+                        clickDeselect: Binding.Empty,
+                        clickDeselectAllOnEmpty: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create({ shift: true }))], 'Deselect all when clicking on nothing using ${triggers}.')
+                    }
+                })
+        )
+
+        pdbePluginSpec.behaviors.push(
+            PluginSpec.Behavior(FocusLoci, 
+                {   
+                    bindings: {
+                        clickCenterFocus: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create())], 'Center and focus the clicked element using ${triggers}.')
+                    }
+                })
+        )
 
         pdbePluginSpec.layout = {
             initial: {
@@ -132,7 +158,12 @@ class PDBeMolstarPlugin {
     }
 
     private download(b: StateBuilder.To<PSO.Root>, url: string, format: SupportedFormats) {
-        return b.apply(StateTransforms.Data.Download, { url, isBinary: format === 'bcif' ? true : false })
+        if(this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) { 
+            const body = JSON.stringify(this.initParams.ligandView.label_comp_id_list);
+            return b.apply(DownloadPost, { url, isBinary: format === 'bcif' ? true : false, body });
+        }else {
+            return b.apply(StateTransforms.Data.Download, { url, isBinary: format === 'bcif' ? true : false });
+        }
     }
 
     private model(b: StateBuilder.To<PSO.Data.Binary | PSO.Data.String>, format: SupportedFormats) {
@@ -187,7 +218,7 @@ class PDBeMolstarPlugin {
 
     async load({ url, format = 'cif', assemblyId = 'deposited' }: LoadParams) {
         const state = this.plugin.state.dataState;
-        const isHetView = this.initParams.ligandView ? true : false;
+        const isHetView = (this.initParams.ligandView && !this.initParams.ligandView.label_comp_id_list) ? true : false;
 
         await PluginCommands.State.RemoveObject.dispatch(this.plugin, { state, ref: state.tree.root.ref });
         const modelTree = this.model(this.download(state.build().toRoot(), url, format), format);
@@ -201,7 +232,7 @@ class PDBeMolstarPlugin {
         if(isHetView){
             await this.ligandRepresentation();
         }else{
-            await Scheduler.setImmediate(() => PluginCommands.Camera.Reset.dispatch(this.plugin, { }));
+            Scheduler.setImmediate(() => PluginCommands.Camera.Reset.dispatch(this.plugin, { }));
             if(this.initParams.loadMaps){
                 toggleMap(true, this.plugin, this.state, false);
             }
@@ -218,16 +249,45 @@ class PDBeMolstarPlugin {
 
         let query = this.initParams.loadCartoonsOnly == true ? 'cartoon' : 'full';
         let sep = '?';
+        // let serverName = 'coordinates';
+        // if(this.initParams.ligandView){
+        //     if(this.initParams.ligandView.label_comp_id_list) {
+        //         serverName = 'model-server/v1';
+        //         query = 'residueInteraction';
+        //     } else {
+        //         let queryParams = [];
+        //         if(this.initParams.ligandView.label_comp_id) {
+        //             queryParams.push('name='+this.initParams.ligandView.label_comp_id);
+        //         } else if(this.initParams.ligandView.auth_seq_id) {
+        //             queryParams.push('authSequenceNumber='+this.initParams.ligandView.auth_seq_id);
+        //         }
+        //         if(this.initParams.ligandView.auth_asym_id) queryParams.push('authAsymId='+this.initParams.ligandView.auth_asym_id);
+        //         if(this.initParams.ligandView.hydrogens) queryParams.push('dataSource=hydrogens');
+        //         query = 'ligandInteraction?'+queryParams.join('&')
+        //         sep = '&';
+        //     }
+        // }        
+        // let url = `${this.initParams.pdbeUrl}${serverName}/${id}/${query}${sep}encoding=bcif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
+
         if(this.initParams.ligandView){
-            let queryParams = [];
-            if(this.initParams.ligandView.label_comp_id) queryParams.push('name='+this.initParams.ligandView.label_comp_id);
-            if(this.initParams.ligandView.auth_seq_id) queryParams.push('authSequenceNumber='+this.initParams.ligandView.auth_seq_id);
-            if(this.initParams.ligandView.auth_asym_id) queryParams.push('authAsymId='+this.initParams.ligandView.auth_asym_id);
-            // if(this.initParams.ligandView.hydrogens) queryParams.push('dataSource=hydrogens');
-            query = 'ligandInteraction?'+queryParams.join('&')
-            sep = '&';
-        }
-        let url = this.initParams.pdbeUrl +  'coordinates/' + id + "/" + query + ""+ sep + "" + "encoding=bcif&lowPrecisionCoords=" + (this.initParams.lowPrecisionCoords ? '1' : '0');
+            if(this.initParams.ligandView.label_comp_id_list) {
+                query = 'residueInteraction';
+            } else {
+                let queryParams = [];
+                if(this.initParams.ligandView.label_comp_id) {
+                    queryParams.push('label_comp_id='+this.initParams.ligandView.label_comp_id);
+                } else if(this.initParams.ligandView.auth_seq_id) {
+                    queryParams.push('auth_seq_id='+this.initParams.ligandView.auth_seq_id);
+                }
+                if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id='+this.initParams.ligandView.auth_asym_id);
+                if(this.initParams.ligandView.hydrogens) queryParams.push('data_source=pdb-h');
+                query = 'residueInteraction?'+queryParams.join('&')
+                sep = '&';
+            }
+        }        
+        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=bcif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
+
+        url = `http://miranda.ebi.ac.uk:1337/ModelServer/v1/${id}/${query}${sep}encoding=cif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`
 
         let customFormat: any;
         if(this.initParams.customData && this.initParams.customData.url && this.initParams.customData.format){
@@ -298,11 +358,10 @@ class PDBeMolstarPlugin {
             const modifiers =  ModifiersKeys.create();
             const ev = { current: {loci: loci}, buttons, modifiers }
             await this.plugin.behaviors.interaction.click.next(ev);
-           
-            ev.modifiers.shift = true;
-            await this.plugin.behaviors.interaction.click.next(ev);
-
             this.selectedLoci = {loci, sideChain: false};
+           
+            ev.modifiers = ModifiersKeys.create({ shift: true });
+            await this.plugin.behaviors.interaction.click.next(ev);
 
         }
     }
@@ -552,7 +611,6 @@ class PDBeMolstarPlugin {
         var _this = this;
 
         document.addEventListener('PDB.interactions.click', function(e: any){ //do something on event
-            
             if(typeof e.detail !== 'undefined'){
                 const data = e.detail.interacting_nodes ? e.detail.interacting_nodes : [e.detail.selected_node];
                 _this.interactionEvents.select(data);

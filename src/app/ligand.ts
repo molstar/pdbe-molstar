@@ -65,7 +65,7 @@ export async function createLigandStructure (plugin: PluginContext, state: State
     const buttons = 1 as ButtonsType;
     const modifiers =  ModifiersKeys.create();
     const ev = { current: {loci: hetLoci}, buttons, modifiers }
-    await plugin.behaviors.interaction.click.next(ev);
+    plugin.behaviors.interaction.click.next(ev);
     
 
     // const focus = (this.state.select(StateElements.HetGroupFocus)[0].obj as PluginStateObject.Molecule.Structure).data;

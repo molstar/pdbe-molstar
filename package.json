@@ -1,6 +1,6 @@
 {
   "name": "pdbe-molstar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
@@ -62,6 +62,6 @@
   },
   "dependencies": {
     "lit-element": "^2.2.1",
-    "molstar": "^0.4.2"
+    "molstar": "^0.4.5"
   }
 }

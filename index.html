@@ -5,8 +5,16 @@
 
       
     <!-- Molstar CSS & JS -->
-    <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-0.1.0.css">
-    <script type="text/javascript" src="build/pdbe-molstar-plugin-0.1.0.js"></script>
+    <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-0.1.2.css">
+    <script type="text/javascript" src="build/pdbe-molstar-plugin-0.1.2.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://www.ebi.ac.uk/pdbe/pdb-component-library/v1.0/css/molstar-light-0.0.1.css">
+
+    <link rel="stylesheet" type="text/css" href="https://pdbe.gitdocs.ebi.ac.uk/web-components/ligand-env/pdb-ligand-env-svg.css">
+    <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs/webcomponents-lite.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@webcomponents/webcomponentsjs/custom-elements-es5-adapter.js"></script>
+    <script type="text/javascript" src="https://pdbe.gitdocs.ebi.ac.uk/web-components/ligand-env/pdb-ligand-env-component-0.2.0-min.js"></script>
 
     <style>
       #myViewer{
@@ -22,10 +30,19 @@
     <h3>PDBe Molstar Plugin demo - Basic</h3>
     
     <!-- Molstar container -->
-    <div id="myViewer"></div>
+    <div style="position: relative; float:left;">
+      <div id="myViewer"></div>
+
+      <div style="border: 1px solid #ccc9c0;height:450px;position:relative; width:450px; float:right;margin-left:20px;">
+        <!-- <pdb-ligand-env id="int-component" pdb-id="3d12" pdb-chain-id="A_1" pdb-res-id="1210" zoom-on></pdb-ligand-env> -->
+        <pdb-ligand-env pdb-id="3d12" bound-molecule-id="bm3" entity-id="3" zoom-on></pdb-ligand-env>
+      </div>
+    </div>
     
     <!-- Actions Menu -->
     <div style="float:right; border:1px solid lightgray; width:300px;padding:10px;">
+
+      <button onclick="viewerInstance.ligandRepresentation({label_comp_id: 'NAG', auth_asym_id: 'A_1', auth_seq_id: 1210})">Load ligand</button>&nbsp;
       
       <h3><u>Canvas/ layout methods</u></h3>
       
@@ -102,9 +119,103 @@
   
       //Set options (Checkout available options list in the documentation)
       var options = {
-        moleculeId: '2nnu',
-        hideControls: true
+        bgColor: {r: 255, g: 255, b: 255},
+        moleculeId: '3d12',
+        hideControls: true,
+        // loadMaps: true,
+        ligandView: {
+          label_comp_id_list: {
+            "atom_site": [
+              {
+                "chem_comp_id": "MAN",
+                "auth_seq_id": 5,
+                "auth_asym_id": "C_1"
+              },
+              {
+                "chem_comp_id": "BMA",
+                "auth_seq_id": 3,
+                "auth_asym_id": "C_2"
+              },
+              {
+                "chem_comp_id": "BMA",
+                "auth_seq_id": 3,
+                "auth_asym_id": "C_1"
+              },
+              {
+                "chem_comp_id": "BMA",
+                "auth_seq_id": 4,
+                "auth_asym_id": "C_1"
+              },
+              {
+                "chem_comp_id": "MAN",
+                "auth_seq_id": 5,
+                "auth_asym_id": "C_2"
+              },
+              {
+                "chem_comp_id": "BMA",
+                "auth_seq_id": 4,
+                "auth_asym_id": "C_2"
+              },
+              {
+                "chem_comp_id": "NAG",
+                "auth_seq_id": 2,
+                "auth_asym_id": "C_2"
+              },
+              {
+                "chem_comp_id": "NAG",
+                "auth_seq_id": 2,
+                "auth_asym_id": "C_1"
+              },
+              {
+                "chem_comp_id": "NAG",
+                "auth_seq_id": 1,
+                "auth_asym_id": "C_2"
+              },
+              {
+                "chem_comp_id": "NAG",
+                "auth_seq_id": 1,
+                "auth_asym_id": "C_1"
+              }
+            ],
+            "radius": 5
+          },
+        }
       }
+
+      // var options = {
+      //   moleculeId: '3d12',
+      //   hideControls: true,
+      //   loadMaps: true,
+      //   ligandView: {
+      //     label_comp_id: 'NAG',
+      //     auth_asym_id: 'A_1',
+      //     "auth_seq_id": 1210,
+      //     hydrogens: true
+      //   }
+      // }
+
+      // var options = {
+      //   bgColor: {r: 255, g: 255, b: 255},
+      //   hideControls: true,
+      //   ligandView: {
+      //     auth_asym_id: "A_1",
+      //     auth_seq_id: 1210,
+      //     hydrogens: true,
+      //     label_comp_id: "NAG"
+      //   },
+      //   loadMaps: true,
+      //   moleculeId: "3d12",
+      //   pdbeLink: false,
+      //   pdbeUrl: "https://www.ebi.ac.uk/pdbe/"
+      // }
+
+      // pdbeMolstar.ligandRepresentation({label_comp_id: ligandName, auth_asym_Id: chainId, auth_seq_id: authResidueNumber})
+
+      // var options = {
+      //   moleculeId: '2nnu',
+      //   hideControls: true,
+      //   loadMaps: true
+      // }
       
       //Get element from HTML/Template to place the viewer 
       var viewerContainer = document.getElementById('myViewer');
