@@ -22,6 +22,7 @@ import { ButtonsType, ModifiersKeys } from 'Molstar/mol-util/input/input-observe
 import { createNewEvent } from './custom-events'
 import { createLigandStructure } from './ligand'
 import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
+import { createBranchedStructure } from './branched';
 require('Molstar/mol-plugin/skin/dark.scss');
 // require('Molstar/mol-plugin/skin/light.scss');
 
@@ -42,6 +43,7 @@ class PDBeMolstarPlugin {
     selectedLociProvider: any;
     targetElement: HTMLElement;
     pdbevents:any;
+    firstEvent = true;
 
     render(target: string | HTMLElement, options: InitParams) {
 
@@ -59,6 +61,7 @@ class PDBeMolstarPlugin {
        
         const pdbePluginSpec = DefaultPluginSpec;
         if(!this.initParams.ligandView){
+            this.firstEvent = false;
             pdbePluginSpec.behaviors.push(
                 PluginSpec.Behavior(StructureRepresentationInteraction, {bindings: {clickInteractionAroundOnly: Binding([Binding.Trigger(ButtonsType.Flag.Primary, ModifiersKeys.create())], 'Show the volume around only the clicked element using ${trigger}.')}})
             )
@@ -128,6 +131,10 @@ class PDBeMolstarPlugin {
         //Event handling
         this.pdbevents = createNewEvent(['PDB.molstar.click','PDB.molstar.mouseover','PDB.molstar.mouseout']);
         this.plugin.behaviors.interaction.click.subscribe((e: any) => { 
+            if(!this.firstEvent) {
+                this.firstEvent = true;
+                return;
+            }
             if(e.buttons && e.buttons == 1 && e.current && e.current.loci.kind != "empty-loci"){
                 const evData = InteractivityHelper.getDataFromLoci(e.current.loci);
                 this.dispatchCustomEvent(this.pdbevents['PDB.molstar.click'], evData);
@@ -158,6 +165,7 @@ class PDBeMolstarPlugin {
     }
 
     private download(b: StateBuilder.To<PSO.Root>, url: string, format: SupportedFormats) {
+
         if(this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) { 
             const body = JSON.stringify(this.initParams.ligandView.label_comp_id_list);
             return b.apply(DownloadPost, { url, isBinary: format === 'bcif' ? true : false, body });
@@ -175,14 +183,14 @@ class PDBeMolstarPlugin {
             .apply(StateTransforms.Model.ModelFromTrajectory, { modelIndex: 0 }, { ref: StateElements.Model });
     }
 
-    private structure(assemblyId: string, isHetView: boolean) {
+    private structure(assemblyId: string, isHetView: boolean, isBranchedView: boolean) {
         const model = this.state.build().to(StateElements.Model);
 
         const s = model
             .apply(StateTransforms.Model.CustomModelProperties, { properties: [] }, { ref: StateElements.ModelProps, state: { isGhost: false } })
             .apply(StateTransforms.Model.StructureAssemblyFromModel, { id: assemblyId || 'deposited' }, { ref: StateElements.Assembly });
 
-        if(!isHetView){
+        if(!isHetView && !isBranchedView){
             createStructureComplex(this.plugin, s);
         }
 
@@ -216,9 +224,14 @@ class PDBeMolstarPlugin {
         await createLigandStructure(this.plugin, this.state, params);
     }
 
+    async branchedRepresentation(params: any, loadMaps?: boolean){
+        await createBranchedStructure(this.plugin, this.state, params, loadMaps);
+    }
+
     async load({ url, format = 'cif', assemblyId = 'deposited' }: LoadParams) {
         const state = this.plugin.state.dataState;
         const isHetView = (this.initParams.ligandView && !this.initParams.ligandView.label_comp_id_list) ? true : false;
+        const isBranchedView = (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) ? true : false;
 
         await PluginCommands.State.RemoveObject.dispatch(this.plugin, { state, ref: state.tree.root.ref });
         const modelTree = this.model(this.download(state.build().toRoot(), url, format), format);
@@ -226,11 +239,13 @@ class PDBeMolstarPlugin {
         const info = await this.doInfo(true);
         (this.plugin.customState as any).info = info;
         const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
-        const structureTree = this.structure(asmId, isHetView);
+        const structureTree = this.structure(asmId, isHetView, isBranchedView);
         await this.applyState(structureTree);
             
         if(isHetView){
             await this.ligandRepresentation();
+        }else if(isBranchedView){
+            await this.branchedRepresentation(this.initParams.ligandView?.label_comp_id_list, true);
         }else{
             Scheduler.setImmediate(() => PluginCommands.Camera.Reset.dispatch(this.plugin, { }));
             if(this.initParams.loadMaps){
@@ -249,6 +264,7 @@ class PDBeMolstarPlugin {
 
         let query = this.initParams.loadCartoonsOnly == true ? 'cartoon' : 'full';
         let sep = '?';
+       
         // let serverName = 'coordinates';
         // if(this.initParams.ligandView){
         //     if(this.initParams.ligandView.label_comp_id_list) {
@@ -271,23 +287,22 @@ class PDBeMolstarPlugin {
 
         if(this.initParams.ligandView){
             if(this.initParams.ligandView.label_comp_id_list) {
-                query = 'residueInteraction';
+                query = 'residueSurroundings?data_source=pdb-carb';
+                sep = '&';
             } else {
-                let queryParams = [];
+                let queryParams = ['data_source=pdb-h'];
                 if(this.initParams.ligandView.label_comp_id) {
                     queryParams.push('label_comp_id='+this.initParams.ligandView.label_comp_id);
                 } else if(this.initParams.ligandView.auth_seq_id) {
                     queryParams.push('auth_seq_id='+this.initParams.ligandView.auth_seq_id);
                 }
                 if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id='+this.initParams.ligandView.auth_asym_id);
-                if(this.initParams.ligandView.hydrogens) queryParams.push('data_source=pdb-h');
-                query = 'residueInteraction?'+queryParams.join('&')
+                query = 'residueSurroundings?'+queryParams.join('&')
                 sep = '&';
             }
         }        
-        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=bcif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
-
-        url = `http://miranda.ebi.ac.uk:1337/ModelServer/v1/${id}/${query}${sep}encoding=cif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`
+        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=cif`;
+        // url = `http://miranda.ebi.ac.uk:1337/ModelServer/v1/${id}/${query}${sep}encoding=cif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`
 
         let customFormat: any;
         if(this.initParams.customData && this.initParams.customData.url && this.initParams.customData.format){

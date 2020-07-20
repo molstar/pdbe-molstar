@@ -8,6 +8,10 @@ import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StructureElement, StructureSelection, QueryContext, StructureProperties as Props } from 'Molstar/mol-model/structure';
 
+import { Task, RuntimeContext } from 'Molstar/mol-task';
+import { utf8Read } from 'Molstar/mol-io/common/utf8';
+import { parseXml } from 'Molstar/mol-util/xml-parser';
+
 export interface ModelInfo {
     hetResidues: { name: string, indices: ResidueIndex[] }[],
     assemblies: { id: string, details: string, isPreferred: boolean }[],
@@ -330,8 +334,6 @@ export namespace QueryHelper {
             atmGroupsQueries.push(MS.struct.generator.atomGroups(entityObj));
         });
 
-        // return MS.struct.modifier.union(atmGroupsQueryArr);
-
         return MS.struct.modifier.union([
             atmGroupsQueries.length === 1
                 ? atmGroupsQueries[0]
@@ -420,7 +422,6 @@ export enum StateElements {
 
 import { PluginStateTransform, PluginStateObject as SO } from 'Molstar/mol-plugin/state/objects';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { Task } from 'Molstar/mol-task';
 import { StateTransformer } from 'Molstar/mol-state';
 
 export { DownloadPost }
@@ -439,7 +440,7 @@ const DownloadPost = PluginStateTransform.BuiltIn({
 })({
     apply({ params: p }, globalCtx: PluginContext) {
         return Task.create('Download', async ctx => {
-            const data = await globalCtx.fetch({ url: p.url, type: p.isBinary ? 'binary' : 'string', body: p.body }).runInContext(ctx);
+            const data = await ajaxGet({ url: p.url, type: p.isBinary ? 'binary' : 'string', body: p.body }).runInContext(ctx);
             return p.isBinary
                 ? new SO.Data.Binary(data as Uint8Array, { label: p.label ? p.label : p.url })
                 : new SO.Data.String(data as string, { label: p.label ? p.label : p.url });
@@ -454,3 +455,217 @@ const DownloadPost = PluginStateTransform.BuiltIn({
         return StateTransformer.UpdateResult.Unchanged;
     }
 });
+
+
+// polyfill XMLHttpRequest in node.js
+const XHR = typeof document === 'undefined' ? require('xhr2') as {
+    prototype: XMLHttpRequest;
+    new(): XMLHttpRequest;
+    readonly DONE: number;
+    readonly HEADERS_RECEIVED: number;
+    readonly LOADING: number;
+    readonly OPENED: number;
+    readonly UNSENT: number;
+} : XMLHttpRequest
+
+// export enum DataCompressionMethod {
+//     None,
+//     Gzip
+// }
+
+export interface AjaxGetParams<T extends 'string' | 'binary' | 'json' | 'xml' = 'string'> {
+    url: string,
+    type?: T,
+    title?: string,
+    // compression?: DataCompressionMethod
+    body?: string
+}
+
+export function readStringFromFile(file: File) {
+    return <Task<string>>readFromFileInternal(file, false);
+}
+
+export function readUint8ArrayFromFile(file: File) {
+    return <Task<Uint8Array>>readFromFileInternal(file, true);
+}
+
+export function readFromFile(file: File, type: 'string' | 'binary') {
+    return <Task<Uint8Array | string>>readFromFileInternal(file, type === 'binary');
+}
+
+// TODO: support for no-referrer
+export function ajaxGet(url: string): Task<string>
+export function ajaxGet(params: AjaxGetParams<'string'>): Task<string>
+export function ajaxGet(params: AjaxGetParams<'binary'>): Task<Uint8Array>
+export function ajaxGet<T = any>(params: AjaxGetParams<'json' | 'xml'>): Task<T>
+export function ajaxGet(params: AjaxGetParams<'string' | 'binary'>): Task<string | Uint8Array>
+export function ajaxGet(params: AjaxGetParams<'string' | 'binary' | 'json' | 'xml'>): Task<string | Uint8Array | object>
+export function ajaxGet(params: AjaxGetParams<'string' | 'binary' | 'json' | 'xml'> | string) {
+    if (typeof params === 'string') return ajaxGetInternal(params, params, 'string', false);
+    return ajaxGetInternal(params.title, params.url, params.type || 'string', false /* params.compression === DataCompressionMethod.Gzip */, params.body);
+}
+
+export type AjaxTask = typeof ajaxGet
+
+function decompress(buffer: Uint8Array): Uint8Array {
+    // TODO
+    throw 'nyi';
+    // const gzip = new LiteMolZlib.Gunzip(new Uint8Array(buffer));
+    // return gzip.decompress();
+}
+
+async function processFile(ctx: RuntimeContext, asUint8Array: boolean, compressed: boolean, e: any) {
+    const data = (e.target as FileReader).result;
+
+    if (compressed) {
+        await ctx.update('Decompressing...');
+
+        const decompressed = decompress(new Uint8Array(data as ArrayBuffer));
+        if (asUint8Array) {
+            return decompressed;
+        } else {
+            return utf8Read(decompressed, 0, decompressed.length);
+        }
+    } else {
+        return asUint8Array ? new Uint8Array(data as ArrayBuffer) : data as string;
+    }
+}
+
+function readData(ctx: RuntimeContext, action: string, data: XMLHttpRequest | FileReader, asUint8Array: boolean): Promise<any> {
+    return new Promise<any>((resolve, reject) => {
+        data.onerror = (e: any) => {
+            const error = (<FileReader>e.target).error;
+            reject(error ? error : 'Failed.');
+        };
+
+        let hasError = false;
+        data.onprogress = (e: ProgressEvent) => {
+            if (!ctx.shouldUpdate || hasError) return;
+
+            try {
+                if (e.lengthComputable) {
+                    ctx.update({ message: action, isIndeterminate: false, current: e.loaded, max: e.total });
+                } else {
+                    ctx.update({ message: `${action} ${(e.loaded / 1024 / 1024).toFixed(2)} MB`, isIndeterminate: true });
+                }
+            } catch (e) {
+                hasError = true;
+                reject(e);
+            }
+        }
+        data.onload = (e: any) => resolve(e);
+    });
+}
+
+function readFromFileInternal(file: File, asUint8Array: boolean): Task<string | Uint8Array> {
+    let reader: FileReader | undefined = void 0;
+    return Task.create('Read File', async ctx => {
+        try {
+            reader = new FileReader();
+            const isCompressed = /\.gz$/i.test(file.name);
+
+            if (isCompressed || asUint8Array) reader.readAsArrayBuffer(file);
+            else reader.readAsBinaryString(file);
+
+            ctx.update({ message: 'Opening file...', canAbort: true });
+            const e = await readData(ctx, 'Reading...', reader, asUint8Array);
+            const result = processFile(ctx, asUint8Array, isCompressed, e);
+            return result;
+        } finally {
+            reader = void 0;
+        }
+    }, () => {
+        if (reader) reader.abort();
+    });
+}
+
+class RequestPool {
+    private static pool: XMLHttpRequest[] = [];
+    private static poolSize = 15;
+
+    static get() {
+        if (this.pool.length) {
+            return this.pool.pop()!;
+        }
+        return new XHR();
+    }
+
+    static emptyFunc() { }
+
+    static deposit(req: XMLHttpRequest) {
+        if (this.pool.length < this.poolSize) {
+            req.onabort = RequestPool.emptyFunc;
+            req.onerror = RequestPool.emptyFunc;
+            req.onload = RequestPool.emptyFunc;
+            req.onprogress = RequestPool.emptyFunc;
+            this.pool.push(req);
+        }
+    }
+}
+
+async function processAjax(ctx: RuntimeContext, asUint8Array: boolean, decompressGzip: boolean, e: any) {
+    const req = (e.target as XMLHttpRequest);
+    if (req.status >= 200 && req.status < 400) {
+        if (asUint8Array) {
+            const buff = new Uint8Array(e.target.response);
+            RequestPool.deposit(e.target);
+
+            if (decompressGzip) {
+                return decompress(buff);
+            } else {
+                return buff;
+            }
+        }
+        else {
+            const text = e.target.responseText;
+            RequestPool.deposit(e.target);
+            return text;
+        }
+    } else {
+        const status = req.statusText;
+        RequestPool.deposit(e.target);
+        throw status;
+    }
+}
+
+function ajaxGetInternal(title: string | undefined, url: string, type: 'json' | 'xml' | 'string' | 'binary', decompressGzip: boolean, body?: string): Task<string | Uint8Array> {
+    let xhttp: XMLHttpRequest | undefined = void 0;
+    return Task.create(title ? title : 'Download', async ctx => {
+        const asUint8Array = type === 'binary';
+        if (!asUint8Array && decompressGzip) {
+            throw 'Decompress is only available when downloading binary data.';
+        }
+
+        xhttp = RequestPool.get();
+       
+        xhttp.open('post', url, true);
+        xhttp.responseType = asUint8Array ? 'arraybuffer' : 'text';
+        // xhttp.setRequestHeader("Accept", "*/*");
+        // xhttp.setRequestHeader("Accept-Encoding", "gzip, deflate");
+        // xhttp.setRequestHeader("Accept-Language", "en-GB,en-US;q=0.9,en;q=0.8");
+        xhttp.setRequestHeader("Content-type", "application/json");
+        // xhttp.setRequestHeader("Cache-Control", "no-cache");
+        // xhttp.setRequestHeader("Content-length", '65');
+        xhttp.send(body);
+
+        await ctx.update({ message: 'Waiting for server...', canAbort: true });
+        const e = await readData(ctx, 'Downloading...', xhttp, asUint8Array);
+        xhttp = void 0;
+        const result = await processAjax(ctx, asUint8Array, decompressGzip, e)
+
+        if (type === 'json') {
+            await ctx.update({ message: 'Parsing JSON...', canAbort: false });
+            return JSON.parse(result);
+        } else if (type === 'xml') {
+            await ctx.update({ message: 'Parsing XML...', canAbort: false });
+            return parseXml(result);
+        }
+
+        return result;
+    }, () => {
+        if (xhttp) {
+            xhttp.abort();
+            xhttp = void 0;
+        }
+    });
+}

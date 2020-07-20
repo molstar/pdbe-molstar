@@ -34,15 +34,17 @@
       <div id="myViewer"></div>
 
       <div style="border: 1px solid #ccc9c0;height:450px;position:relative; width:450px; float:right;margin-left:20px;">
-        <!-- <pdb-ligand-env id="int-component" pdb-id="3d12" pdb-chain-id="A_1" pdb-res-id="1210" zoom-on></pdb-ligand-env> -->
-        <pdb-ligand-env pdb-id="3d12" bound-molecule-id="bm3" entity-id="3" zoom-on></pdb-ligand-env>
+        <!-- <pdb-ligand-env id="int-component" pdb-id="3d12" pdb-chain-id="J_2" pdb-res-id="2" zoom-on></pdb-ligand-env> -->
+        <pdb-ligand-env pdb-id="2aw3" bound-molecule-id="bm2" entity-id="2" zoom-on></pdb-ligand-env>
       </div>
     </div>
     
     <!-- Actions Menu -->
     <div style="float:right; border:1px solid lightgray; width:300px;padding:10px;">
 
-      <button onclick="viewerInstance.ligandRepresentation({label_comp_id: 'NAG', auth_asym_id: 'A_1', auth_seq_id: 1210})">Load ligand</button>&nbsp;
+      <button onclick="viewerInstance.visual.update({ moleculeId: '2aw3', ligandView: { label_comp_id: 'PLP', auth_asym_id: 'A_1', auth_seq_id: 900 } })">Update ligand</button>
+
+      <button onclick="updateBranchedPolymer()">Update branched polymer</button>
       
       <h3><u>Canvas/ layout methods</u></h3>
       
@@ -116,112 +118,91 @@
     <script>
       //Create plugin instance
       var viewerInstance = new PDBeMolstarPlugin();
+
+      // var options = {
+      //   moleculeId: '3d12',
+      //   ligandView: { label_comp_id: "NAG", auth_asym_id: "J_2", auth_seq_id: 2 },
+      //   hideControls: true,
+      //   loadMaps: true,
+      //   bgColor: {r: 255, g: 255, b: 255},
+      //   pdbeUrl: "https://wwwdev.ebi.ac.uk/pdbe/",
+      // }
   
-      //Set options (Checkout available options list in the documentation)
       var options = {
         bgColor: {r: 255, g: 255, b: 255},
-        moleculeId: '3d12',
+        pdbeUrl: "https://wwwdev.ebi.ac.uk/pdbe/",
+        moleculeId: '2aw3',
         hideControls: true,
-        // loadMaps: true,
+        loadMaps: true,
         ligandView: {
           label_comp_id_list: {
             "atom_site": [
               {
-                "chem_comp_id": "MAN",
-                "auth_seq_id": 5,
-                "auth_asym_id": "C_1"
+                "auth_asym_id": "D_1",
+                "auth_seq_id": 5
               },
               {
-                "chem_comp_id": "BMA",
-                "auth_seq_id": 3,
-                "auth_asym_id": "C_2"
+                "auth_asym_id": "D_1",
+                "auth_seq_id": 4
               },
               {
-                "chem_comp_id": "BMA",
-                "auth_seq_id": 3,
-                "auth_asym_id": "C_1"
+                "auth_asym_id": "D_1",
+                "auth_seq_id": 3
               },
               {
-                "chem_comp_id": "BMA",
-                "auth_seq_id": 4,
-                "auth_asym_id": "C_1"
+                "auth_asym_id": "D_1",
+                "auth_seq_id": 2
               },
               {
-                "chem_comp_id": "MAN",
-                "auth_seq_id": 5,
-                "auth_asym_id": "C_2"
-              },
-              {
-                "chem_comp_id": "BMA",
-                "auth_seq_id": 4,
-                "auth_asym_id": "C_2"
-              },
-              {
-                "chem_comp_id": "NAG",
-                "auth_seq_id": 2,
-                "auth_asym_id": "C_2"
-              },
-              {
-                "chem_comp_id": "NAG",
-                "auth_seq_id": 2,
-                "auth_asym_id": "C_1"
-              },
-              {
-                "chem_comp_id": "NAG",
-                "auth_seq_id": 1,
-                "auth_asym_id": "C_2"
-              },
-              {
-                "chem_comp_id": "NAG",
-                "auth_seq_id": 1,
-                "auth_asym_id": "C_1"
+                "auth_asym_id": "D_1",
+                "auth_seq_id": 1
               }
             ],
             "radius": 5
-          },
+          }
         }
       }
 
-      // var options = {
-      //   moleculeId: '3d12',
-      //   hideControls: true,
-      //   loadMaps: true,
-      //   ligandView: {
-      //     label_comp_id: 'NAG',
-      //     auth_asym_id: 'A_1',
-      //     "auth_seq_id": 1210,
-      //     hydrogens: true
-      //   }
-      // }
-
-      // var options = {
-      //   bgColor: {r: 255, g: 255, b: 255},
-      //   hideControls: true,
-      //   ligandView: {
-      //     auth_asym_id: "A_1",
-      //     auth_seq_id: 1210,
-      //     hydrogens: true,
-      //     label_comp_id: "NAG"
-      //   },
-      //   loadMaps: true,
-      //   moleculeId: "3d12",
-      //   pdbeLink: false,
-      //   pdbeUrl: "https://www.ebi.ac.uk/pdbe/"
-      // }
-
-      // pdbeMolstar.ligandRepresentation({label_comp_id: ligandName, auth_asym_Id: chainId, auth_seq_id: authResidueNumber})
-
-      // var options = {
-      //   moleculeId: '2nnu',
-      //   hideControls: true,
-      //   loadMaps: true
-      // }
-      
       //Get element from HTML/Template to place the viewer 
       var viewerContainer = document.getElementById('myViewer');
   
       //Call render method to display the 3D view
       viewerInstance.render(viewerContainer, options);
+
+      var updateBranchedPolymer = () => {
+        viewerInstance.visual.update(
+          {
+            moleculeId: '2aw3',
+            ligandView: {
+              label_comp_id_list: {
+                atom_site: [
+                  {
+                    "auth_asym_id": "C_1",
+                    "auth_seq_id": 5
+                  },
+                  {
+                    "auth_asym_id": "C_1",
+                    "auth_seq_id": 4
+                  },
+                  {
+                    "auth_asym_id": "C_1",
+                    "auth_seq_id": 3
+                  },
+                  {
+                    "auth_asym_id": "C_1",
+                    "auth_seq_id": 2
+                  },
+                  {
+                    "auth_asym_id": "C_1",
+                    "auth_seq_id": 1
+                  }
+                ],
+                "radius": 5
+              }
+            }
+          }
+        )
+      }
       
     </script>
   </body>

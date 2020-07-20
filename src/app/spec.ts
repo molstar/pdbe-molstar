@@ -35,7 +35,7 @@ export type InitParams = {
     moleculeId?: string, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean, 
     lowPrecisionCoords?: boolean, landscape?: boolean, expanded?: boolean, hideControls?: boolean, hideQuickControls?: ['help', 'settings', 'camera', 'controls', 'expand', 'reset'], 
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, 
-    ligandView?: { label_comp_id_list?: string[], label_comp_id?: string, auth_seq_id?: number, auth_asym_id?: string, hydrogens?: boolean },
+    ligandView?: { label_comp_id_list?: any, label_comp_id?: string, auth_seq_id?: number, auth_asym_id?: string, hydrogens?: boolean },
     bgColor?:{r:number, g:number, b:number}, customData? : {url: string, format: string}, loadCartoonsOnly? : boolean, 
     selectColor?: {r:number, g:number, b:number}, highlightColor?: {r:number, g:number, b:number}, 
     hideStructure?: ['polymer', 'het', 'water','carbs'], visualStyle?: 'cartoon' | 'ball-and-stick', [key: string]: any;
