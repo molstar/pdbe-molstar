@@ -361,13 +361,17 @@ class PDBeMolstarPlugin {
 
     interactionEvents = {
         highlight: (interactions: {pdb_res_id: string, auth_asym_id: string, auth_ins_code_id: string, auth_seq_id: number, atoms?: string[]}[]) => {
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
+            const asm = this.plugin.state.dataState.select(StateElements.Assembly)[0];
+            if(!asm) return;
+            const data = (asm.obj as PluginStateObject.Molecule.Structure).data;
             const nodeLoci = QueryHelper.interactionsNodeLoci(interactions, data);
             this.plugin.interactivity.lociHighlights.highlightOnly({ loci: nodeLoci });
         },
         select: async (interactions: {pdb_res_id: string, auth_asym_id: string, auth_ins_code_id: string, auth_seq_id: string | number, atoms?: string[]}[]) => {
+            const asm = this.plugin.state.dataState.select(StateElements.Assembly)[0];
+            if(!asm) return;
             await this.interactivity.clearSelection();
-            const data = (this.plugin.state.dataState.select(StateElements.Assembly)[0].obj as PluginStateObject.Molecule.Structure).data;
+            const data = (asm.obj as PluginStateObject.Molecule.Structure).data;
             const loci = QueryHelper.interactionsNodeLoci(interactions, data);
             const buttons = 1 as ButtonsType;
             const modifiers =  ModifiersKeys.create();
