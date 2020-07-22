@@ -264,30 +264,10 @@ class PDBeMolstarPlugin {
 
         let query = this.initParams.loadCartoonsOnly == true ? 'cartoon' : 'full';
         let sep = '?';
-       
-        // let serverName = 'coordinates';
-        // if(this.initParams.ligandView){
-        //     if(this.initParams.ligandView.label_comp_id_list) {
-        //         serverName = 'model-server/v1';
-        //         query = 'residueInteraction';
-        //     } else {
-        //         let queryParams = [];
-        //         if(this.initParams.ligandView.label_comp_id) {
-        //             queryParams.push('name='+this.initParams.ligandView.label_comp_id);
-        //         } else if(this.initParams.ligandView.auth_seq_id) {
-        //             queryParams.push('authSequenceNumber='+this.initParams.ligandView.auth_seq_id);
-        //         }
-        //         if(this.initParams.ligandView.auth_asym_id) queryParams.push('authAsymId='+this.initParams.ligandView.auth_asym_id);
-        //         if(this.initParams.ligandView.hydrogens) queryParams.push('dataSource=hydrogens');
-        //         query = 'ligandInteraction?'+queryParams.join('&')
-        //         sep = '&';
-        //     }
-        // }        
-        // let url = `${this.initParams.pdbeUrl}${serverName}/${id}/${query}${sep}encoding=bcif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
 
         if(this.initParams.ligandView){
             if(this.initParams.ligandView.label_comp_id_list) {
-                query = 'residueSurroundings?data_source=pdb-carb';
+                query = 'residueSurroundings?data_source=pdb-h';
                 sep = '&';
             } else {
                 let queryParams = ['data_source=pdb-h'];
@@ -301,8 +281,7 @@ class PDBeMolstarPlugin {
                 sep = '&';
             }
         }        
-        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=cif`;
-        // url = `http://miranda.ebi.ac.uk:1337/ModelServer/v1/${id}/${query}${sep}encoding=cif${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`
+        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=bcif`;
 
         let customFormat: any;
         if(this.initParams.customData && this.initParams.customData.url && this.initParams.customData.format){
