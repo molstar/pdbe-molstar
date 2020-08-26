@@ -5,7 +5,7 @@ import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransform } from 'Molstar/mol-state';
 import { Loci, EmptyLoci } from 'Molstar/mol-model/loci';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam, LigandQueryParam } from './helpers';
+import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam } from './helpers';
 import { PDBeStructureTools, PDBeSuperpositionStructureTools, PDBeLigandViewStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
@@ -29,12 +29,12 @@ import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in';
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
+import { SuperpostionViewport } from './ui/superposition-viewport';
 
 require('Molstar/mol-plugin-ui/skin/dark.scss');
 
 // Override carbon by chain-id theme default
 ElementSymbolColorThemeParams.carbonByChainId.defaultValue = false;
-
 
 class PDBeMolstarPlugin {
 
@@ -105,7 +105,8 @@ class PDBeMolstarPlugin {
 
         pdbePluginSpec.components = {
             viewport: {
-                controls: PDBeViewportControls
+                controls: PDBeViewportControls,
+                view: this.initParams.superposition ? SuperpostionViewport : void 0
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
@@ -200,15 +201,16 @@ class PDBeMolstarPlugin {
         let query = 'full';
         let sep = '?';
         if(this.initParams.ligandView){
-            let queryParams = [];
-            if(this.initParams.ligandView.label_comp_id) {
-                queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
-            } else if(this.initParams.ligandView.auth_seq_id) {
-                queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
+            let queryParams = ['data_source=pdb-h'];
+            if(!this.initParams.ligandView.label_comp_id_list) {
+                if(this.initParams.ligandView.label_comp_id) {
+                    queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
+                } else if(this.initParams.ligandView.auth_seq_id) {
+                    queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
+                }
+                if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
             }
-            if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
-            if(this.initParams.ligandView.hydrogens) queryParams.push('data_source=hydrogens');
-            query = 'residueInteraction?' + queryParams.join('&');
+            query = 'residueSurroundings?' + queryParams.join('&');
             sep = '&';
         }
         let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=${this.initParams.encoding}${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
@@ -240,18 +242,20 @@ class PDBeMolstarPlugin {
         return this.plugin.state.data;
     }
 
-    async ligandRepresentation(params: LigandQueryParam) {
-        await this.createLigandStructure(params);
-    }
-
-    async createLigandStructure(params: LigandQueryParam) {
+    async createLigandStructure(isBranched: boolean) {
         if(this.assemblyRef === '') return;
         for await (const comp of this.plugin.managers.structure.hierarchy.currentComponentGroups) {
             await PluginCommands.State.RemoveObject(this.plugin, { state: comp[0].cell.parent!, ref: comp[0].cell.transform.ref, removeParentGhosts: true });
         }
         
         const structure = this.state.select(this.assemblyRef)[0];
-        const ligandQuery = LigandView.query(params);
+
+        let ligandQuery;
+        if(isBranched) {
+            ligandQuery = LigandView.branchedQuery(this.initParams.ligandView?.label_comp_id_list!);
+        } else {
+            ligandQuery = LigandView.query(this.initParams.ligandView!);
+        }
 
         const ligandVis = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.core, 'pivot', {label: 'Ligand'});
         if (ligandVis) await this.plugin.builders.structure.representation.addRepresentation(ligandVis, { type: 'ball-and-stick', color: 'element-symbol', colorParams: { carbonByChainId: false }, size: 'uniform', sizeParams: { value: 2.5 } }, { tag: 'ligand-vis' });
@@ -275,16 +279,22 @@ class PDBeMolstarPlugin {
     }
 
     async load({ url, format = 'mmcif', isBinary = false, assemblyId = '' }: LoadParams, fullLoad = true) {
-        // if(fullLoad) await this.plugin.clear();
         if(fullLoad) this.clear();
         const isHetView = this.initParams.ligandView ? true : false;
-        const data = await this.plugin.builders.data.download({ url: Asset.Url(url), isBinary }, { state: { isGhost: true } });
+        let downloadOptions: any = void 0;
+        let isBranchedView = false;
+        if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
+            isBranchedView = true;
+            downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']]};
+        }
+        
+        const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
         const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
         if(!isHetView){
 
             await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default', {
-                structure: assemblyId ? (assemblyId === 'preffered') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: { } },
+                structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: { } },
                 showUnitcell: false,
                 representationPreset: 'auto'
             });
@@ -293,8 +303,7 @@ class PDBeMolstarPlugin {
                 this.applyVisualParams();
             }
 
-        }else{
-
+        } else {
             const model = await this.plugin.builders.structure.createModel(trajectory);
             await this.plugin.builders.structure.createStructure(model, { name: 'model', params: { } });
         }
@@ -323,7 +332,7 @@ class PDBeMolstarPlugin {
 
         // Create Ligand Representation
         if(isHetView){
-            await this.ligandRepresentation(this.initParams.ligandView!);
+            await this.createLigandStructure(isBranchedView);
         }
 
         this.events.loadComplete.next(true);

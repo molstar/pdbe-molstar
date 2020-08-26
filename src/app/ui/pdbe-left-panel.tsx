@@ -1,8 +1,6 @@
-// import WavesIcon from '@material-ui/icons/Waves';
 import * as React from 'react';
 import { Canvas3DParams } from 'Molstar/mol-canvas3d/canvas3d';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
-// import { LeftPanelTabName } from '../../../mol-plugin/layout';
 import { StateTransform } from 'Molstar/mol-state';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
@@ -14,7 +12,7 @@ import { StateTree } from 'Molstar/mol-plugin-ui/state/tree';
 import { HelpContent } from 'Molstar/mol-plugin-ui/viewport/help';
 import { SegmentTree } from './segment-tree';
 import { HomeOutlinedSvg, AccountTreeOutlinedSvg, TuneSvg, HelpOutlineSvg, DeleteOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-// import { SaveOutlinedSvg } from '../../../mol-plugin-ui/controls/icons';
+import { HelpText, HelpGroup } from 'Molstar/mol-plugin-ui/viewport/help';
 
 const _WavesIcon = <svg width='24px' height='24px' viewBox='0 0 24 24'><path d="M17 16.99c-1.35 0-2.2.42-2.95.8-.65.33-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.95c1.35 0 2.2-.42 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.42 2.95-.8c.65-.33 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm0-4.45c-1.35 0-2.2.43-2.95.8-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.32-1.17.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm2.95-8.08c-.75-.38-1.58-.8-2.95-.8s-2.2.42-2.95.8c-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.37-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.93c1.35 0 2.2-.43 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V5.04c-.9 0-1.4-.25-2.05-.58zM17 8.09c-1.35 0-2.2.43-2.95.8-.65.35-1.15.6-2.05.6s-1.4-.25-2.05-.6c-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.35-1.15.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.32 1.18-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V9.49c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8z" /></svg>;
 export function WavesIconSvg() { return _WavesIcon; }
@@ -74,19 +72,20 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
         'help': <>
             <SectionHeader icon={HelpOutlineSvg} title='Help' />
             <HelpContent />
+            <SuperpositionHelpContent />
         </>
     }
 
     render() {
         const tab = this.state.tab;
-        const customeState: any = this.plugin.customState;
+        const customState: any = this.plugin.customState;
         return <div className='msp-left-panel-controls'>
             <div className='msp-left-panel-controls-buttons'>
                 {/* <IconButton svg={HomeOutlined} toggleState={tab === 'root'} transparent onClick={() => this.set('root')} title='Home' /> */}
                 {/* <DataIcon set={this.set} /> */}
                 {/* <IconButton svg={SaveOutlined} toggleState={tab === 'states'} transparent onClick={() => this.set('states')} title='Plugin State' /> */}
                 <IconButton svg={HelpOutlineSvg} toggleState={tab === 'help'} transparent onClick={() => this.set('help')} title='Help' />
-                {customeState && customeState.initParams && customeState.initParams.superposition && <IconButton svg={WavesIconSvg} toggleState={tab === 'segments'} transparent onClick={() => this.set('segments')} title='Superpose segments' />}
+                {customState && customState.initParams && customState.initParams.superposition && <IconButton svg={WavesIconSvg} toggleState={tab === 'segments'} transparent onClick={() => this.set('segments')} title='Superpose segments' />}
                 <div className='msp-left-panel-controls-buttons-bottom'>
                     <IconButton svg={TuneSvg} toggleState={tab === 'settings'} transparent onClick={() => this.set('settings')} title='Settings' />
                 </div>
@@ -171,5 +170,35 @@ class RemoveAllButton extends PluginUIComponent<{ }> {
         const count = this.plugin.state.data.tree.children.get(StateTransform.RootRef).size;
         if (count === 0) return null;
         return <IconButton svg={DeleteOutlinedSvg} onClick={this.remove} title={'Remove All'} style={{ display: 'inline-block' }} small className='msp-no-hover-outline' transparent />;
+    }
+}
+
+function HelpSection(props: { header: string }) {
+    return <div className='msp-simple-help-section'>{props.header}</div>;
+}
+
+class SuperpositionHelpContent extends PluginUIComponent {
+    componentDidMount() {
+        this.subscribe(this.plugin.events.canvas3d.settingsUpdated, () => this.forceUpdate());
+    }
+    render() {
+        return <div>
+            <HelpSection header='Superposition' />
+            <HelpGroup header='Segment'>
+                <HelpText>
+                    <p>Discrete UniProt sequence range mapped to the structure</p>
+                </HelpText>
+            </HelpGroup>
+            <HelpGroup header='Cluster'>
+                <HelpText>
+                    <p>Structural chains that possess significantly close superposition Q-score</p>
+                </HelpText>
+            </HelpGroup>
+            <HelpGroup header='Representative chain'>
+                <HelpText>
+                    <p>The best-ranked chain within a cluster chosen based on the model quality, resolution, observed residues ratio and UniProt sequence coverage</p>
+                </HelpText>
+            </HelpGroup>
+        </div>;
     }
 }

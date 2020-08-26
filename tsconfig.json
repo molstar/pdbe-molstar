@@ -23,5 +23,5 @@
             "Molstar/*" : ["node_modules/molstar/lib/*"]
         }
     },
-    "include": [ "src/app/*" ]
+    "include": ["src/app/*", "src/app/ui/*"]
 }

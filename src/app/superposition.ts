@@ -105,7 +105,6 @@ export async function initSuperposition(plugin: PluginContext) {
 }
 
 export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterRec[]) {
-
     const customState = plugin.customState as any;
     const superpositionParams = customState.initParams.superpositionParams;
     let busyFlagOn = false;
@@ -120,7 +119,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
 
         for await (const s of entryList) {
             // validate matrix availability
-            if(!spState.matrixData[`${s.pdb_id}${s.auth_asym_id}`]) {
+            if(!spState.matrixData[`${s.pdb_id}_${s.auth_asym_id}`]) {
                 spState.noMatrixStruct.push(`${s.pdb_id}_${s.struct_asym_id}`);
                 spState.invalidStruct.push(`${s.pdb_id}_${s.struct_asym_id}`);
                 continue;
@@ -155,7 +154,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             if(superpositionParams && superpositionParams.ligandView && !spState.entries[s.pdb_id]) spState.entries[s.pdb_id] = strInstance?.ref;
 
             // Apply tranform matrix
-            const matrix = Mat4.ofRows((plugin.customState as any).superpositionState.matrixData[`${s.pdb_id}${s.auth_asym_id}`].matrix);
+            const matrix = Mat4.ofRows((plugin.customState as any).superpositionState.matrixData[`${s.pdb_id}_${s.auth_asym_id}`].matrix);
             await transform(plugin, strInstance, matrix);
 
             // Create representations
@@ -164,7 +163,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                 const uniformColor1 = getRandomColor(plugin, segmentIndex); // random color
                 chainSel = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, chainSelection(s.struct_asym_id), `Chain-${segmentIndex}`, { label: `Chain`, tags: [`superposition-sel`]});
                 if (chainSel){
-                    await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'cartoon', color: 'uniform', colorParams: { value: uniformColor1 } }, { tag: `superposition-visual` });
+                    await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor1 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
 
@@ -271,12 +270,18 @@ function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structu
 
 async function getMatrixData(plugin: PluginContext) {
     const customState = plugin.customState as any;
-    const clusterRecUrlStr = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition_matrices/${customState.initParams.moleculeId}`;
+    const matrixAccession = customState.initParams.superpositionParams.matrixAccession ? customState.initParams.superpositionParams.matrixAccession : customState.initParams.moleculeId;
+    const clusterRecUrlStr = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition_matrices/${matrixAccession}`;
     const assetManager = plugin.managers.asset;
     const clusterRecUrl = Asset.getUrlAsset(assetManager, clusterRecUrlStr);
-    const clusterRecData = await plugin.runTask(assetManager.resolve(clusterRecUrl, 'json', false));
-    if(clusterRecData && clusterRecData.data) {
-        (plugin.customState as any).superpositionState.matrixData = clusterRecData.data;
+    try {
+        const clusterRecData = await plugin.runTask(assetManager.resolve(clusterRecUrl, 'json', false));
+        if(clusterRecData && clusterRecData.data) {
+            (plugin.customState as any).superpositionState.matrixData = clusterRecData.data;
+        }
+    } catch (e) {
+        customState['superpositionError'] = `Matrix data not available for ${matrixAccession}`;
+        (plugin.customState as any).events.superpositionInit.next(true); // Emit segment API data load event
     }
 }
 
@@ -288,8 +293,13 @@ async function getSegmentData(plugin: PluginContext) {
     const segmentsUrl = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition/${customState.initParams.moleculeId}`;
     const assetManager = plugin.managers.asset;
     const url = Asset.getUrlAsset(assetManager, segmentsUrl);
-    const result = await plugin.runTask(assetManager.resolve(url, 'json', false));
-    if(result && result.data) {
-        (plugin.customState as any).superpositionState.segmentData = result.data[customState.initParams.moleculeId!];
+    try {
+        const result = await plugin.runTask(assetManager.resolve(url, 'json', false));
+        if(result && result.data) {
+            customState.superpositionState.segmentData = result.data[customState.initParams.moleculeId!];
+        }
+    } catch (e) {
+        customState['superpositionError'] = `Superposition data not available for ${customState.initParams.moleculeId}`;
+        (plugin.customState as any).events.superpositionInit.next(true); // Emit segment API data load event
     }
 }

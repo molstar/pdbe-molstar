@@ -9,7 +9,7 @@ import { PluginSpec } from 'Molstar/mol-plugin/spec';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { PDBeLociLabelProvider } from './labels';
 import { Loci } from 'Molstar/mol-model/loci';
-import { QueryParam } from './helpers';
+import { QueryParam, LigandQueryParam } from './helpers';
 
 export const DefaultPluginSpec: PluginSpec = {
     actions: [],
@@ -45,9 +45,9 @@ export type InitParams = {
     moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean,
     lowPrecisionCoords?: boolean, landscape?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean,
-    ligandView?: { label_comp_id?: string, auth_seq_id?: number, auth_asym_id?: string, hydrogens?: boolean },
+    ligandView?: LigandQueryParam,
     bgColor?: {r: number, g: number, b: number}, customData? : {url: string, format: string, binary: boolean}, loadCartoonsOnly? : boolean,
-    selectColor?: {r: number, g: number, b: number}, highlightColor?: {r: number, g: number, b: number}, superpositionParams?: {segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean},
+    selectColor?: {r: number, g: number, b: number}, highlightColor?: {r: number, g: number, b: number}, superpositionParams?: {matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean},
     hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'
     granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any, [key: string]: any;
 }

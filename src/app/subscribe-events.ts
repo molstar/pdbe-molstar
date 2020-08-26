@@ -1,20 +1,21 @@
 export function subscribeToComponentEvents(wrapperCtx: any) {
     document.addEventListener('PDB.interactions.click', function(e: any){
         if(typeof e.detail !== 'undefined'){
-            const data = e.detail.interacting_nodes ? e.detail.interacting_nodes : [e.detail.selected_node];
-            wrapperCtx.interactionEvents.select(data);
+            const data = e.detail.interacting_nodes ? { data: e.detail.interacting_nodes } : { data: [e.detail.selected_node] };
+            data.data[0]['focus'] = true;
+            wrapperCtx.visual.select(data);
         }
     });
 
     document.addEventListener('PDB.interactions.mouseover', function(e: any){
         if(typeof e.detail !== 'undefined'){
-            const data = e.detail.interacting_nodes ? e.detail.interacting_nodes : [e.detail.selected_node];
-            wrapperCtx.interactionEvents.highlight(data);
+            const data = e.detail.interacting_nodes ? { data: e.detail.interacting_nodes } : { data: [e.detail.selected_node] };
+            wrapperCtx.visual.highlight(data);
         }
     });
 
     document.addEventListener('PDB.interactions.mouseout', function(e: any){
-        wrapperCtx.interactivity.clearHighlight();
+        wrapperCtx.visual.clearHighlight();
     });
 
     document.addEventListener('PDB.topologyViewer.click', function(e: any){
@@ -25,10 +26,11 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 struct_asym_id: e.eventData.structAsymId,
                 start_residue_number: e.eventData.residueNumber,
                 end_residue_number: e.eventData.residueNumber,
-                sideChain: true
+                sideChain: true,
+                focus: true
             };
             // Call highlightAnnotation
-            wrapperCtx.interactivity.select([highlightQuery]);
+            wrapperCtx.visual.select({data: [highlightQuery]});
         }
     });
 
@@ -45,12 +47,12 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 end_residue_number: e.eventData.residueNumber
             };
             // Call highlightAnnotation
-            wrapperCtx.interactivity.highlight([highlightQuery]);
+            wrapperCtx.visual.highlight({data: [highlightQuery]});
         }
     });
 
     document.addEventListener('PDB.topologyViewer.mouseout', function(e: any){
-        wrapperCtx.interactivity.clearHighlight();
+        wrapperCtx.visual.clearHighlight();
     });
 
     document.addEventListener('protvista-mouseover', function(e: any){
@@ -69,12 +71,12 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             if(e.detail.feature && e.detail.feature.entityId) highlightQuery['entity_id'] = e.detail.feature.entityId + '';
             if(e.detail.feature && e.detail.feature.bestChainId) highlightQuery['struct_asym_id'] = e.detail.feature.bestChainId;
 
-            if(highlightQuery) wrapperCtx.interactivity.highlight([highlightQuery]);
+            if(highlightQuery) wrapperCtx.visual.highlight({data: [highlightQuery]});
         }
     });
 
     document.addEventListener('protvista-mouseout', function(e: any){
-        wrapperCtx.interactivity.clearHighlight();
+        wrapperCtx.visual.clearHighlight();
     });
 
     document.addEventListener('protvista-click', function(e: any){
@@ -104,7 +106,6 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
 
                 if(showInteraction){
                     highlightQuery['sideChain'] = true;
-                    wrapperCtx.interactivity.select([highlightQuery]);
                 }else{
                     let selColor = undefined;
                     if(e.detail.trackIndex > -1 && e.detail.feature.locations && e.detail.feature.locations[0].fragments[e.detail.trackIndex].color) selColor = e.detail.feature.locations[0].fragments[e.detail.trackIndex].color;
@@ -122,8 +123,9 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     }
 
                     highlightQuery['color'] = selColor;
-                    wrapperCtx.visual.selection([highlightQuery]);
                 }
+                highlightQuery['focus'] = true;
+                wrapperCtx.visual.select({data: [highlightQuery]});
             }
         }
     });
@@ -142,11 +144,12 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
                     start_residue_number: e.eventData.residueNumber,
                     end_residue_number: e.eventData.residueNumber,
-                    sideChain: true
+                    sideChain: true,
+                    focus: true
                 };
 
                 // Call highlightAnnotation
-                wrapperCtx.interactivity.select([highlightQuery]);
+                wrapperCtx.visual.select({data: [highlightQuery]});
 
             }else if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1){
 
@@ -158,9 +161,10 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
                     start_residue_number: e.eventData.elementData.pathData.start.residue_number,
                     end_residue_number: e.eventData.elementData.pathData.end.residue_number,
-                    color: {r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2]}
+                    color: {r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2]},
+                    focus: true
                 };
-                wrapperCtx.visual.selection([highlightQuery]);
+                wrapperCtx.visual.select({data: [highlightQuery]});
             }
 
         }
@@ -177,9 +181,10 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     entity_id: e.eventData.entityId,
                     struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
                     start_residue_number: e.eventData.residueNumber,
-                    end_residue_number: e.eventData.residueNumber
+                    end_residue_number: e.eventData.residueNumber,
+                    focus: true
                 };
-                wrapperCtx.interactivity.highlight([highlightQuery]);
+                wrapperCtx.visual.select({data: [highlightQuery]});
 
             }else if(typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1){
 
@@ -191,12 +196,12 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     end_residue_number: e.eventData.elementData.pathData.end.residue_number
                 };
                 // Call highlightAnnotation
-                wrapperCtx.interactivity.highlight([highlightQuery]);
+                wrapperCtx.visual.highlight({data: [highlightQuery]});
             }
         }
     });
 
     document.addEventListener('PDB.seqViewer.mouseout', function(e){
-        wrapperCtx.interactivity.clearHighlight();
+        wrapperCtx.visual.clearHighlight();
     });
 }

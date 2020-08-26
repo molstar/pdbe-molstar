@@ -16,7 +16,9 @@ export type EventDetail = {
     alt_id?: string,
     micro_het_comp_ids?: string[],
     seq_id_begin?: number,
-    seq_id_end?: number
+    seq_id_end?: number,
+    button?: number,
+    modifiers?: any
 }
 
 type LabelGranularity = 'element' | 'conformation' | 'residue' | 'chain' | 'structure'

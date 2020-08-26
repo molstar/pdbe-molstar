@@ -60,19 +60,15 @@ export namespace PDBeVolumes {
 }
 
 export type LigandQueryParam = {
+    label_comp_id_list?: any,
     auth_asym_id?: string,
     struct_asym_id?: string,
     label_comp_id?: string,
-    auth_seq_id?: number,
-    hydrogens?: boolean
+    auth_seq_id?: number
 };
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): {core: Expression, surroundings: Expression} {
-        // let atomGroupsParams: any = {
-        //     'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
-        // };
-
         let atomGroupsParams: any = {
             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
         };
@@ -107,9 +103,44 @@ export namespace LigandView {
         };
 
     }
+
+    export function branchedQuery(params: any): {core: Expression, surroundings: Expression} {
+        let entityObjArray: any = [];
+
+        params.atom_site.forEach((param: any) => {
+                let qEntities: any = {
+                    'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
+                    'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id])
+                };
+                entityObjArray.push(qEntities);
+        });
+
+        const atmGroupsQueries: Expression[] = [];
+
+        entityObjArray.forEach((entityObj:any) => {
+            atmGroupsQueries.push(MS.struct.generator.atomGroups(entityObj));
+        });
+
+        const core =  MS.struct.modifier.union([
+            atmGroupsQueries.length === 1
+                ? atmGroupsQueries[0]
+                // Need to union before merge for fast performance
+                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([ q ])))
+        ]);
+
+        // Construct surroundings query
+        const surroundings = MS.struct.modifier.includeSurroundings({ 0: core, radius: 5, 'as-whole-residues': true });
+
+        return {
+            core,
+            surroundings
+        };
+
+    }
 }
 
 export type QueryParam = {
+    auth_seq_id?: number,
     entity_id?: string,
     auth_asym_id?: string,
     struct_asym_id?: string,
@@ -140,7 +171,7 @@ export namespace QueryHelper {
 
         params.forEach(param => {
             let selection: any = {};
-
+            
             // entity
             if(param.entity_id) selection['entity-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_entity_id(), param.entity_id]);
 
@@ -160,6 +191,8 @@ export namespace QueryHelper {
                 selection['residue-test'] = MS.core.rel.inRange([MS.struct.atomProperty.macromolecular.label_seq_id(), param.start_residue_number, param.end_residue_number]);
             }else if((param.start_residue_number && param.end_residue_number) && (param.end_residue_number === param.start_residue_number)){
                 selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_seq_id(), param.start_residue_number]);
+            }else if(param.auth_seq_id){
+                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(),param.auth_seq_id]);
             }else if(param.auth_residue_number && !param.auth_ins_code_id){
                 selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_residue_number]);
             }else if(param.auth_residue_number && param.auth_ins_code_id){

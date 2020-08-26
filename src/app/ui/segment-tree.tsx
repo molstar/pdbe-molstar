@@ -24,7 +24,10 @@ export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isB
 
     componentDidMount() {
         this.subscribe((this.plugin.customState as any).events.superpositionInit, () => {
-            this.getSegmentParams();
+            const customState = this.customState;
+            if(customState && !customState.superpositionError) {
+                this.getSegmentParams();
+            }
             this.forceUpdate();
         });
 
@@ -200,7 +203,12 @@ export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isB
 
                 sectionHeader = <SectionHeader title={`Structure clusters - ${customState.initParams.moleculeId}`} />;
 
-                if(!customState.superpositionState || !customState.superpositionState.segmentData){
+                if(customState.superpositionError){
+                    return <>
+                        {sectionHeader}
+                        <div style={{ textAlign: 'center' }}>{customState.superpositionError}</div>
+                    </>;
+                } else if(!customState.superpositionState || !customState.superpositionState.segmentData){
                     return <>
                         {sectionHeader}
                         <div style={{ textAlign: 'center' }}>Loading Segment Data!</div>
