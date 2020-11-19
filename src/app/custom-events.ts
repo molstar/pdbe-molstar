@@ -25,7 +25,9 @@ export namespace CustomEvents {
 
     function dispatchCustomEvent(event: any, eventData: EventDetail, targetElement: HTMLElement) {
         if(typeof eventData !== 'undefined'){
+            (eventData as any)['residueNumber'] = eventData.seq_id;
             event['eventData'] = eventData;
+            event.eventData.residueNumber = eventData.seq_id;
             targetElement.dispatchEvent(event);
         }
     }
