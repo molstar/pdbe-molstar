@@ -468,6 +468,16 @@ class PDBeMolstarPlugin {
                     const values = {...defaultValues, ...{representation: repr} };
                     const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
                     await this.plugin.managers.structure.component.add(values, structures);
+
+                    // Apply uniform theme
+                    if(param.representationColor){
+                        const comps = this.plugin.managers.structure.hierarchy.current.structures[0].components;
+                        const lastCompsIndex = comps.length - 1;
+                        const recentRepComp = [comps[lastCompsIndex]];
+                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
+                        this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
+                    }
+                    
                     params.addedRepr = true;
                 }
                 // focus loci

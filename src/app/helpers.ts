@@ -158,6 +158,7 @@ export type QueryParam = {
     color?: any,
     sideChain?: boolean,
     representation?: string,
+    representationColor?: any,
     focus?: boolean,
     tooltip?: string,
     start?: any,
