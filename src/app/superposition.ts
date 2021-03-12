@@ -6,10 +6,11 @@ import { StateObjectRef } from 'Molstar/mol-state';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { Asset } from 'Molstar/mol-util/assets';
-import { LigandView, ModelInfo } from './helpers';
+import { ModelInfo } from './helpers';
 import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Color } from 'Molstar/mol-util/color/color';
 import { State } from 'Molstar/mol-state';
+import { Script } from 'Molstar/mol-script/script';
 
 type ClusterRec = {
     pdb_id: string,
@@ -101,7 +102,18 @@ export async function initSuperposition(plugin: PluginContext) {
         }
     });
 
+    // entryList = [{pdb_id: "3d12", auth_asym_id: "D", struct_asym_id: "C", entity_id: '1', is_representative: true}];
+
     await renderSuperposition(plugin, segmentIndex, entryList);
+}
+
+function createCarbVisLabel(carbLigNamesAndCount: any) {
+    const compList = [];
+    for(const carbCompId in carbLigNamesAndCount) {
+        compList.push(`${carbCompId} (${carbLigNamesAndCount[carbCompId]})`);
+    }
+
+    return compList.join(', ');
 }
 
 export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterRec[]) {
@@ -180,34 +192,113 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
 
             let invalidStruct = chainSel ? false : true;
             if(superpositionParams && superpositionParams.ligandView) {
+
                 const state = plugin.state.data;
-                const hets = await getHetNames(state, modelRef);
-                const interactingHets = [];
+                const hetInfo = await getLigandNamesFromModelData(plugin, state, modelRef);
+                const hets = hetInfo ? hetInfo.hetNames: [];
+                // const interactingHets = [];
                 if(hets && hets.length > 0){
                     for await (const het of hets) {
-                        const ligParam = {
-                            label_comp_id: het,
-                            auth_asym_id: s.auth_asym_id
-                        };
-                        const ligandQuery = LigandView.query(ligParam);
-                        let labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`]};
+                        const ligand = MS.struct.generator.atomGroups({
+                            'chain-test' : MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
+                            'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), het]),
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                        });
+
+                        let labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
                         let hetColor = Color.fromRgb(253, 3, 253);
                         if(superpositionParams && superpositionParams.ligandColor){
                             const { r, g, b} = superpositionParams.ligandColor;
                             hetColor = Color.fromRgb(r, g, b);
                         }
-                        const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligandQuery.core, `${het}-${segmentIndex}`, labelTagParams);
+                        const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligand, `${het}-${segmentIndex}`, labelTagParams);
                         if(ligandExp){
                             await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'ball-and-stick', color: 'uniform', colorParams: { value: hetColor } }, { tag: `superposition-ligand-visual`});
                             spState.refMaps[ligandExp.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
-                        }
-
-                        if(ligandExp) {
                             invalidStruct = false;
-                            interactingHets.push(het);
+                            // interactingHets.push(het);
                         }
                     }
                 }
+
+                const carbEntityCount = hetInfo ? hetInfo.carbEntityCount : 0;
+                if(carbEntityCount > 0) {
+                    
+                    // Get Carbohydrate Polymers details from PDBe API
+                    const allCarbPolymers = await getCarbPolymerDetailsFromApi(plugin, s.pdb_id);
+                    
+                    // Polymer chain + surroundings query
+                    const polymerChainWithSurroundings = MS.struct.modifier.includeSurroundings({
+                        0: MS.struct.generator.atomGroups({
+                            'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'polymer']),
+                            'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                        }), 
+                        radius: 5, 
+                        'as-whole-residues': true
+                    });
+
+                    let i = 0;
+                    for(const carbEntityChainId of allCarbPolymers.branchedChains) {
+
+                        const carbEntityChain = MS.struct.generator.atomGroups({
+                            'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'branched']),
+                            'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), carbEntityChainId]),
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                        });
+
+                        const carbEntityChainInVicinity = MS.struct.filter.intersectedBy({
+                            0: polymerChainWithSurroundings,
+                            by: carbEntityChain
+                        });
+
+                        const data = (plugin.state.data.select(strInstance.ref)[0].obj).data;
+                        const carbChainSel = Script.getStructureSelection(carbEntityChainInVicinity, data);
+                        if(carbChainSel && carbChainSel.kind === 'sequence') {
+                            // console.log(carbEntityChainId + ' chain present in 5 A radius');
+                            const carbLigands = []
+                            const carbLigNamesAndCount: any = {};
+                            const carbLigList = [];
+
+                            for(const carbLigs of allCarbPolymers.branchedLigands[i]) {
+                                const ligResDetails = carbLigs.split('-');
+                                carbLigands.push(MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), +ligResDetails[1]]));
+
+                                if(carbLigNamesAndCount[ligResDetails[0]]) {
+                                    carbLigNamesAndCount[ligResDetails[0]]++;
+                                } else {
+                                    carbLigNamesAndCount[ligResDetails[0]] = 1;
+                                }
+
+                                carbLigList.push(ligResDetails[0]);
+                            }
+
+                            const carbVisLabel = createCarbVisLabel(carbLigNamesAndCount);
+
+                            const branchedEntity = MS.struct.generator.atomGroups({
+                                'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'branched']),
+                                'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
+                                'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), carbEntityChainId]),
+                                'residue-test': MS.core.logic.or(carbLigands)
+                            });
+
+                            let labelTagParams = { label: `${carbVisLabel}`, tags: [`superposition-carb-sel`] };
+                            const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, branchedEntity, `${carbLigList.join('-')}-${segmentIndex}`, labelTagParams);
+                            if(ligandExp){
+                                await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'carbohydrate' }, { tag: `superposition-carb-visual`});
+                                spState.refMaps[ligandExp.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
+                                invalidStruct = false;
+                            }
+
+                        }
+
+                        i++;
+                    }
+
+
+
+                }
+
                 if(invalidStruct) {
                     spState.invalidStruct.push(`${s.pdb_id}_${s.struct_asym_id}`);
                     const loadedStructIndex = spState.loadedStructs[segmentIndex].indexOf(`${s.pdb_id}_${s.struct_asym_id}`);
@@ -221,7 +312,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         // PluginCommands.State.RemoveObject(plugin, { state: d.parent!, ref: d.transform.parent, removeParentGhosts: true });
                     }
                 }else{
-                    if(interactingHets.length > 0) spState.hets[`${s.pdb_id}_${s.struct_asym_id}`] = interactingHets;
+                    // if(interactingHets.length > 0) spState.hets[`${s.pdb_id}_${s.struct_asym_id}`] = interactingHets;
                 }
 
             }
@@ -233,14 +324,20 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
     });
 }
 
-async function getHetNames(state: State, modelRef: string) {
+async function getLigandNamesFromModelData(plugin: PluginContext, state: State, modelRef: string) {
     const cell = state.select(modelRef)[0];
     if (!cell || !cell.obj) return void 0;
     const model = cell.obj.data;
     if (!model) return;
-    const info = await ModelInfo.get(model);
-    if(info && info.hetNames.length > 0) return info.hetNames;
-    return void 0;
+
+    const structures: any[] = [];
+    for (const s of plugin.managers.structure.hierarchy.selection.structures) {
+        const structure = s.cell.obj?.data;
+        if (structure) structures.push(structure);
+    }
+
+    const info = await ModelInfo.get(model, structures);
+    return info;
 }
 
 async function loadStructure(plugin: PluginContext, url: string, format: BuiltInTrajectoryFormat, isBinary?: boolean) {
@@ -271,7 +368,8 @@ function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structu
 async function getMatrixData(plugin: PluginContext) {
     const customState = plugin.customState as any;
     const matrixAccession = customState.initParams.superpositionParams.matrixAccession ? customState.initParams.superpositionParams.matrixAccession : customState.initParams.moleculeId;
-    const clusterRecUrlStr = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition_matrices/${matrixAccession}`;
+    // const clusterRecUrlStr = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition_matrices/${matrixAccession}`;
+    const clusterRecUrlStr = `${customState.initParams.pdbeUrl}static/superpose/matrices/${matrixAccession}`;
     const assetManager = plugin.managers.asset;
     const clusterRecUrl = Asset.getUrlAsset(assetManager, clusterRecUrlStr);
     try {
@@ -302,4 +400,64 @@ async function getSegmentData(plugin: PluginContext) {
         customState['superpositionError'] = `Superposition data not available for ${customState.initParams.moleculeId}`;
         (plugin.customState as any).events.superpositionInit.next(true); // Emit segment API data load event
     }
+}
+
+function getChainLigands(carbEntity: any) {
+    const ligandChain: string[] = [];
+    const ligandLabels: string[] = [];
+    const ligands: string[][] = [];
+    
+    const labelValueArr = [];
+    let ligNameStr = '';
+    for (const chemComp of carbEntity.chem_comp_list) {
+        labelValueArr.push(`${chemComp.chem_comp_id} (${chemComp.count})`) 
+    }
+    ligNameStr = labelValueArr.join(', ');
+
+    for (const chain of carbEntity.chains) {
+        ligandChain.push(chain.chain_id);
+        ligandLabels.push(ligNameStr);
+        const chainLigands = [];
+        for (const residue of chain.residues) {
+            chainLigands.push(residue.chem_comp_id + '-' + residue.residue_number)
+        }
+        ligands.push(chainLigands);
+    }
+
+    return {
+        ligands,
+        ligandChain,
+        ligandLabels
+    };
+}
+
+async function getCarbPolymerDetailsFromApi(plugin: PluginContext, pdb_id: string) {
+
+    const customState = plugin.customState as any;
+
+    // Get Data
+    const apiUrl = `${customState.initParams.pdbeUrl}api/pdb/entry/carbohydrate_polymer/${pdb_id}`;
+    const assetManager = plugin.managers.asset;
+    const url = Asset.getUrlAsset(assetManager, apiUrl);
+    let branchedLigands: string[][] = [];
+    let branchedChains: string[] = [];
+    let branchedlabels: string[] = [];
+    try {
+        const result = await plugin.runTask(assetManager.resolve(url, 'json', false));
+        if(result && result.data) {
+            const carbEntities = result.data[pdb_id];
+            for (const carbEntity of carbEntities) {
+                const carbLigData = getChainLigands(carbEntity);
+                branchedLigands = branchedLigands.concat(carbLigData.ligands);
+                branchedChains = branchedChains.concat(carbLigData.ligandChain);
+                branchedlabels = branchedlabels.concat(carbLigData.ligandLabels);
+            }
+        }
+    } catch (e) { }
+
+    return {
+        branchedChains,
+        branchedLigands,
+        branchedlabels
+    };
 }

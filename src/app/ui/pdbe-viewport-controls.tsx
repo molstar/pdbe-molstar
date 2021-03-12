@@ -2,7 +2,7 @@ import * as React from 'react';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { ControlGroup } from 'Molstar/mol-plugin-ui/controls/common';
 import { ToggleSelectionModeButton } from 'Molstar/mol-plugin-ui/structure/selection';
-import { DownloadScreenshotControls } from 'Molstar/mol-plugin-ui/viewport/screenshot';
+import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
 import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
 import { AutorenewSvg, CameraOutlinedSvg, BuildOutlinedSvg, FullscreenSvg, TuneSvg, CloseSvg } from 'Molstar/mol-plugin-ui/controls/icons';

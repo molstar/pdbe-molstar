@@ -64,7 +64,8 @@ export type LigandQueryParam = {
     auth_asym_id?: string,
     struct_asym_id?: string,
     label_comp_id?: string,
-    auth_seq_id?: number
+    auth_seq_id?: number,
+    show_all?: boolean
 };
 
 export namespace LigandView {
@@ -90,10 +91,12 @@ export namespace LigandView {
         }
 
         // Construct core query
-        const core = MS.struct.filter.first([
-            MS.struct.generator.atomGroups(atomGroupsParams)
-        ]);
-
+        const core = ligandViewParams.show_all ? 
+            MS.struct.generator.atomGroups(atomGroupsParams) : 
+            MS.struct.filter.first([
+                MS.struct.generator.atomGroups(atomGroupsParams)
+            ]);
+        
         // Construct surroundings query
         const surroundings = MS.struct.modifier.includeSurroundings({ 0: core, radius: 5, 'as-whole-residues': true });
 
@@ -262,30 +265,38 @@ export namespace QueryHelper {
 }
 
 export interface ModelInfo {
-    hetNames: string[]
+    hetNames: string[],
+    carbEntityCount: number,
 }
 
 export namespace ModelInfo {
-    export async function get(model: Model): Promise<ModelInfo> {
+    export async function get(model: Model, structures: any): Promise<ModelInfo> {
         const { _rowCount: residueCount } = model.atomicHierarchy.residues;
         const { offsets: residueOffsets } = model.atomicHierarchy.residueAtomSegments;
         const chainIndex = model.atomicHierarchy.chainAtomSegments.index;
 
         const hetNames: ModelInfo['hetNames'] = [];
+        let carbEntityCount: ModelInfo['carbEntityCount'] = 0;
         for (let rI = 0 as ResidueIndex; rI < residueCount; rI++) {
             const cI = chainIndex[residueOffsets[rI]];
             const eI = model.atomicHierarchy.index.getEntityFromChain(cI);
             const entityType = model.entities.data.type.value(eI);
+           
             if (entityType !== 'non-polymer' && entityType !== 'branched') continue;
 
             // const comp_id = model.atomicHierarchy.atoms.label_comp_id.value(rI);
             const comp_id = model.atomicHierarchy.atoms.label_comp_id.value(residueOffsets[rI]);
+            if(entityType === 'branched'){ 
+                carbEntityCount++; 
+            } else {
+                if(hetNames.indexOf(comp_id) === -1) hetNames.push(comp_id); 
+            }                  
 
-            if(hetNames.indexOf(comp_id) === -1) hetNames.push(comp_id);
         }
 
         return {
-            hetNames
+            hetNames,
+            carbEntityCount
         };
     }
 }

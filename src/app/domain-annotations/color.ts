@@ -7,7 +7,7 @@ import { Color } from 'Molstar/mol-util/color';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { CustomProperty } from 'Molstar/mol-model-props/common/custom-property';
 
-const ValidationColors = [
+const DomainColors = [
     Color.fromRgb(170, 170, 170), // not applicable
     Color.fromRgb(255, 112, 3)
 ];
@@ -29,12 +29,12 @@ export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: PD.Val
         const issue = props.type.params.kind;
         color = (location: Location) => {
             if (StructureElement.Location.is(location) && getDomains(location).indexOf(issue) >= 0) {
-                return ValidationColors[1];
+                return DomainColors[1];
             }
-            return ValidationColors[0];
+            return DomainColors[0];
         };
     } else {
-        color = () => ValidationColors[0];
+        color = () => DomainColors[0];
     }
 
     return {
@@ -58,9 +58,11 @@ export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'p
 
         const optionObj: any = {};
         domainTypes.forEach((tp, index) => {
-            optionObj[tp as string] = PD.Group({
-                kind: PD.Select(domainNames[index][0] as string, PD.arrayToOptions(domainNames[index] as string[]))
-            }, { isFlat: true });
+            if(domainNames[index].length > 0) {
+                optionObj[tp as string] = PD.Group({
+                    kind: PD.Select(domainNames[index][0] as string, PD.arrayToOptions(domainNames[index] as string[]))
+                }, { isFlat: true });
+            }
         });
 
         if (Object.keys(optionObj).length > 0) {

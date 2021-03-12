@@ -7,6 +7,7 @@ import { CustomProperty } from 'Molstar/mol-model-props/common/custom-property';
 import { arraySetAdd } from 'Molstar/mol-util/array';
 import { Asset } from 'Molstar/mol-util/assets';
 import { CustomPropertyDescriptor } from 'Molstar/mol-model/custom-property';
+import { ChainIndex } from 'Molstar/mol-model/structure/model/indexing';
 
 export { DomainAnnotations };
 type DomainAnnotations = PropertyWrapper<{
@@ -85,6 +86,22 @@ export const DomainAnnotationsProvider: CustomModelProperty.Provider<DomainAnnot
     }
 });
 
+function findChainLabel(map: any, label_entity_id: string, label_asym_id: string): ChainIndex {
+    const entityIndex = map.entities.getEntityIndex;
+    const eI = entityIndex(label_entity_id);
+    if (eI < 0 || !map.entity_index_label_asym_id.has(eI)) return -1 as ChainIndex;
+    const cm = map.entity_index_label_asym_id.get(eI);
+    if (!cm) return -1 as ChainIndex;
+    return cm.has(label_asym_id) ? cm.get(label_asym_id)! : -1 as ChainIndex;
+}
+
+function findResidue(modelData: Model, map: any, label_entity_id: string, label_asym_id: string, label_seq_id: number) {
+    const cI = findChainLabel(map, label_entity_id, label_asym_id);
+    if (cI < 0) return -1 as ResidueIndex;
+    const rm = map.chain_index_auth_seq_id.get(cI)!;
+    return rm.has(label_seq_id) ? rm.get(label_seq_id)! : -1 as ResidueIndex;
+}
+
 function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations['data'] | undefined {
     const domainTypes: string[] = [];
     const domainNames: string[][] = [];
@@ -102,9 +119,11 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
 
                 arraySetAdd(tempDomains, domain.identifier);
 
-                for(let i = map.start.author_residue_number; i <= map.end.author_residue_number; i++){
-                    const auth_seq_id = i, ins_code = map.start.author_insertion_code || '';
-                    const idx = modelData.atomicHierarchy.index.findResidue(map.entity_id + '', map.chain_id, auth_seq_id, ins_code);
+                const indexData = modelData.atomicHierarchy.index as any;
+                const indexMap = indexData.map;
+                for(let i = map.start.residue_number; i <= map.end.residue_number; i++){
+                    const seq_id = i;
+                    const idx = findResidue(modelData, indexMap, map.entity_id + '', map.chain_id, seq_id);
                     let addVal: string[] = [domain.identifier];
                     const prevVal = ret.get(idx);
                     if(prevVal){
@@ -112,7 +131,6 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
                         addVal = prevVal;
                     }
                     ret.set(idx, addVal);
-
                 }
 
             }

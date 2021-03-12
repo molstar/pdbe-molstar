@@ -704,12 +704,18 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         const repr = this.props.representation.cell;
         let label = repr.obj?.label;
         if(repr.obj?.data.source && repr.obj?.data.source.label){
-            const sourceLabel = (repr.obj?.data.source.label.indexOf('[Focus]') >= 0) ? '[Focus]' : repr.obj?.data.source.label;
-            label = `${sourceLabel} ${(label && label.length < 21) ? ' - ' + label : ''}`;
+            let sourceLabel = (repr.obj?.data.source.label.indexOf('[Focus]') >= 0) ? '[Focus]' : repr.obj?.data.source.label;
+            const isLargeLabel = sourceLabel.length > 10 ? true : false;
+            sourceLabel = `${isLargeLabel ? `${sourceLabel.substring(0,28)}...` : sourceLabel}`;
+            if(isLargeLabel) {
+                label = sourceLabel;
+            } else {
+                label = `${sourceLabel} ${(label && label.length < 21) ? ' - ' + label : ''}`;
+            }
         }
         if(repr.obj?.data.source && repr.obj?.data.source.label === 'Custom Selection') label = 'Custom Selection';
         return <div className='msp-representation-entry'>
-            {repr.parent && <ExpandGroup header={`${label || 'Representation'}`} noOffset headerStyle={{ overflow: 'hidden' }}>
+            {repr.parent && <ExpandGroup header={`${label || 'Representation'}`} noOffset headerStyle={{ overflow: 'hidden' }} >
                 <UpdateTransformControl state={repr.parent} transform={repr.transform} customHeader='none' noMargin />
             </ExpandGroup>}
             <IconButton

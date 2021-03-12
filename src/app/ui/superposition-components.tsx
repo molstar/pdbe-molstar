@@ -32,14 +32,17 @@ export class SuperpositionComponentControls extends CollapsableControls<{}, Stru
     }
 }
 
-interface ComponentGroups { nonLigGroups: StructureComponentRef[][], ligGroups: StructureComponentRef[][] }
+interface ComponentGroups { nonLigGroups: StructureComponentRef[][], ligGroups: StructureComponentRef[][], carbGroups: StructureComponentRef[][] }
 
 interface ComponentListControlsState {
     segmentWatch: boolean,
-    searchText: string,
+    ligSearchText: string,
+    carbSearchText: string,
     componentGroups: ComponentGroups,
     ligGroups: StructureComponentRef[][],
     isLigCollapsed: boolean,
+    carbGroups: StructureComponentRef[][],
+    isCarbCollapsed: boolean,
     isBusy: boolean
 };
 
@@ -47,22 +50,38 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
 
     state = {
         segmentWatch: false,
-        searchText: '',
-        componentGroups: { nonLigGroups: [], ligGroups: [] },
+        ligSearchText: '',
+        carbSearchText: '',
+        componentGroups: { nonLigGroups: [], ligGroups: [], carbGroups: [] },
         ligGroups: [],
         isLigCollapsed: false,
+        carbGroups: [],
+        isCarbCollapsed: false,
         isBusy: false
     }
 
-    private inputStream = new Subject();
-    private handleInputStream = (inputStr: string) => {
-        this.setState({searchText: inputStr});
+    private ligInputStream = new Subject();
+    private handleLigInputStream = (inputStr: string) => {
+        this.setState({ligSearchText: inputStr});
         const filteredRes = this.state.componentGroups.ligGroups.filter( (g: StructureComponentRef[]) => {
             const gKeys = g[0].key!.split(',');
             const cId1Arr = gKeys[0].split('-');
             return cId1Arr[2].toLowerCase().indexOf(inputStr.toLowerCase()) >= 0;
         });
         this.setState({ ligGroups: filteredRes });
+    }
+
+    private carbInputStream = new Subject();
+    private handleCarbInputStream = (inputStr: string) => {
+        this.setState({carbSearchText: inputStr});
+        const filteredRes = this.state.componentGroups.carbGroups.filter( (g: StructureComponentRef[]) => {
+            const gKeys = g[0].key!.split(',');
+            const cId1Arr = gKeys[0].split('-');
+            cId1Arr.splice(0, 2);
+            cId1Arr.pop();
+            return cId1Arr.join('-').toLowerCase().indexOf(inputStr.toLowerCase()) >= 0;
+        });
+        this.setState({ carbGroups: filteredRes });
     }
 
     componentDidMount() {
@@ -84,11 +103,12 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 this.forceUpdate();
             });
         }
-        this.subscribe(this.inputStream.pipe(debounceTime(1000 / 24)), (e: any) => this.handleInputStream(e));
+        this.subscribe(this.ligInputStream.pipe(debounceTime(1000 / 24)), (e: any) => this.handleLigInputStream(e));
+        this.subscribe(this.carbInputStream.pipe(debounceTime(1000 / 24)), (e: any) => this.handleCarbInputStream(e));
     }
 
     categoriseGroups() {
-        let componentGroupsVal: ComponentGroups = { nonLigGroups: [], ligGroups: [] };
+        let componentGroupsVal: ComponentGroups = { nonLigGroups: [], ligGroups: [], carbGroups: []};
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
         const customState: any = this.plugin.customState;
         componentGroups.forEach( (g: StructureComponentRef[]) => {
@@ -104,6 +124,8 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                     if(cId1Arr[cId1Arr.length - 1] !== (customState.superpositionState.activeSegment - 1) + '') return;
                     if(gKeys.indexOf('superposition-ligand-sel') >= 0) {
                         componentGroupsVal.ligGroups.push(g);
+                    } else if(gKeys.indexOf('superposition-carb-sel') >= 0) {
+                        componentGroupsVal.carbGroups.push(g);
                     } else {
                         componentGroupsVal.nonLigGroups.push(g);
                     }
@@ -117,75 +139,116 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 }
             }
         });
-        this.setState({ componentGroups: componentGroupsVal, ligGroups: componentGroupsVal.ligGroups, searchText: '' });
+        this.setState({ componentGroups: componentGroupsVal, ligGroups: componentGroupsVal.ligGroups, carbGroups: componentGroupsVal.carbGroups, ligSearchText: '', carbSearchText: '' });
     }
 
-    toggleVisible = (e: React.MouseEvent<HTMLElement>, action: 'hide'|'show') => {
+    toggleVisible = (e: React.MouseEvent<HTMLElement>, action: 'hide'|'show', type: 'ligands'|'carbohydrates') => {
         e.preventDefault();
         e.currentTarget.blur();
 
         const customState: any = this.plugin.customState;
         customState.events.isBusy.next(true);
 
+        const visualEntites = (type === 'ligands') ? this.state.ligGroups : this.state.carbGroups;
+
         setTimeout( async() => {
-            for await (const lig of this.state.ligGroups) {
-                this.plugin.managers.structure.hierarchy.toggleVisibility(lig, action);
+            for await (const visualEntity of visualEntites) {
+                this.plugin.managers.structure.hierarchy.toggleVisibility(visualEntity, action);
             };
             customState.events.isBusy.next(false);
         });
 
     }
 
-    clearSearch = (e: React.MouseEvent<HTMLElement>) => {
+    showHideAllControls = (type: 'ligands'|'carbohydrates') => {
+        return <>
+            <Button icon={CheckSvg} flex onClick={(e) => this.toggleVisible(e, 'show', type)} style={{ flex: '0 0 50px', textAlign: 'center', fontSize: '80%', color: '#9cacc3', padding: 0 }} title={`Show all ${type}`} disabled={false}>
+                All
+            </Button>
+            <Button icon={CloseSvg} flex onClick={(e) => this.toggleVisible(e, 'hide', type)} style={{ flex: '0 0 50px', textAlign: 'center', fontSize: '80%', color: '#9cacc3', padding: 0 }} title={`Hide all ${type}`} disabled={false}>
+                None
+            </Button>
+        </>
+    }
+
+    clearLigSearch = (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
-        this.setState({searchText: ''});
-        this.inputStream.next('');
+        this.setState({ligSearchText: ''});
+        this.ligInputStream.next('');
         e.currentTarget.blur();
     }
 
-    collapseLigands = (e: React.MouseEvent<HTMLElement>) => {
+    clearCarbSearch = (e: React.MouseEvent<HTMLElement>) => {
+        e.preventDefault();
+        this.setState({carbSearchText: ''});
+        this.carbInputStream.next('');
+        e.currentTarget.blur();
+    }
+
+    collapseSection = (e: React.MouseEvent<HTMLElement>, type: 'ligands'|'carbohydrates') => {
         e.preventDefault();
         e.currentTarget.blur();
-        this.setState({ isLigCollapsed: !this.state.isLigCollapsed });
+        if(type === 'ligands') {
+            this.setState({ isLigCollapsed: !this.state.isLigCollapsed });
+        } else {
+            this.setState({ isCarbCollapsed: !this.state.isCarbCollapsed });
+        }
     }
+
+    sectionHeader = (type: 'ligands'|'carbohydrates') => {
+        const showHideAllControls = (type === 'ligands') ? this.showHideAllControls('ligands') : this.showHideAllControls('carbohydrates');
+        const title = (type === 'ligands') ? 'Ligand' : 'Carbohydrates';
+        const visibleVisuals = (type === 'ligands') ? this.state.ligGroups.length : this.state.carbGroups.length;
+        const totalVisuals = (type === 'ligands') ? this.state.componentGroups.ligGroups.length : this.state.componentGroups.carbGroups.length;
+        return <div className='msp-flex-row'style={{ marginTop: '6px' }}>
+            <button className='msp-form-control msp-control-button-label msp-transform-header-brand-gray' style={{ textAlign: 'left' }} onClick={(e) => this.collapseSection(e, type)}>
+                <span><strong>{title}</strong></span>
+                <small style={{ color: '#7d91b0' }}> ( {visibleVisuals}{visibleVisuals < totalVisuals ? ` / ${totalVisuals}` : ''} )</small>
+            </button>
+            { visibleVisuals > 1 && showHideAllControls }
+        </div>
+    }
+
+    
 
     render() {
 
-        const selectionControls = <>
-            <Button icon={CheckSvg} flex onClick={(e) => this.toggleVisible(e, 'show')} style={{ flex: '0 0 50px', textAlign: 'center', fontSize: '80%', color: '#9cacc3', padding: 0 }} title='Show all ligands' disabled={false}>
-                All
-            </Button>
-            <Button icon={CloseSvg} flex onClick={(e) => this.toggleVisible(e, 'hide')} style={{ flex: '0 0 50px', textAlign: 'center', fontSize: '80%', color: '#9cacc3', padding: 0 }} title='Hide all ligands' disabled={false}>
-                None
-            </Button>
-        </>;
-
-        const searchControls = <div className='msp-mapped-parameter-group' style={{fontSize: '90%'}}>
+        const ligSearchControls = <div className='msp-mapped-parameter-group' style={{fontSize: '90%'}}>
             <div className='msp-control-row msp-transform-header-brand-gray' style={{height: '33px'}}>
                 <span className='msp-control-row-label'>Search Ligand</span>
                 <div className='msp-control-row-ctrl'>
-                    <input type='text' placeholder='Enter HET code' disabled={this.state.isBusy} onChange={e => this.inputStream.next(e.target.value)} value={this.state.searchText} maxLength={3} />
+                    <input type='text' placeholder='Enter HET code' disabled={this.state.isBusy} onChange={e => this.ligInputStream.next(e.target.value)} value={this.state.ligSearchText} maxLength={3} />
                 </div>
             </div>
-            <IconButton svg={CloseSvg} flex onClick={this.clearSearch} style={{ flex: '0 0 24px', padding: 0 }} disabled={this.state.searchText === '' || this.state.isBusy} toggleState={this.state.searchText !== ''} title='Clear search input'></IconButton>
+            <IconButton svg={CloseSvg} flex onClick={this.clearLigSearch} style={{ flex: '0 0 24px', padding: 0 }} disabled={this.state.ligSearchText === '' || this.state.isBusy} toggleState={this.state.ligSearchText !== ''} title='Clear search input'></IconButton>
         </div>;
 
-        const ligSectionHeader = <div className='msp-flex-row'style={{ marginTop: '6px' }}>
-            <button className='msp-form-control msp-control-button-label msp-transform-header-brand-gray' style={{ textAlign: 'left' }} onClick={this.collapseLigands}>
-                <span><strong>Ligand</strong></span>
-                <small style={{ color: '#7d91b0' }}> ( {this.state.ligGroups.length}{this.state.ligGroups.length < this.state.componentGroups.ligGroups.length ? ` / ${this.state.componentGroups.ligGroups.length}` : ''} )</small>
-            </button>
-            { this.state.ligGroups.length > 1 && selectionControls }
+        const carbSearchControls = <div className='msp-mapped-parameter-group' style={{fontSize: '90%'}}>
+        <div className='msp-control-row msp-transform-header-brand-gray' style={{height: '33px'}}>
+            <span className='msp-control-row-label'>Search Carbohydrate</span>
+            <div className='msp-control-row-ctrl'>
+                <input type='text' placeholder='Enter HET code' disabled={this.state.isBusy} onChange={e => this.carbInputStream.next(e.target.value)} value={this.state.carbSearchText} maxLength={3} />
+            </div>
+        </div>
+        <IconButton svg={CloseSvg} flex onClick={this.clearCarbSearch} style={{ flex: '0 0 24px', padding: 0 }} disabled={this.state.carbSearchText === '' || this.state.isBusy} toggleState={this.state.carbSearchText !== ''} title='Clear search input'></IconButton>
         </div>;
+
+        const ligSectionHeader = this.sectionHeader('ligands');
+        const carbSectionHeader = this.sectionHeader('carbohydrates');
 
         return <>
             {(this.state.componentGroups.nonLigGroups.length > 0 ) && <div>
                 {this.state.componentGroups.nonLigGroups.map((g: any) => <StructureComponentGroup key={g[0].cell.transform.ref} group={g} boldHeader={true} />)}
             </div>}
             {(this.state.componentGroups.ligGroups.length > 0 ) && ligSectionHeader }
-            {(!this.state.isLigCollapsed && this.state.componentGroups.ligGroups.length > 5) && searchControls}
+            {(!this.state.isLigCollapsed && this.state.componentGroups.ligGroups.length > 5) && ligSearchControls}
             {(this.state.componentGroups.ligGroups.length > 0 ) && <div className='msp-control-offset' style={{ maxHeight: '800px', overflowY: 'auto' }}>
                 {!this.state.isLigCollapsed && this.state.ligGroups.map((g: any) => <StructureComponentGroup key={g[0].cell.transform.ref} group={g} boldHeader={false} />)}
+            </div>}
+            {(this.state.componentGroups.carbGroups.length > 0 ) && carbSectionHeader }
+            {(!this.state.isCarbCollapsed && this.state.componentGroups.carbGroups.length > 5) && carbSearchControls}
+            {(this.state.componentGroups.carbGroups.length > 0 ) && <div className='msp-control-offset' style={{ maxHeight: '800px', overflowY: 'auto' }}>
+                {!this.state.isCarbCollapsed && this.state.carbGroups.map((g: any) => <StructureComponentGroup key={g[0].cell.transform.ref} group={g} boldHeader={false} />)}
             </div>}
         </>;
     }
@@ -286,7 +349,7 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
             <div className='msp-flex-row'>
                 <Button noOverflow className='msp-control-button-label' title={`${label} - Click to focus.`} onClick={this.focus} style={{ textAlign: 'left' }} disabled={this.state.isBusy}>
                     {labelEle}
-                    <small className='msp-25-lower-contrast-text'> ( {this.props.group.length} )</small>
+                    {/* <small className='msp-25-lower-contrast-text'> ( {this.props.group.length} )</small> */}
                 </Button>
                 <IconButton disabled={this.state.isBusy} svg={this.state.isHidden ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} toggleState={false} onClick={this.toggleVisible} title={`${this.state.isHidden ? 'Show' : 'Hide'} component`} small className='msp-form-control' flex />
                 <IconButton disabled={this.state.isBusy} svg={MoreHorizSvg} onClick={this.toggleAction} title='Actions' toggleState={this.state.action === 'action'} className='msp-form-control' flex />
