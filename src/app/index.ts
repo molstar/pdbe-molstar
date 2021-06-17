@@ -27,14 +27,14 @@ import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
 import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in';
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
-//import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
+import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { SuperpostionViewport } from './ui/superposition-viewport';
 
 require('Molstar/mol-plugin-ui/skin/dark.scss');
 
 // Override carbon by chain-id theme default
-//ElementSymbolColorThemeParams.carbonByChainId.defaultValue = false;
+ElementSymbolColorThemeParams.carbonColor.defaultValue = { name: 'element-symbol', params: {} };
 
 class PDBeMolstarPlugin {
 
@@ -504,7 +504,6 @@ class PDBeMolstarPlugin {
         }
 
         const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
-        //this.plugin.builders.
         const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
         if(!isHetView){
