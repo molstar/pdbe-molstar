@@ -31,9 +31,9 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
     state: ImageControlsState = {
         showPreview: true,
         isDisabled: false,
-        resolution: this.plugin.helpers.viewportScreenshot?.currentResolution,
-        transparent: this.plugin.helpers.viewportScreenshot?.transparent,
-        axes: this.plugin.helpers.viewportScreenshot?.axes
+        resolution: this.plugin.helpers.viewportScreenshot?.params.resolution,//.currentResolution,
+        transparent: this.plugin.helpers.viewportScreenshot?.params.transparent,//.transparent,
+        axes: this.plugin.helpers.viewportScreenshot?.params.axes
     } as ImageControlsState
 
     private imgRef = React.createRef<HTMLImageElement>()
@@ -41,7 +41,7 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
 
     private preview = async () => {
         if (!this.imgRef.current) return;
-        this.imgRef.current!.src = await this.plugin.helpers.viewportScreenshot!.imageData();
+        this.imgRef.current!.src = await this.plugin.helpers.viewportScreenshot!.getImageDataUri();//.imageData();
     }
 
     private download = () => {
@@ -109,13 +109,13 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
 
     private setProps = (p: { param: PD.Base<any>, name: string, value: any }) => {
         if (p.name === 'resolution') {
-            this.plugin.helpers.viewportScreenshot!.currentResolution = p.value;
+            this.plugin.helpers.viewportScreenshot!.params.resolution = p.value;
             this.setState({ resolution: p.value });
         } else if (p.name === 'transparent') {
-            this.plugin.helpers.viewportScreenshot!.transparent = p.value;
+            this.plugin.helpers.viewportScreenshot!.params.transparent = p.value;
             this.setState({ transparent: p.value });
         } else if (p.name === 'axes') {
-            this.plugin.helpers.viewportScreenshot!.axes = p.value;
+            this.plugin.helpers.viewportScreenshot!.params.axes = p.value;
             this.setState({ axes: p.value });
         }
     }

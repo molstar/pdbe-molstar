@@ -27,22 +27,16 @@ import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
 import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in';
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
-import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
+//import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { SuperpostionViewport } from './ui/superposition-viewport';
 
 require('Molstar/mol-plugin-ui/skin/dark.scss');
 
 // Override carbon by chain-id theme default
-ElementSymbolColorThemeParams.carbonByChainId.defaultValue = false;
+//ElementSymbolColorThemeParams.carbonByChainId.defaultValue = false;
 
 class PDBeMolstarPlugin {
-
-    private _ev = RxEventHelper.create();
-
-    readonly events = {
-        loadComplete: this._ev<boolean>()
-    };
 
     plugin: PluginContext;
     initParams: InitParams;
@@ -52,6 +46,230 @@ class PDBeMolstarPlugin {
     defaultRendererProps: any;
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
+    canvas = {
+        toggleControls: (isVisible?: boolean) => {
+            if(typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
+            PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
+        },
+
+        toggleExpanded: (isExpanded?: boolean) => {
+            if(typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
+            PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
+        },
+
+        setBgColor: (color?: {r: number, g: number, b: number}) => {
+            if(!color) return;
+            const renderer = this.plugin.canvas3d!.props.renderer;
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, backgroundColor: Color.fromRgb(color.r, color.g, color.b) } } });
+        },
+
+    }
+    visual = {
+        highlight: (params: { data: QueryParam[], color?: any, focus?: boolean }) => {
+            const loci = this.getLociForParams(params.data);
+            if(Loci.isEmpty(loci)) return;
+            if(params.color) {
+                this.visual.setColor({highlight: params.color});
+            }
+            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci });
+            if(params.focus) this.plugin.managers.camera.focusLoci(loci);
+
+        },
+        clearHighlight: async() => {
+            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
+            if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
+        },
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean }) => {
+
+            // clear prvious selection
+            if(this.selectedParams){
+                await this.visual.clearSelection();
+            }
+
+            // set non selected theme color
+            if(params.nonSelectedColor) {
+                for await (const s of this.plugin.managers.structure.hierarchy.current.structures) {
+                    await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+                }
+            }
+
+            // apply individual selections
+            for await (const param of params.data) {
+                // get loci from param
+                const loci = this.getLociForParams([param]);
+                if(Loci.isEmpty(loci)) return;
+                // set default selection color to minimise change display
+                this.visual.setColor({select: param.color ? param.color : { r:255, g:112, b:3}});
+                // apply selection
+                this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
+                // create theme param values and apply them to create overpaint
+                const themeParams = StructureComponentManager.getThemeParams(this.plugin, this.plugin.managers.structure.component.pivotStructure);
+                const colorValue = ParamDefinition.getDefaultValues(themeParams);
+                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
+                await this.plugin.managers.structure.component.applyTheme(colorValue, this.plugin.managers.structure.hierarchy.current.structures);
+                // add new representations
+                if(param.sideChain || param.representation){
+                    let repr = 'ball-and-stick';
+                    if(param.representation) repr = param.representation;
+                    const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
+                    let defaultValues = ParamDefinition.getDefaultValues(defaultParams);
+                    defaultValues.options = { label: 'selection-by-script', checkExisting: true };
+                    const values = {...defaultValues, ...{representation: repr} };
+                    const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
+                    await this.plugin.managers.structure.component.add(values, structures);
+
+                    // Apply uniform theme
+                    if(param.representationColor){
+                        const comps = this.plugin.managers.structure.hierarchy.current.structures[0].components;
+                        const lastCompsIndex = comps.length - 1;
+                        const recentRepComp = [comps[lastCompsIndex]];
+                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
+                        this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
+                    }
+
+                    params.addedRepr = true;
+                }
+                // focus loci
+                if(param.focus) this.plugin.managers.camera.focusLoci(loci);
+                // remove selection
+                this.plugin.managers.interactivity.lociSelects.deselect({ loci });
+            }
+
+            // reset selection color
+            this.visual.reset({ selectColor: true });
+            // save selection params to optimise clear
+            this.selectedParams = params;
+
+        },
+        clearSelection: async () => {
+            this.plugin.managers.interactivity.lociSelects.deselectAll();
+            // reset theme to default
+            if(this.selectedParams && this.selectedParams.nonSelectedColor) {
+                this.visual.reset({ theme: true});
+            }
+            // remove overpaints
+            await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[0].components);
+            // remove selection representations
+            if(this.selectedParams && this.selectedParams.addedRepr) {
+                let selReprCells: any = [];
+                for(const c of this.plugin.managers.structure.hierarchy.current.structures[0].components) {
+                    if(c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
+                }
+                if(selReprCells.length > 0) {
+                    for await (const selReprCell of selReprCells) {
+                        await PluginCommands.State.RemoveObject(this.plugin, { state: selReprCell.parent!, ref: selReprCell.transform.ref });
+                    };
+                }
+
+            }
+            this.selectedParams = undefined;
+        },
+        update: async (options: InitParams, fullLoad?: boolean) => {
+            if(!options) return;
+
+            // for(let param in this.initParams){
+            //     if(options[param]) this.initParams[param] = options[param];
+            // }
+
+            this.initParams = {...DefaultParams };
+            for(let param in DefaultParams){
+                if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
+            }
+
+            if(!this.initParams.moleculeId && !this.initParams.customData) return false;
+            if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
+            (this.plugin.customState as any).initParams = this.initParams;
+
+            // Set background colour
+            if(this.initParams.bgColor){
+                this.canvas.setBgColor(this.initParams.bgColor);
+            }
+
+            // Load Molecule CIF or coordQuery and Parse
+            let dataSource = this.getMoleculeSrcUrl();
+            if(dataSource){
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary}, fullLoad);
+            }
+        },
+        visibility: (data: {polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any}) => {
+
+            if(!data) return;
+
+            const refMap: any = {
+                polymer: 'structure-component-static-polymer',
+                het: 'structure-component-static-ligand',
+                water: 'structure-component-static-water',
+                carbs: 'structure-component-static-branched',
+                maps: 'volume-streaming-info'
+            };
+
+            for(let visual in data){
+                const tagName = refMap[visual];
+                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
+                if(componentRef){
+                    const compVisual = this.plugin.state.data.select(componentRef)[0];
+                    if(compVisual && compVisual.obj){
+                        const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
+                        if(data[visual] !== currentlyVisible){
+                            PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
+                        }
+                    }
+                }
+
+            }
+
+        },
+        toggleSpin: (isSpinning?: boolean, resetCamera?: boolean) => {
+            if (!this.plugin.canvas3d) return;
+            const trackball =  this.plugin.canvas3d.props.trackball;
+            if(typeof isSpinning === 'undefined') isSpinning = !trackball.spin;
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, spin: isSpinning } } });
+            if (resetCamera) PluginCommands.Camera.Reset(this.plugin, { });
+        },
+        focus: async (params: QueryParam[]) => {
+            const loci = this.getLociForParams(params);
+            this.plugin.managers.camera.focusLoci(loci);
+        },
+        setColor: (param: { highlight?: any, select?: any }) => {
+            if (!this.plugin.canvas3d) return;
+            const renderer = this.plugin.canvas3d.props.renderer;
+            let rParam: any = {};
+            if(param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
+            if(param.select) rParam['selectColor'] = this.normalizeColor(param.select);
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
+            if(rParam.highlightColor) this.isHighlightColorUpdated = true;
+        },
+        reset: async(params: {camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean}) => {
+
+            if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
+
+            if(params.theme){
+                const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
+                componentGroups.forEach((compGrp) => {
+                    this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, {color: 'default'});
+                });
+            }
+
+            if(params.highlightColor || params.selectColor){
+                if (!this.plugin.canvas3d) return;
+                const renderer = this.plugin.canvas3d.props.renderer;
+                let rParam: any = {};
+                if(params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
+                if(params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
+                PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
+                if(rParam.highlightColor) this.isHighlightColorUpdated = false;
+            }
+
+        }
+    }
+    private _ev = RxEventHelper.create();
+    readonly events = {
+        loadComplete: this._ev<boolean>()
+    };
+
+    get state() {
+        return this.plugin.state.data;
+    }
 
     render(target: string | HTMLElement, options: InitParams) {
         if(!options) return;
@@ -239,16 +457,12 @@ class PDBeMolstarPlugin {
         };
     }
 
-    get state() {
-        return this.plugin.state.data;
-    }
-
     async createLigandStructure(isBranched: boolean) {
         if(this.assemblyRef === '') return;
         for await (const comp of this.plugin.managers.structure.hierarchy.currentComponentGroups) {
             await PluginCommands.State.RemoveObject(this.plugin, { state: comp[0].cell.parent!, ref: comp[0].cell.transform.ref, removeParentGhosts: true });
         }
-        
+
         const structure = this.state.select(this.assemblyRef)[0];
 
         let ligandQuery;
@@ -288,8 +502,9 @@ class PDBeMolstarPlugin {
             isBranchedView = true;
             downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']]};
         }
-        
+
         const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
+        //this.plugin.builders.
         const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
         if(!isHetView){
@@ -372,33 +587,12 @@ class PDBeMolstarPlugin {
         });
     }
 
-    canvas = {
-        toggleControls: (isVisible?: boolean) => {
-            if(typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
-            PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
-        },
-
-        toggleExpanded: (isExpanded?: boolean) => {
-            if(typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
-            PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
-        },
-
-        setBgColor: (color?: {r: number, g: number, b: number}) => {
-            if(!color) return;
-            const renderer = this.plugin.canvas3d!.props.renderer;
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, backgroundColor: Color.fromRgb(color.r, color.g, color.b) } } });
-        },
-
-    }
-
     getLociForParams(params: QueryParam[]) {
         if(this.assemblyRef === '') return EmptyLoci;
         const data = (this.plugin.state.data.select(this.assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
         if(!data) return EmptyLoci;
         return QueryHelper.getInteractivityLoci(params, data);
     }
-
-
 
     normalizeColor(colorVal: any, defaultColor?: Color){
         let color = Color.fromRgb(170, 170, 170);
@@ -414,205 +608,6 @@ class PDBeMolstarPlugin {
             if(defaultColor) color = defaultColor;
         }
         return color;
-    }
-
-    visual = {
-        highlight: (params: { data: QueryParam[], color?: any, focus?: boolean }) => {
-            const loci = this.getLociForParams(params.data);
-            if(Loci.isEmpty(loci)) return;
-            if(params.color) {
-                this.visual.setColor({highlight: params.color});
-            }
-            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci });
-            if(params.focus) this.plugin.managers.camera.focusLoci(loci);
-
-        },
-        clearHighlight: async() => {
-            this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
-            if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
-        },
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean }) => {
-
-            // clear prvious selection
-            if(this.selectedParams){
-                await this.visual.clearSelection();
-            }
-
-            // set non selected theme color
-            if(params.nonSelectedColor) {
-                for await (const s of this.plugin.managers.structure.hierarchy.current.structures) {
-                    await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
-                }
-            }
-
-            // apply individual selections
-            for await (const param of params.data) {
-                // get loci from param
-                const loci = this.getLociForParams([param]);
-                if(Loci.isEmpty(loci)) return;
-                // set default selection color to minimise change display
-                this.visual.setColor({select: param.color ? param.color : { r:255, g:112, b:3}});
-                // apply selection
-                this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
-                // create theme param values and apply them to create overpaint
-                const themeParams = StructureComponentManager.getThemeParams(this.plugin, this.plugin.managers.structure.component.pivotStructure);
-                const colorValue = ParamDefinition.getDefaultValues(themeParams);
-                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
-                await this.plugin.managers.structure.component.applyTheme(colorValue, this.plugin.managers.structure.hierarchy.current.structures);
-                // add new representations
-                if(param.sideChain || param.representation){
-                    let repr = 'ball-and-stick';
-                    if(param.representation) repr = param.representation;
-                    const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
-                    let defaultValues = ParamDefinition.getDefaultValues(defaultParams);
-                    defaultValues.options = { label: 'selection-by-script', checkExisting: true };
-                    const values = {...defaultValues, ...{representation: repr} };
-                    const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
-                    await this.plugin.managers.structure.component.add(values, structures);
-
-                    // Apply uniform theme
-                    if(param.representationColor){
-                        const comps = this.plugin.managers.structure.hierarchy.current.structures[0].components;
-                        const lastCompsIndex = comps.length - 1;
-                        const recentRepComp = [comps[lastCompsIndex]];
-                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
-                        this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
-                    }
-                    
-                    params.addedRepr = true;
-                }
-                // focus loci
-                if(param.focus) this.plugin.managers.camera.focusLoci(loci);
-                // remove selection
-                this.plugin.managers.interactivity.lociSelects.deselect({ loci });
-            }
-
-            // reset selection color
-            this.visual.reset({ selectColor: true });
-            // save selection params to optimise clear
-            this.selectedParams = params;
-
-        },
-        clearSelection: async () => {
-            this.plugin.managers.interactivity.lociSelects.deselectAll();
-            // reset theme to default
-            if(this.selectedParams && this.selectedParams.nonSelectedColor) {
-                this.visual.reset({ theme: true});
-            }
-            // remove overpaints
-            await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[0].components);
-            // remove selection representations
-            if(this.selectedParams && this.selectedParams.addedRepr) {
-                let selReprCells: any = [];
-                for(const c of this.plugin.managers.structure.hierarchy.current.structures[0].components) {
-                    if(c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
-                }
-                if(selReprCells.length > 0) {
-                    for await (const selReprCell of selReprCells) {
-                        await PluginCommands.State.RemoveObject(this.plugin, { state: selReprCell.parent!, ref: selReprCell.transform.ref });
-                    };
-                }
-
-            }
-            this.selectedParams = undefined;
-        },
-        update: async (options: InitParams, fullLoad?: boolean) => {
-            if(!options) return;
-
-            // for(let param in this.initParams){
-            //     if(options[param]) this.initParams[param] = options[param];
-            // }
-
-            this.initParams = {...DefaultParams };
-            for(let param in DefaultParams){
-                if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
-            }
-
-            if(!this.initParams.moleculeId && !this.initParams.customData) return false;
-            if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
-            (this.plugin.customState as any).initParams = this.initParams;
-
-            // Set background colour
-            if(this.initParams.bgColor){
-                this.canvas.setBgColor(this.initParams.bgColor);
-            }
-
-            // Load Molecule CIF or coordQuery and Parse
-            let dataSource = this.getMoleculeSrcUrl();
-            if(dataSource){
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary}, fullLoad);
-            }
-        },
-        visibility: (data: {polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any}) => {
-
-            if(!data) return;
-
-            const refMap: any = {
-                polymer: 'structure-component-static-polymer',
-                het: 'structure-component-static-ligand',
-                water: 'structure-component-static-water',
-                carbs: 'structure-component-static-branched',
-                maps: 'volume-streaming-info'
-            };
-
-            for(let visual in data){
-                const tagName = refMap[visual];
-                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
-                if(componentRef){
-                    const compVisual = this.plugin.state.data.select(componentRef)[0];
-                    if(compVisual && compVisual.obj){
-                        const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
-                        if(data[visual] !== currentlyVisible){
-                            PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
-                        }
-                    }
-                }
-
-            }
-
-        },
-        toggleSpin: (isSpinning?: boolean, resetCamera?: boolean) => {
-            if (!this.plugin.canvas3d) return;
-            const trackball =  this.plugin.canvas3d.props.trackball;
-            if(typeof isSpinning === 'undefined') isSpinning = !trackball.spin;
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, spin: isSpinning } } });
-            if (resetCamera) PluginCommands.Camera.Reset(this.plugin, { });
-        },
-        focus: async (params: QueryParam[]) => {
-            const loci = this.getLociForParams(params);
-            this.plugin.managers.camera.focusLoci(loci);
-        },
-        setColor: (param: { highlight?: any, select?: any }) => {
-            if (!this.plugin.canvas3d) return;
-            const renderer = this.plugin.canvas3d.props.renderer;
-            let rParam: any = {};
-            if(param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
-            if(param.select) rParam['selectColor'] = this.normalizeColor(param.select);
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
-            if(rParam.highlightColor) this.isHighlightColorUpdated = true;
-        },
-        reset: async(params: {camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean}) => {
-
-            if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
-
-            if(params.theme){
-                const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-                componentGroups.forEach((compGrp) => {
-                    this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, {color: 'default'});
-                });
-            }
-
-            if(params.highlightColor || params.selectColor){
-                if (!this.plugin.canvas3d) return;
-                const renderer = this.plugin.canvas3d.props.renderer;
-                let rParam: any = {};
-                if(params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
-                if(params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
-                PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
-                if(rParam.highlightColor) this.isHighlightColorUpdated = false;
-            }
-
-        }
     }
 
     async clear() {
