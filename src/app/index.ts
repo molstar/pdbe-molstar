@@ -6,7 +6,7 @@ import { StateTransform } from 'Molstar/mol-state';
 import { Loci, EmptyLoci } from 'Molstar/mol-model/loci';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam } from './helpers';
-import { PDBeStructureTools, PDBeSuperpositionStructureTools, PDBeLigandViewStructureTools } from './ui/pdbe-structure-controls';
+import { PDBeStructureTools, PDBeSuperpositionStructureTools, PDBeLigandViewStructureTools, PDBeAfViewStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { StateSelection } from 'Molstar/mol-state';
@@ -30,6 +30,8 @@ import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/struct
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { SuperpostionViewport } from './ui/superposition-viewport';
+import { AfConfidenceScore } from './af-confidence/behavior';
+// import { AFConfidenceComponentControls } from './ui/af-confidence-controls'
 
 require('Molstar/mol-plugin-ui/skin/dark.scss');
 
@@ -89,7 +91,7 @@ class PDBeMolstarPlugin {
         if(this.initParams.validationAnnotation) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, {autoAttach: true, showTooltip: false}));
         }
-
+        
         pdbePluginSpec.layout = {
             initial: {
                 isExpanded: this.initParams.landscape ? false : this.initParams.expanded,
@@ -100,8 +102,19 @@ class PDBeMolstarPlugin {
                 // right: DefaultStructureTools,
                 top: 'none',
                 bottom: 'none'
-            }
+            },
+            
         };
+
+        if(this.initParams.isAfView) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(AfConfidenceScore, {autoAttach: true, showTooltip: true}));
+            pdbePluginSpec.layout.controls = {
+                left: 'none',
+                right: 'none',
+                // top: 'none',
+                bottom: 'none'
+            }
+        }
 
         pdbePluginSpec.components = {
             viewport: {
@@ -109,11 +122,11 @@ class PDBeMolstarPlugin {
                 view: this.initParams.superposition ? SuperpostionViewport : void 0
             },
             remoteState: 'none',
-            structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
+            structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : this.initParams.isAfView ? PDBeAfViewStructureTools : PDBeStructureTools
         };
 
         pdbePluginSpec.config = [
-            [PluginConfig.Structure.DefaultRepresentationPresetParams, { theme: { carbonByChainId: false, focus: { name: 'element-symbol', params: { carbonByChainId: false } } } }]
+            [PluginConfig.Structure.DefaultRepresentationPresetParams, { theme: { globalName: (this.initParams.isAfView) ? 'af-confidence' : undefined,  carbonByChainId: false, focus: { name:  'element-symbol', params: { carbonByChainId: false } } } }]
         ];
 
         // Add animation props
@@ -596,9 +609,10 @@ class PDBeMolstarPlugin {
             if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
 
             if(params.theme){
+                const defaultTheme: any = { color: this.initParams.isAfView ? 'af-confidence' : 'default' };
                 const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
                 componentGroups.forEach((compGrp) => {
-                    this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, {color: 'default'});
+                    this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, defaultTheme);
                 });
             }
 

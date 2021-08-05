@@ -134,8 +134,15 @@
   
       //Set options (Checkout available options list in the documentation)
       var options = {
-        moleculeId: '2nnu',
-        hideControls: true
+        // moleculeId: '5wox',
+        customData: {
+          url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v1.cif',
+          format: 'cif'
+        },
+        hideControls: true,
+        // expanded: true,
+        isAfView: true,
+        hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
       }
       
       //Get element from HTML/Template to place the viewer 

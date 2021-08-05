@@ -19,8 +19,12 @@ export class PDBeViewportControls extends ViewportControls {
     render() {
         const customeState: any = this.plugin.customState;
         let showPDBeLink = false;
+        let showControlToggle = true;
+        let showControlInfo = true;
         if(customeState && customeState.initParams && customeState.initParams.moleculeId && customeState.initParams.pdbeLink) showPDBeLink = true;
         if(customeState && customeState.initParams && customeState.initParams.superposition) showPDBeLink = false;
+        if(customeState && customeState.initParams && customeState.initParams.hideCanvasControls && customeState.initParams.hideCanvasControls.indexOf('controlToggle') > -1) showControlToggle = false;
+        if(customeState && customeState.initParams && customeState.initParams.hideCanvasControls && customeState.initParams.hideCanvasControls.indexOf('controlInfo') > -1) showControlInfo = false;
         const bgColor = this.isBlack(customeState) ? '#fff' : '#555';
         const pdbeLink: any = {
             parentStyle: { width: 'auto' },
@@ -53,9 +57,9 @@ export class PDBeViewportControls extends ViewportControls {
                     </div>
                     <div>
                         <div className='msp-semi-transparent-background' />
-                        {this.icon(BuildOutlinedSvg, this.toggleControls, 'Toggle Controls Panel', this.plugin.layout.state.showControls)}
+                        {showControlToggle && this.icon(BuildOutlinedSvg, this.toggleControls, 'Toggle Controls Panel', this.plugin.layout.state.showControls)}
                         {this.plugin.config.get(PluginConfig.Viewport.ShowExpand) && this.icon(FullscreenSvg, this.toggleExpanded, 'Toggle Expanded Viewport', this.plugin.layout.state.isExpanded)}
-                        {this.icon(TuneSvg, this.toggleSettingsExpanded, 'Settings / Controls Info', this.state.isSettingsExpanded)}
+                        {showControlInfo && this.icon(TuneSvg, this.toggleSettingsExpanded, 'Settings / Controls Info', this.state.isSettingsExpanded)}
                     </div>
                     {this.plugin.config.get(PluginConfig.Viewport.ShowSelectionMode) && <div>
                         <div className='msp-semi-transparent-background' />

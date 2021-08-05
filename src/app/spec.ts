@@ -43,10 +43,10 @@ export function createPlugin(target: HTMLElement, spec?: PluginSpec): PluginCont
 
 export type InitParams = {
     moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean,
-    lowPrecisionCoords?: boolean, landscape?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation'],
+    lowPrecisionCoords?: boolean, landscape?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean,
     ligandView?: LigandQueryParam,
-    bgColor?: {r: number, g: number, b: number}, customData? : {url: string, format: string, binary: boolean}, loadCartoonsOnly? : boolean,
+    bgColor?: {r: number, g: number, b: number}, customData? : {url: string, format: string, binary: boolean}, loadCartoonsOnly? : boolean, isAfView?: boolean,
     selectColor?: {r: number, g: number, b: number}, highlightColor?: {r: number, g: number, b: number}, superpositionParams?: {matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean},
     hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'
     granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any, [key: string]: any;
@@ -80,5 +80,6 @@ export const DefaultParams: InitParams = {
     pdbeLink: true,
     loadCartoonsOnly: false,
     landscape: false,
-    subscribeEvents: false
+    subscribeEvents: false,
+    isAfView: false
 };
