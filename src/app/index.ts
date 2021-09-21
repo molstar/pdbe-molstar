@@ -321,7 +321,7 @@ class PDBeMolstarPlugin {
 
         if(!isHetView){
 
-            await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default', {
+            await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
                 structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: { } },
                 showUnitcell: false,
                 representationPreset: 'auto'

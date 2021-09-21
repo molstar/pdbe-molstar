@@ -48,6 +48,7 @@ class PdbeMolstar extends LitElement {
       hideControlInfoIcon: { type: Boolean, attribute: 'hide-control-info-icon'},
       alphafoldView: { type: Boolean, attribute: 'alphafold-view' },
       lighting: { type: String, attribute: 'lighting' },
+      defaultPreset: { type: String, attribute: 'default-preset' }
     };
   }
 
