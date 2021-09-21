@@ -7,6 +7,7 @@ import { VolumeStreamingControls, VolumeSourceControls } from 'Molstar/mol-plugi
 import { AnnotationsComponentControls } from './annotation-controls';
 import { Icon, BuildSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { SuperpositionComponentControls } from './superposition-components';
+import { AFConfidenceComponentControls } from './af-confidence-controls';
 
 export class PDBeStructureTools extends PluginUIComponent {
     render() {
@@ -39,6 +40,17 @@ export class PDBeSuperpositionStructureTools extends PluginUIComponent {
         return <>
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
             <SuperpositionComponentControls />
+            <StructureMeasurementsControls />
+        </>;
+    }
+}
+
+export class PDBeAfViewStructureTools extends PluginUIComponent {
+    render() {
+        return <>
+            <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
+            <StructureComponentControls />
+            <AFConfidenceComponentControls />
             <StructureMeasurementsControls />
         </>;
     }

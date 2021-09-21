@@ -59,7 +59,7 @@ const molstarConfig = {
 
 const componentConfig = {
     entry: path.resolve(__dirname, `src/web-component/index.js`),
-    output: { filename: `${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`, path: path.resolve(__dirname, `build/`) },
+    output: { filename: `${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`, path: path.resolve(__dirname, `lib/`) },
     target: "web",
     devtool: "source-map",
     resolve: {

@@ -165,7 +165,8 @@ export type QueryParam = {
     focus?: boolean,
     tooltip?: string,
     start?: any,
-    end?: any
+    end?: any,
+    atom_id?: number[]
 };
 
 export namespace QueryHelper {
@@ -233,6 +234,14 @@ export namespace QueryHelper {
                     atomsArr.push(MS.core.rel.eq([MS.ammp('label_atom_id'), atom]));
                 });
                 selection['atom-test'] = MS.core.logic.or(atomsArr);
+            }
+
+            if(param.atom_id){
+                let atomsIdArr: any = [];
+                param.atom_id.forEach(atomId => {
+                    atomsIdArr.push(MS.core.rel.eq([MS.ammp('id'), atomId]));
+                });
+                selection['atom-test'] = MS.core.logic.or(atomsIdArr);
             }
 
             selections.push(selection);

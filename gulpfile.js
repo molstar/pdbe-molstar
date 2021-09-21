@@ -38,7 +38,7 @@ gulp.task('clean', function() {
 });
 
 gulp.task('concat', function () {
-    return gulp.src([`build/${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`,`build/${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`])
+    return gulp.src([`build/${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`,`lib/${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`])
         .pipe(concat(`${PKG_JSON.name}-component-${PKG_JSON.version}.js`))
         .pipe(header(license, {} ))
 		.pipe(header(banner, {} ))

@@ -1,6 +1,7 @@
 import { PluginContext } from 'Molstar/mol-plugin/context';
 import { lociDetails, EventDetail } from './loci-details';
 import { InteractivityManager } from 'Molstar/mol-plugin-state/manager/interactivity';
+import { debounceTime } from 'rxjs/operators';
 
 export namespace CustomEvents {
 
@@ -40,7 +41,7 @@ export namespace CustomEvents {
                 if(evData) dispatchCustomEvent(pdbevents['PDB.molstar.click'], evData, targetElement);
             }
         });
-        plugin.behaviors.interaction.hover.subscribe((e: InteractivityManager.HoverEvent) => {
+        plugin.behaviors.interaction.hover.pipe(debounceTime(100)).subscribe((e: InteractivityManager.HoverEvent) => {
             if(e.current && e.current.loci && e.current.loci.kind !== 'empty-loci'){
                 const evData = lociDetails(e.current.loci);
                 if(evData) dispatchCustomEvent(pdbevents['PDB.molstar.mouseover'], evData, targetElement);

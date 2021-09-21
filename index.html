@@ -98,9 +98,9 @@
           ]
           viewerInstance.visual.select({ data: selectSections, nonSelectedColor: {r:255,g:255,b:255}})">Select on Chain B:2-5 & Chain B:8-10</button><br><br>
           
-        <button onclick="viewerInstance.visual.select({ data: [{struct_asym_id: 'B', color:{r:255,g:255,b:0}, focus:true}], nonSelectedColor: {r:255,g:255,b:255} })">Select & Focus on Chain B</button><br><br>
+        <button onclick="viewerInstance.visual.select({ data: [{struct_asym_id: 'A', color:{r:255,g:255,b:0}}], nonSelectedColor: {r:255,g:255,b:255}, structureNumber: 2 })">Select & Focus on Chain A</button><br><br>
 
-        <button onclick="viewerInstance.visual.clearSelection()">Clear Selection</button><br><br>
+        <button onclick="viewerInstance.visual.clearSelection(2)">Clear Selection</button><br><br>
 
         <strong>Set highlight / selection colour</strong><br>
         <button onclick="viewerInstance.visual.setColor({ highlight: {r:255,g:255,b:0} })">Yellow highlight</button>&nbsp;
@@ -114,7 +114,7 @@
         <button onclick="viewerInstance.visual.reset({ camera: true, theme: true })">Camera & Theme</button><br><br>
 
         <strong>Update data</strong><br>
-        <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'})">Update data to create new visual</button><br>
+        <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'}, false)">Update data to create new visual</button><br>
       
       </div>
 
@@ -135,14 +135,33 @@
       //Set options (Checkout available options list in the documentation)
       var options = {
         moleculeId: '2nnu',
-        hideControls: true
+        expanded: false,
+        hideControls: true,
+        // bgColor: {r: 255, g:255, b:255},
+        lighting: 'plastic'
       }
+
+      // AF
+      // var options = {
+      //   customData: {
+      //     url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v1.cif',
+      //     format: 'cif'
+      //   },
+      //   hideControls: true,
+      //   alphafoldView: true,
+      //   hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
+      // }
       
       //Get element from HTML/Template to place the viewer 
       var viewerContainer = document.getElementById('myViewer');
   
       //Call render method to display the 3D view
       viewerInstance.render(viewerContainer, options);
+
+      // document.addEventListener('PDB.molstar.mouseover', (e) => { 
+      //   //do something on event 
+      //   console.log(e)
+      // });
       
     </script>
   </body>
