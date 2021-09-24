@@ -506,7 +506,6 @@ class PDBeMolstarPlugin {
                 colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
                 await this.plugin.managers.structure.component.applyTheme(colorValue, structureData);
                 // add new representations
-                param.sideChain = true;
                 if(param.sideChain || param.representation){
                     let repr = 'ball-and-stick';
                     if(param.representation) repr = param.representation;
