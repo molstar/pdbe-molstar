@@ -6,8 +6,8 @@
     <title>PDBe Molstar</title>
 
     <!-- Molstar CSS & JS -->
-    <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-1.2.0.css">
-    <script type="text/javascript" src="build/pdbe-molstar-plugin-1.2.0.js"></script>
+    <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-1.2.1.css">
+    <script type="text/javascript" src="build/pdbe-molstar-plugin-1.2.1.js"></script>
     <style>
       * {
           margin: 0;
@@ -98,9 +98,9 @@
           ]
           viewerInstance.visual.select({ data: selectSections, nonSelectedColor: {r:255,g:255,b:255}})">Select on Chain B:2-5 & Chain B:8-10</button><br><br>
           
-        <button onclick="viewerInstance.visual.select({ data: [{struct_asym_id: 'A', color:{r:255,g:255,b:0}}], nonSelectedColor: {r:255,g:255,b:255}, structureNumber: 2 })">Select & Focus on Chain A</button><br><br>
+        <button onclick="viewerInstance.visual.select({ data: [{struct_asym_id: 'A', color:{r:255,g:255,b:0}}], nonSelectedColor: {r:255,g:255,b:255} })">Select & Focus on Chain A</button><br><br>
 
-        <button onclick="viewerInstance.visual.clearSelection(2)">Clear Selection</button><br><br>
+        <button onclick="viewerInstance.visual.clearSelection()">Clear Selection</button><br><br>
 
         <strong>Set highlight / selection colour</strong><br>
         <button onclick="viewerInstance.visual.setColor({ highlight: {r:255,g:255,b:0} })">Yellow highlight</button>&nbsp;

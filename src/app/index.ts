@@ -518,7 +518,11 @@ class PDBeMolstarPlugin {
                     
                     // Apply uniform theme
                     if(param.representationColor){
-                        const comps = structureData[0].components;
+                        let updatedStructureData = this.plugin.managers.structure.hierarchy.current.structures;
+                        if(params.structureNumber) {
+                            updatedStructureData = [this.plugin.managers.structure.hierarchy.current.structures[params.structureNumber - 1]];
+                        }
+                        const comps = updatedStructureData[0].components;
                         const lastCompsIndex = comps.length - 1;
                         const recentRepComp = [comps[lastCompsIndex]];
                         const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
