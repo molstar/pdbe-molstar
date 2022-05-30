@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { ControlGroup } from 'Molstar/mol-plugin-ui/controls/common';
 import { ToggleSelectionModeButton } from 'Molstar/mol-plugin-ui/structure/selection';

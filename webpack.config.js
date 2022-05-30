@@ -7,7 +7,7 @@ const PACKAGE_ROOT_PATH = process.cwd();
 const PKG_JSON = require(path.join(PACKAGE_ROOT_PATH, "package.json"));
 
 const molstarConfig = {
-    node: { fs: 'empty' },
+    target: 'node',
     entry: path.resolve(__dirname, `lib/index.js`),
     output: { filename: `${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`, path: path.resolve(__dirname, `build/`) },
     module: {
@@ -54,7 +54,7 @@ const molstarConfig = {
     watchOptions: {
         aggregateTimeout: 750
     },
-    devtool: ''
+    devtool: 'eval-source-map'
 }
 
 const componentConfig = {

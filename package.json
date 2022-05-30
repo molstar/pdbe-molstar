@@ -1,6 +1,6 @@
 {
   "name": "pdbe-molstar",
-  "version": "1.2.1",
+  "version": "3.0.0",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
@@ -13,8 +13,8 @@
     "watch": "concurrently -c \"green,green,gray,gray\" --names \"tsc,srv,ext,wpc\" --kill-others \"npm:watch-tsc\" \"npm:watch-extra\" \"npm:watch-webpack\"",
     "watch-tsc": "tsc --watch --incremental",
     "watch-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/ --watch",
-    "watch-webpack": "webpack -w --mode development --display minimal",
-    "serve": "http-server -p 1338",
+    "watch-webpack": "webpack -w --mode development --stats minimal",
+    "serve": "http-server -p 1338 -g",
     "bundle-webcomponent": "gulp"
   },
   "files": [
@@ -38,32 +38,36 @@
   },
   "homepage": "https://github.com/PDBeurope/pdbe-molstar#readme",
   "devDependencies": {
-    "@babel/core": "^7.10.3",
-    "@babel/plugin-transform-runtime": "^7.10.3",
-    "@babel/preset-env": "^7.10.3",
-    "@babel/runtime": "^7.10.3",
-    "babel-loader": "^8.1.0",
-    "concurrently": "^5.2.0",
-    "cpx2": "^2.0.0",
-    "css-loader": "^3.5.3",
-    "del": "^5.1.0",
+    "@types/react": "^17.0.39",
+    "@types/react-dom": "^17.0.11",
+    "@babel/core": "^7.17.10",
+    "@babel/plugin-transform-runtime": "^7.17.10",
+    "@babel/preset-env": "^7.17.10",
+    "@babel/runtime": "^7.17.9",
+    "babel-loader": "^8.2.5",
+    "concurrently": "^7.1.0",
+    "cpx2": "^4.2.0",
+    "css-loader": "^6.7.1",
+    "del": "^6.0.0",
     "extra-watch-webpack-plugin": "^1.0.3",
-    "file-loader": "^6.0.0",
+    "file-loader": "^6.2.0",
     "gulp": "^4.0.2",
     "gulp-concat": "^2.6.1",
     "gulp-header": "^2.0.9",
-    "http-server": "^0.12.3",
-    "mini-css-extract-plugin": "^0.9.0",
-    "node-sass": "^4.14.1",
-    "raw-loader": "^4.0.1",
-    "sass-loader": "^8.0.2",
-    "style-loader": "^1.2.1",
-    "typescript": "^3.9.3",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.12"
+    "http-server": "^14.1.0",
+    "mini-css-extract-plugin": "^2.6.0",
+    "raw-loader": "^4.0.2",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "sass": "^1.51.0",
+    "sass-loader": "^12.6.0",
+    "style-loader": "^3.3.1",
+    "typescript": "^4.6.4",
+    "webpack": "^5.72.0",
+    "webpack-cli": "^4.9.2"
   },
   "dependencies": {
     "lit-element": "^2.2.1",
-    "molstar": "^1.1.1"
+    "molstar": "^3.8.2"
   }
 }

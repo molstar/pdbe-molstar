@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
+## [Unreleased]
+- Mol* core dependency updated to V3.8.2
+- UniPort residue numbering param addition to higlight and selection helper methods
+
 ## [v1.2.1] - 2021-12-03
 - Selection helper method ``representationColor`` param issue fix
 

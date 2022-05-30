@@ -17,10 +17,13 @@ export const PDBeLociLabelProvider = PluginBehavior.create({
 
                 const label: string[] = [];
                 if (!superpositionView && StructureElement.Loci.is(loci) && loci.elements.length === 1) {
-                    const { unit: u } = loci.elements[0];
-                    const l = StructureElement.Location.create(loci.structure, u, u.elements[0]);
-                    const name = StructureProperties.entity.pdbx_description(l).join(', ');
-                    label.push(name);
+                    const entityNames = new Set<string>();
+                    for (const { unit: u } of loci.elements) {
+                        const l = StructureElement.Location.create(loci.structure, u, u.elements[0]);
+                        const name = StructureProperties.entity.pdbx_description(l).join(', ');
+                        entityNames.add(name);
+                    }
+                    if (entityNames.size === 1) entityNames.forEach(name => label.push(name));
                 }
                 label.push(lociLabel(loci));
                 return label.filter(l => !!l).join('</br>');

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { LociLabels, StateSnapshotViewportControls, SelectionViewportControls } from 'Molstar/mol-plugin-ui/controls';
 import { BackgroundTaskProgress } from 'Molstar/mol-plugin-ui/task';

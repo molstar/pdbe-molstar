@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { StructureComponentRef, StructureRepresentationRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { State, StateTransformer } from 'Molstar/mol-state';

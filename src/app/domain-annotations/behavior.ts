@@ -13,7 +13,7 @@ export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean
     },
     ctor: class extends PluginBehavior.Handler<{ autoAttach: boolean, showTooltip: boolean }> {
 
-        private provider = DomainAnnotationsProvider
+        private provider = DomainAnnotationsProvider;
 
         private labelDomainAnnotations = {
             label: (loci: Loci): string | undefined => void 0

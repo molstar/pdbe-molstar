@@ -4,39 +4,58 @@ import { VolumeStreamingCustomControls } from 'Molstar/mol-plugin-ui/custom/volu
 import { Plugin } from 'Molstar/mol-plugin-ui/plugin';
 import { PluginBehaviors } from 'Molstar/mol-plugin/behavior';
 import { CreateVolumeStreamingBehavior } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-import { PluginContext } from 'Molstar/mol-plugin/context';
+import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
 import { PluginSpec } from 'Molstar/mol-plugin/spec';
+import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
+import { StateActions } from 'Molstar/mol-plugin-state/actions';
 import { PDBeLociLabelProvider } from './labels';
+
 import { Loci } from 'Molstar/mol-model/loci';
 import { QueryParam, LigandQueryParam } from './helpers';
+import { ModelExport } from 'Molstar/extensions/model-export';
 
-export const DefaultPluginSpec: PluginSpec = {
-    actions: [],
+
+export const DefaultPluginSpec = (): PluginSpec => ({
+    actions: [
+        PluginSpec.Action(StateActions.Structure.EnableStructureCustomProps)
+    ],
     behaviors: [
         PluginSpec.Behavior(PluginBehaviors.Representation.HighlightLoci),
         PluginSpec.Behavior(PluginBehaviors.Representation.SelectLoci),
         PluginSpec.Behavior(PDBeLociLabelProvider),
         PluginSpec.Behavior(PluginBehaviors.Representation.FocusLoci),
         PluginSpec.Behavior(PluginBehaviors.Camera.FocusLoci),
+        PluginSpec.Behavior(PluginBehaviors.Camera.CameraAxisHelper),
 
+        PluginSpec.Behavior(PluginBehaviors.CustomProps.StructureInfo),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.AccessibleSurfaceArea),
+        PluginSpec.Behavior(PluginBehaviors.CustomProps.BestDatabaseSequenceMapping, {autoAttach: true, showTooltip: true}),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.Interactions),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.SecondaryStructure),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.ValenceModel),
-        PluginSpec.Behavior(PluginBehaviors.CustomProps.CrossLinkRestraint)
-    ],
-    customParamEditors: [
-        [CreateVolumeStreamingBehavior, VolumeStreamingCustomControls]
+        PluginSpec.Behavior(PluginBehaviors.CustomProps.CrossLinkRestraint),
+        PluginSpec.Behavior(ModelExport),
     ],
     // animations: [],
     config: [
         [PluginConfig.VolumeStreaming.DefaultServer, 'https://www.ebi.ac.uk/pdbe/densities']
     ]
-};
+});
 
-export function createPlugin(target: HTMLElement, spec?: PluginSpec): PluginContext {
-    const ctx = new PluginContext(spec || DefaultPluginSpec);
+export const DefaultPluginUISpec = (): PluginUISpec => ({
+    ...DefaultPluginSpec(),
+    customParamEditors: [
+        [CreateVolumeStreamingBehavior, VolumeStreamingCustomControls]
+    ],
+});
+
+export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, options?: { onBeforeUIRender?: (ctx: PluginUIContext) => (Promise<void> | void) }) {
+    const ctx = new PluginUIContext(spec || DefaultPluginUISpec());
+    await ctx.init();
+    if (options?.onBeforeUIRender) {
+        await options.onBeforeUIRender(ctx);
+    }
     ReactDOM.render(React.createElement(Plugin, { plugin: ctx }), target);
     return ctx;
 }

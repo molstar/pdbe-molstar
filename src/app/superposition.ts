@@ -102,8 +102,6 @@ export async function initSuperposition(plugin: PluginContext) {
         }
     });
 
-    // entryList = [{pdb_id: "3d12", auth_asym_id: "D", struct_asym_id: "C", entity_id: '1', is_representative: true}];
-
     await renderSuperposition(plugin, segmentIndex, entryList);
 }
 
@@ -346,7 +344,7 @@ async function loadStructure(plugin: PluginContext, url: string, format: BuiltIn
         const trajectory = await plugin.builders.structure.parseTrajectory(data, format);
         const model = await plugin.builders.structure.createModel(trajectory);
         const structure = await plugin.builders.structure.createStructure(model, { name: 'model', params: { } });
-
+        
         return { data, trajectory, model, structure };
     }catch(e) {
         return { structure: void 0 };

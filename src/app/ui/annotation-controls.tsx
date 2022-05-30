@@ -1,5 +1,3 @@
-// import TextsmsOutlined from '@material-ui/icons/TextsmsOutlined';
-import * as React from 'react';
 import { IconButton, Button } from 'Molstar/mol-plugin-ui/controls/common';
 import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { StructureQualityReportColorThemeProvider } from 'Molstar/extensions/pdbe/structure-quality-report/color';

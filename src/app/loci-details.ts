@@ -1,6 +1,7 @@
 import { Unit, StructureElement, StructureProperties as Props, Bond } from 'Molstar/mol-model/structure';
 import { Loci } from 'Molstar/mol-model/loci';
 import { OrderedSet } from 'Molstar/mol-data/int';
+import { SIFTSMapping as BestDatabaseSequenceMappingProp } from 'Molstar/mol-model-props/sequence/sifts-mapping';
 
 export type EventDetail = {
     models?: string[],
@@ -8,6 +9,8 @@ export type EventDetail = {
     label_asym_id?: string,
     asym_id?: string,
     auth_asym_id?: string,
+    unp_accession?: string,
+    unp_seq_id?: number,
     seq_id?: number,
     auth_seq_id?: number,
     ins_code?: string,
@@ -75,6 +78,8 @@ function atomicElementDetails(location: StructureElement.Location<Unit.Atomic>, 
         entity_id: Props.chain.label_entity_id(location),
         label_asym_id: Props.chain.label_asym_id(location),
         auth_asym_id: Props.chain.auth_asym_id(location),
+        unp_accession: undefined,
+        unp_seq_id: undefined,
         seq_id: Props.residue.label_seq_id(location),
         auth_seq_id: Props.residue.auth_seq_id(location),
         ins_code: Props.residue.pdbx_PDB_ins_code(location),
@@ -82,6 +87,16 @@ function atomicElementDetails(location: StructureElement.Location<Unit.Atomic>, 
         atom_id: [Props.atom.label_atom_id(location)],
         alt_id: Props.atom.label_alt_id(location)
     };
+    
+    const unpLabel = BestDatabaseSequenceMappingProp.getLabel(location);
+
+    if(unpLabel) {
+        const unpLabelDetails = unpLabel.split(' ');
+        if(unpLabelDetails[0] === 'UNP') {
+            elementDetails.unp_accession = unpLabelDetails[1];
+            elementDetails.unp_seq_id = +unpLabelDetails[2]
+        }
+    }
 
     const microHetCompIds = Props.residue.microheterogeneityCompIds(location);
     elementDetails['micro_het_comp_ids'] = granularity === 'residue' && microHetCompIds.length > 1 ?

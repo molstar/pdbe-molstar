@@ -3,12 +3,15 @@ import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import { StateSelection } from 'Molstar/mol-state';
 import Expression from 'Molstar/mol-script/language/expression';
-import { StructureSelection, QueryContext } from 'Molstar/mol-model/structure';
+import { StructureSelection, QueryContext, StructureProperties } from 'Molstar/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 // import { VolumeStreaming } from '../../mol-plugin/behavior/dynamic/volume-streaming/behavior';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { Model, ResidueIndex } from 'Molstar/mol-model/structure';
+import { Queries } from 'Molstar/mol-model/structure';
+import { SIFTSMapping } from 'Molstar/mol-model-props/sequence/sifts-mapping';
+import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean }
@@ -69,7 +72,7 @@ export type LigandQueryParam = {
 };
 
 export namespace LigandView {
-    export function query(ligandViewParams: LigandQueryParam): {core: Expression, surroundings: Expression} {
+    export function query(ligandViewParams: LigandQueryParam): {core: Expression.Expression, surroundings: Expression.Expression} {
         let atomGroupsParams: any = {
             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
         };
@@ -107,7 +110,7 @@ export namespace LigandView {
 
     }
 
-    export function branchedQuery(params: any): {core: Expression, surroundings: Expression} {
+    export function branchedQuery(params: any): {core: Expression.Expression, surroundings: Expression.Expression} {
         let entityObjArray: any = [];
 
         params.atom_site.forEach((param: any) => {
@@ -118,7 +121,7 @@ export namespace LigandView {
                 entityObjArray.push(qEntities);
         });
 
-        const atmGroupsQueries: Expression[] = [];
+        const atmGroupsQueries: Expression.Expression[] = [];
 
         entityObjArray.forEach((entityObj:any) => {
             atmGroupsQueries.push(MS.struct.generator.atomGroups(entityObj));
@@ -166,107 +169,106 @@ export type QueryParam = {
     tooltip?: string,
     start?: any,
     end?: any,
-    atom_id?: number[]
+    atom_id?: number[],
+    uniprot_accession?: string,
+    uniprot_residue_number?: number,
+    start_uniprot_residue_number?: number,
+    end_uniprot_residue_number?: number
 };
 
 export namespace QueryHelper {
-    export function getQueryObject(params: QueryParam[]): Expression {
+
+    export function getQueryObject(params: QueryParam[], contextData: any): Expression.Expression {
 
         let selections: any = [];
+        let siftMappings: any;
+        let currentAccession: string;
 
         params.forEach(param => {
             let selection: any = {};
             
             // entity
-            if(param.entity_id) selection['entity-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_entity_id(), param.entity_id]);
+            if(param.entity_id) selection['entityTest'] = (l: any) =>  StructureProperties.entity.id(l.element) === param.entity_id;
 
             // chain
             if(param.struct_asym_id){
-                selection['chain-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), param.struct_asym_id]);
+                selection['chainTest'] = (l: any) =>  StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
             }else if(param.auth_asym_id){
-                selection['chain-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), param.auth_asym_id]);
+                selection['chainTest'] = (l: any) =>  StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
             }
 
             // residues
             if(param.label_comp_id) {
-                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), param.label_comp_id]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
+            } else if(param.uniprot_accession && param.uniprot_residue_number) {
+                selection['residueTest'] = (l: any) =>  { 
+                    if(!siftMappings || currentAccession !== param.uniprot_accession) {
+                        siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
+                        currentAccession = param.uniprot_accession!;
+                    }
+                    const rI = StructureProperties.residue.key(l.element);
+                    return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
+                }
+            } else if(param.uniprot_accession && param.start_uniprot_residue_number && param.end_uniprot_residue_number) {
+                selection['residueTest'] = (l: any) =>  { 
+                    if(!siftMappings || currentAccession !== param.uniprot_accession) {
+                        siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
+                        currentAccession = param.uniprot_accession!;
+                    }
+                    const rI = StructureProperties.residue.key(l.element);
+                    return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
+                }
             } else if(param.residue_number){
-                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_seq_id(), param.residue_number]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
             }else if((param.start_residue_number && param.end_residue_number) && (param.end_residue_number > param.start_residue_number)){
-                selection['residue-test'] = MS.core.rel.inRange([MS.struct.atomProperty.macromolecular.label_seq_id(), param.start_residue_number, param.end_residue_number]);
+                selection['residueTest'] = (l: any) =>  {
+                    const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
+                    return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
+                };
+
             }else if((param.start_residue_number && param.end_residue_number) && (param.end_residue_number === param.start_residue_number)){
-                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_seq_id(), param.start_residue_number]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
             }else if(param.auth_seq_id){
-                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(),param.auth_seq_id]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
             }else if(param.auth_residue_number && !param.auth_ins_code_id){
-                selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_residue_number]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             }else if(param.auth_residue_number && param.auth_ins_code_id){
-                selection['residue-test'] = MS.core.rel.eq([
-                    MS.struct.atomProperty.macromolecular.authResidueId(),
-                    MS.struct.type.authResidueId([undefined, param.auth_residue_number, param.auth_ins_code_id])
-                ]);
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             }else if((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number > param.start_auth_residue_number)){
-                if(param.start_auth_ins_code_id && param.end_auth_ins_code_id){
-                    selection['residue-test'] = MS.core.rel.inRange([
-                        MS.struct.atomProperty.macromolecular.authResidueId(),
-                        MS.struct.type.authResidueId([undefined, param.start_auth_residue_number, param.start_auth_ins_code_id]),
-                        MS.struct.type.authResidueId([undefined, param.start_auth_residue_number, param.start_auth_ins_code_id])
-                    ]);
-                }else{
-                    selection['residue-test'] = MS.core.rel.inRange([
-                        MS.struct.atomProperty.macromolecular.auth_seq_id(), param.start_auth_residue_number, param.end_auth_residue_number]);
-                }
+                selection['residueTest'] = (l: any) =>  {
+                    const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
+                    return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
+                };
             }else if((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number === param.start_auth_residue_number)){
-                if(param.start_auth_ins_code_id){
-                    selection['residue-test'] = MS.core.rel.eq([
-                        MS.struct.atomProperty.macromolecular.authResidueId(),
-                        MS.struct.type.authResidueId([undefined, param.start_auth_residue_number, param.start_auth_ins_code_id])
-                    ]);
-                }else{
-                    selection['residue-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.start_auth_residue_number]);
-                }
+                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
             }
 
             // atoms
             if(param.atoms){
-                let atomsArr: any = [];
-                param.atoms.forEach(atom => {
-                    atomsArr.push(MS.core.rel.eq([MS.ammp('label_atom_id'), atom]));
-                });
-                selection['atom-test'] = MS.core.logic.or(atomsArr);
+                selection['atomTest'] = (l: any) =>  param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
             }
 
             if(param.atom_id){
-                let atomsIdArr: any = [];
-                param.atom_id.forEach(atomId => {
-                    atomsIdArr.push(MS.core.rel.eq([MS.ammp('id'), atomId]));
-                });
-                selection['atom-test'] = MS.core.logic.or(atomsIdArr);
+                selection['atomTest'] = (l: any) =>  param.atom_id!.includes(StructureProperties.atom.id(l.element));
             }
 
             selections.push(selection);
         });
 
-        const atmGroupsQueries: Expression[] = [];
-
+        let atmGroupsQueries: any[] = [];
         selections.forEach((selection: any) => {
-            atmGroupsQueries.push(MS.struct.generator.atomGroups(selection));
+            atmGroupsQueries.push(Queries.generators.atoms(selection));
         });
 
-        return MS.struct.modifier.union([
-            atmGroupsQueries.length === 1
-                ? atmGroupsQueries[0]
-                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([ q ])))
-        ]);
+        return Queries.combinators.merge(atmGroupsQueries);
     }
 
     export function getInteractivityLoci(params: any, contextData: any){
-        const query = compile<StructureSelection>(QueryHelper.getQueryObject(params));
-        const sel = query(new QueryContext(contextData));
+        const sel = StructureQuery.run(QueryHelper.getQueryObject(params, contextData) as any, contextData);
         return StructureSelection.toLociWithSourceUnits(sel);
     }
 
-    export function getHetLoci(queryExp: Expression, contextData: any){
+    export function getHetLoci(queryExp: Expression.Expression, contextData: any){
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
         return StructureSelection.toLociWithSourceUnits(sel);
