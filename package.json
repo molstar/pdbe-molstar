@@ -4,6 +4,7 @@
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
+    "preinstall": "npx npm-force-resolutions",
     "test": "echo \"Error: no test specified\"",
     "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
     "build-tsc": "concurrently \"tsc --incremental\" \"tsc --build tsconfig.json --incremental\"",
@@ -16,6 +17,9 @@
     "watch-webpack": "webpack -w --mode development --stats minimal",
     "serve": "http-server -p 1338 -g",
     "bundle-webcomponent": "gulp"
+  },
+  "resolutions": {
+    "glob-parent": "^5.1.2"
   },
   "files": [
     "lib/",
