@@ -27,18 +27,20 @@ export class PDBeViewportControls extends ViewportControls {
         const bgColor = this.isBlack(customeState) ? '#fff' : '#555';
         const pdbeLink: any = {
             parentStyle: { width: 'auto' },
-            containerStyle: { position:'absolute', right: '10px', top: '10px' },
-            style: { display: 'inline-block', fontSize: '14px', color: bgColor, borderBottom: 'none', cursor: 'pointer', textDecoration: 'none' },
+            bgStyle: {position: 'absolute', height: '27px', width: '54px', marginLeft: '-33px'},
+            containerStyle: { position:'absolute', right: '10px', top: '10px', padding: '3px 3px 3px 18px' },
+            style: { display: 'inline-block', fontSize: '14px', color: bgColor, borderBottom: 'none', cursor: 'pointer', textDecoration: 'none', position: 'absolute', right: '5px' },
             pdbeImg: {
                 src: 'https://www.ebi.ac.uk/pdbe/entry/static/images/logos/PDBe/logo_T_64.png',
                 alt: 'PDBe logo',
                 style: { height: '12px', width: '12px', border:0, position: 'absolute', margin: '4px 0 0 -13px' }
             }
         };
-        let vwpBtnsTopMargin = { marginTop: '22px' };
+        let vwpBtnsTopMargin = { marginTop: '30px' };
 
         return <>
-            { showPDBeLink && <div style={pdbeLink.containerStyle}>
+            { showPDBeLink && <div className='msp-viewport-controls-buttons' style={pdbeLink.containerStyle}>
+                <div className='msp-semi-transparent-background' style={pdbeLink.bgStyle} />
                 <a className='msp-pdbe-link' style={pdbeLink.style} target="_blank" href={`https://pdbe.org/${customeState.initParams.moleculeId}`}>
                     <img src={pdbeLink.pdbeImg.src} alt={pdbeLink.pdbeImg.alt} style={pdbeLink.pdbeImg.style} />
                     {customeState.initParams.moleculeId}

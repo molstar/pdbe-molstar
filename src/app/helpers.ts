@@ -12,6 +12,7 @@ import { Model, ResidueIndex } from 'Molstar/mol-model/structure';
 import { Queries } from 'Molstar/mol-model/structure';
 import { SIFTSMapping } from 'Molstar/mol-model-props/sequence/sifts-mapping';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
+import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean }
@@ -22,7 +23,7 @@ export namespace PDBeVolumes {
         const pdbeParams = {...defaultParams};
         pdbeParams.options.behaviorRef = 'volume-streaming' + '' + Math.floor(Math.random() * Math.floor(100));
         pdbeParams.options.emContourProvider = 'pdbe';
-        pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/densities';
+        pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/volume-server';
         pdbeParams.options.channelParams['em'] = {
             opacity: (mapParams && mapParams.em && mapParams.em.opacity) ? mapParams.em.opacity : 0.49,
             wireframe: (mapParams && mapParams.em && mapParams.em.wireframe) ? mapParams.em.wireframe : false
@@ -59,6 +60,26 @@ export namespace PDBeVolumes {
             PluginCommands.State.ToggleVisibility(plugin, { state: state, ref: streamingState.transform.ref });
             return;
         }
+    }
+}
+
+export namespace AlphafoldView {
+    export function getLociByPLDDT(score: number, contextData: any) {
+        const queryExp = MS.struct.modifier.union([
+            MS.struct.modifier.wholeResidues([
+                MS.struct.modifier.union([
+                    MS.struct.generator.atomGroups({
+                        'chain-test': MS.core.rel.eq([MS.ammp('objectPrimitive'), 'atomistic']),
+                        'residue-test': MS.core.rel.gr([QualityAssessment.symbols.pLDDT.symbol(), score]),
+                    })
+                ])
+            ])
+        ])
+
+        const query = compile<StructureSelection>(queryExp);
+        const sel = query(new QueryContext(contextData));
+        return StructureSelection.toLociWithSourceUnits(sel);
+
     }
 }
 

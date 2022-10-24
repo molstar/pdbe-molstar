@@ -1,10 +1,3 @@
-/**
- * Copyright (c) 2019-2020 mol* contributors, licensed under MIT, See LICENSE file for more info.
- *
- * @author Alexander Rose <alexander.rose@weirdbyte.de>
- * @author David Sehnal <david.sehnal@gmail.com>
- */
-
 import * as React from 'react';
 import { PluginContext } from 'Molstar/mol-plugin/context';
 import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';

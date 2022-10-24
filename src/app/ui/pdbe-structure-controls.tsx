@@ -7,6 +7,9 @@ import { AnnotationsComponentControls } from './annotation-controls';
 import { Icon, BuildSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { SuperpositionComponentControls } from './superposition-components';
 import { StructureQuickStylesControls } from 'Molstar/mol-plugin-ui/structure/quick-styles';
+import { AlphafoldPaeControls, AlphafoldSuperpositionControls } from './alphafold-superposition';
+import { SuperpositionModelExportUI } from './export-superposition'
+import { AlphafoldTransparencyControls } from './alphafold-tranparency';
 
 export class PDBeStructureTools extends PluginUIComponent {
     render() {
@@ -56,7 +59,11 @@ export class PDBeSuperpositionStructureTools extends PluginUIComponent {
         return <>
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
             <SuperpositionComponentControls />
+            <AlphafoldTransparencyControls />
+            <AlphafoldPaeControls />
+            <AlphafoldSuperpositionControls/>
             <StructureMeasurementsControls />
+            <SuperpositionModelExportUI />
             <CustomStructureControls />
         </>;
     }

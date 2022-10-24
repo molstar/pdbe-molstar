@@ -6,7 +6,7 @@ import { PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/
 import { Button, IconButton, ExpandGroup, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { StateSelection } from 'Molstar/mol-state';
+import { StateSelection, StateObjectRef } from 'Molstar/mol-state';
 import { renderSuperposition } from '../superposition';
 import { UpdateTransformControl } from 'Molstar/mol-plugin-ui/state/update-transform';
 import { ActionMenu } from 'Molstar/mol-plugin-ui/controls/action-menu';
@@ -16,9 +16,14 @@ import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Color } from 'Molstar/mol-util/color';
 import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import { Subject } from 'rxjs';
+import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { Mat4 } from 'Molstar/mol-math/linear-algebra';
+import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
+import { superposeAf } from '../superposition'
 
 type Cluster = { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
 type Segment = { segment_start: number, segment_end: number, clusters: Cluster[][], isHetView?: boolean, isBinary?: boolean };
+const SuperpositionTag = 'SuperpositionTransform';
 
 export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isBusy: boolean }> {
 
@@ -144,10 +149,22 @@ export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isB
             }
         }
 
+        if(customState.superpositionState.alphafold.ref) {
+            const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(customState.superpositionState.alphafold.ref);
+            if(afStr && afStr.components) {
+                for(const c of afStr.components) {
+                    if(c && c.cell && !c.cell.state.isHidden){
+                        PluginCommands.State.ToggleVisibility(this.plugin, { state: c.cell.parent!, ref: c.cell.transform.ref });
+                    }
+                }
+            }
+        }
+
     }
 
     displayStructures = async (segmentIndex: number) => {
         const customState = this.customState;
+        const spState = customState.superpositionState;
         if(customState.superpositionState.visibleRefs[segmentIndex].length === 0){
             let loadStrs: any = [];
             customState.superpositionState.segmentData[segmentIndex].clusters.forEach( (cluster: any) => {
@@ -177,6 +194,7 @@ export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isB
 
             if(loadStrs.length > 0){
                 await renderSuperposition(this.plugin, segmentIndex, loadStrs);
+                PluginCommands.Camera.Reset(this.plugin);
             }
 
         } else {
@@ -188,6 +206,42 @@ export class SegmentTree extends PurePluginUIComponent<{ }, { segment?: any, isB
             }
             PluginCommands.Camera.Reset(this.plugin);
         }
+
+        if(spState.alphafold.ref) {
+            superposeAf(this.plugin, spState.alphafold.traceOnly);
+            PluginCommands.Camera.Reset(this.plugin);
+        }
+
+        if(spState.alphafold.ref && spState.alphafold.visibility[segmentIndex]) {
+            const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(customState.superpositionState.alphafold.ref);
+            if(afStr && afStr.components) {
+                for(const c of afStr.components) {
+                    if(c && c.cell && c.cell.state.isHidden){
+                        PluginCommands.State.ToggleVisibility(this.plugin, { state: c.cell.parent!, ref: c.cell.transform.ref });
+                    }
+                }
+            }
+        }
+    }
+
+    async transform(s: StateObjectRef<PluginStateObject.Molecule.Structure>, matrix: Mat4) {
+        const r = StateObjectRef.resolveAndCheck(this.plugin.state.data, s);
+        if (!r) return;
+        // TODO should find any TransformStructureConformation decorator instance
+        const o = StateSelection.findTagInSubtree(this.plugin.state.data.tree, r.transform.ref, SuperpositionTag);
+
+        const params = {
+            transform: {
+                name: 'matrix' as const,
+                params: { data: matrix, transpose: false }
+            }
+        };
+        // TODO add .insertOrUpdate to StateBuilder?
+        const b = o
+            ? this.plugin.state.data.build().to(o).update(params)
+            : this.plugin.state.data.build().to(s)
+                .insert(StateTransforms.Model.TransformStructureConformation, params, { tags: SuperpositionTag });
+        await this.plugin.runTask(this.plugin.state.data.updateTree(b));
     }
 
     render() {

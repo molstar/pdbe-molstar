@@ -5,7 +5,7 @@ import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransform } from 'Molstar/mol-state';
 import { Loci, EmptyLoci } from 'Molstar/mol-model/loci';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam } from './helpers';
+import { LoadParams, PDBeVolumes, LigandView, QueryHelper, QueryParam, AlphafoldView } from './helpers';
 import { PDBeStructureTools, PDBeSuperpositionStructureTools, PDBeLigandViewStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
@@ -128,6 +128,10 @@ class PDBeMolstarPlugin {
                 // top: 'none',
                 bottom: 'none'
             }
+        }
+
+        if(this.initParams.sequencePanel) {
+            if(pdbePluginSpec.components.controls?.top) delete pdbePluginSpec.components.controls.top;
         }
 
         pdbePluginSpec.config = [
@@ -386,7 +390,7 @@ class PDBeMolstarPlugin {
 
         this.events.loadComplete.next(true);
     }
-
+    
     applyVisualParams = () => {
         const TagRefs: any = {
             'structure-component-static-polymer': 'polymer',
@@ -458,6 +462,18 @@ class PDBeMolstarPlugin {
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
         if(!data) return EmptyLoci;
         return QueryHelper.getInteractivityLoci(params, data);
+    }
+
+    getLociByPLDDT(score: number, structureNumber?: number) {
+        let assemblyRef = this.assemblyRef;
+        if(structureNumber) {
+            assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
+        }
+
+        if(assemblyRef === '') return EmptyLoci;
+        const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
+        if(!data) return EmptyLoci;
+        return AlphafoldView.getLociByPLDDT(score, data);
     }
 
 

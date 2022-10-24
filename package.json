@@ -1,10 +1,9 @@
 {
   "name": "pdbe-molstar",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "test": "echo \"Error: no test specified\"",
     "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
     "build-tsc": "concurrently \"tsc --incremental\" \"tsc --build tsconfig.json --incremental\"",
@@ -17,9 +16,6 @@
     "watch-webpack": "webpack -w --mode development --stats minimal",
     "serve": "http-server -p 1338 -g",
     "bundle-webcomponent": "gulp"
-  },
-  "resolutions": {
-    "glob-parent": "^5.1.2"
   },
   "files": [
     "lib/",
@@ -42,14 +38,15 @@
   },
   "homepage": "https://github.com/PDBeurope/pdbe-molstar#readme",
   "devDependencies": {
-    "@types/react": "^17.0.39",
-    "@types/react-dom": "^17.0.11",
     "@babel/core": "^7.17.10",
     "@babel/plugin-transform-runtime": "^7.17.10",
     "@babel/preset-env": "^7.17.10",
     "@babel/runtime": "^7.17.9",
+    "@types/d3": "^7.4.0",
+    "@types/react": "^18.0.17",
+    "@types/react-dom": "^18.0.6",
     "babel-loader": "^8.2.5",
-    "concurrently": "^7.1.0",
+    "concurrently": "^7.3.0",
     "cpx2": "^4.2.0",
     "css-loader": "^6.7.1",
     "del": "^6.0.0",
@@ -59,19 +56,23 @@
     "gulp-concat": "^2.6.1",
     "gulp-header": "^2.0.9",
     "http-server": "^14.1.0",
-    "mini-css-extract-plugin": "^2.6.0",
+    "mini-css-extract-plugin": "^2.6.1",
     "raw-loader": "^4.0.2",
-    "react": "^18.1.0",
-    "react-dom": "^18.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sass": "^1.51.0",
     "sass-loader": "^12.6.0",
     "style-loader": "^3.3.1",
     "typescript": "^4.6.4",
-    "webpack": "^5.72.0",
-    "webpack-cli": "^4.9.2"
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
   },
   "dependencies": {
+    "d3-axis": "^3.0.0",
+    "d3-brush": "^3.0.0",
+    "d3-scale": "^4.0.2",
+    "d3-selection": "^3.0.0",
     "lit-element": "^2.2.1",
-    "molstar": "^3.8.2"
+    "molstar": "^3.15.0"
   }
 }

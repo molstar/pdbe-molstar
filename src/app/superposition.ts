@@ -11,6 +11,12 @@ import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Color } from 'Molstar/mol-util/color/color';
 import { State } from 'Molstar/mol-state';
 import { Script } from 'Molstar/mol-script/script';
+import { Task } from 'Molstar/mol-task';
+import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
+import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { SymmetryOperator } from 'Molstar/mol-math/geometry';
+import { applyAFTransparency } from './alphafold-transparency';
+import { StructureProperties } from 'Molstar/mol-model/structure';
 
 type ClusterRec = {
     pdb_id: string,
@@ -61,7 +67,21 @@ export async function initSuperposition(plugin: PluginContext) {
         noMatrixStruct: [],
         hets: {},
         colorPalette: ['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow'],
-        colorState: []
+        colorState: [],
+        alphafold: {
+            apiData: {
+                cif: '',
+                pae: '',
+                length: 0
+            },
+            length: 0,
+            ref: '',
+            traceOnly: true,
+            visibility: [],
+            transforms: [],
+            rmsds: [],
+            coordinateSystems: []
+        }
     };
 
     // Get segment and cluster information for the given uniprot accession
@@ -72,6 +92,9 @@ export async function initSuperposition(plugin: PluginContext) {
     // Load Matrix Data
     await getMatrixData(plugin);
     if(!(plugin.customState as any).superpositionState.segmentData) return;
+
+    const afStrUrls = await getAfUrl(plugin, customState.initParams.moleculeId);
+    if(afStrUrls) customState.superpositionState.alphafold.apiData = afStrUrls;
 
     segmentData.forEach(() => {
         (plugin.customState as any).superpositionState.loadedStructs.push([]);
@@ -112,6 +135,134 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
     }
 
     return compList.join(', ');
+}
+
+async function getAfUrl(plugin: PluginContext, accession: string) {
+
+    let apiResponse: any;
+    let apiData: any;
+    await plugin.runTask(Task.create('Get AlphaFold URL', async ctx => {
+        try {
+            apiResponse = await plugin.fetch({ url: `https://alphafold.ebi.ac.uk/api/prediction/${accession}`, type: 'json' }).runInContext(ctx);
+            if(apiResponse && apiResponse?.[0].bcifUrl) {
+                apiData = {
+                    cif: apiResponse?.[0].cifUrl,
+                    pae: apiResponse?.[0].paeImageUrl,
+                    length: apiResponse?.[0].uniprotEnd
+                }
+            }
+        } catch (e) {
+            // console.warn(e);
+        }
+    }));
+
+    
+    return apiData;
+}
+
+export async function loadAfStructure(plugin: PluginContext) {
+
+    const customState = plugin.customState as any;
+    const { structure } = await loadStructure(plugin, customState.superpositionState.alphafold.apiData.cif, 'mmcif', false);
+    const strInstance = structure;
+    if(!strInstance) return false;
+
+    // Store Refs in state
+    const spState = (plugin.customState as any).superpositionState;
+    spState.alphafold.ref = strInstance?.ref;
+    spState.models[`AF-${customState.initParams.moleculeId}`] = strInstance?.ref;
+    
+    const chainSel = await plugin.builders.structure.tryCreateComponentStatic(strInstance, 'polymer', { label: `AlphaFold Structure`, tags: [`alphafold-chain`, `superposition-sel`]});
+
+    if(chainSel){
+        await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'plddt-confidence' as any, size: 'uniform', sizeParams: { value: 1.5 } }, { tag: `af-superposition-visual` });
+        return strInstance?.ref;
+    }
+
+    return false;
+   
+}
+
+export async function superposeAf(plugin: PluginContext, traceOnly: boolean, segmentIndex?: number) {
+    const customState = plugin.customState as any;
+    if(!customState.superpositionState || !customState.superpositionState.segmentData) return;
+    const spState = customState.superpositionState;
+
+
+    // Load AF structure
+    const afStrRef = spState.alphafold.ref || await loadAfStructure(plugin);
+    if(!afStrRef) return;
+    const afStr: any = plugin.managers.structure.hierarchy.current.refs.get(afStrRef!);
+
+    const segmentNum = segmentIndex ? segmentIndex : spState.activeSegment - 1;
+    if(!spState.alphafold.transforms[segmentNum]) {
+
+        // Create representative list
+        const mappingResult: any = [];
+        const coordinateSystems: any = [];
+        const failedPairsResult: any = [];
+        const zeroOverlapPairsResult: any = [];
+
+        let minRmsd = 0;
+        let minIndex = 0;
+        let rmsdList:any = [];
+        const segmentClusters = spState.segmentData[segmentNum].clusters;
+        segmentClusters.forEach((cluster: any) => {
+            
+            const modelRef = spState.models[`${cluster[0].pdb_id}_${cluster[0].struct_asym_id}`];
+            if(modelRef){
+                const structHierarchy: any = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
+                if(structHierarchy) {
+                    const input = [structHierarchy, afStr];
+                    const structures = input.map(s => s.cell.obj?.data!);
+                    let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly, 
+                        includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
+                        applyTestIndex: [1]
+                    });
+
+                    if(entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
+                        const alignWithoutPlddt = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly });
+                        entries = alignWithoutPlddt.entries;
+                    }
+
+                    if(entries && entries[0]) {
+                        mappingResult.push(entries[0]);
+                        coordinateSystems.push(input[0]?.transform?.cell.obj?.data.coordinateSystem);
+                        const totalMappings = mappingResult.length;
+                        if(totalMappings === 1 || entries[0].transform.rmsd < minRmsd) {
+                            minRmsd = entries[0].transform.rmsd;
+                            minIndex = totalMappings === 1 ? 0 : mappingResult.length - 1;
+                        }
+                        
+                        rmsdList.push(`${cluster[0].pdb_id} chain ${cluster[0].struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
+
+                    } else {
+                        if(failedPairs.length > 0) failedPairsResult.push(failedPairs);
+                        if(zeroOverlapPairs.length > 0) zeroOverlapPairsResult.push(zeroOverlapPairs);
+                        // rmsdList.push(`${cluster[0].pdb_id} ${cluster[0].struct_asym_id}:-`)
+                    }
+                    
+
+                }
+            }
+        });
+
+        // console.log(failedPairsResult);
+        // console.log(zeroOverlapPairsResult);
+        if(mappingResult.length > 0) {
+            spState.alphafold.visibility[segmentNum] = true;
+            spState.alphafold.transforms[segmentNum] = mappingResult[minIndex].transform.bTransform;
+            spState.alphafold.coordinateSystems[segmentNum] = coordinateSystems[minIndex];
+            spState.alphafold.rmsds[segmentNum] = rmsdList.sort((a: string, b: string) => parseFloat(a.split(':')[1]) - parseFloat(b.split(':')[1]));
+        }
+
+    }
+
+    await afTransform(plugin, afStr.cell, spState.alphafold.transforms[segmentNum], spState.alphafold.coordinateSystems[segmentNum]);
+    applyAFTransparency(plugin, afStr, 0.8, 70);
+
+    return true;
+
 }
 
 export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterRec[]) {
@@ -186,6 +337,13 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor2 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
+
+
+                // // const addTooltipUpdate = plugin.state.behaviors.build().to(BestDatabaseSequenceMapping.id).update(BestDatabaseSequenceMapping, (old: any) => { old.showTooltip = true; });
+                // // await plugin.runTask(plugin.state.behaviors.updateTree(addTooltipUpdate));
+                // BestDatabaseSequenceMapping
+                // console.log(plugin.state.data.select(modelRef)[0])
+
             }
 
             let invalidStruct = chainSel ? false : true;
@@ -343,7 +501,9 @@ async function loadStructure(plugin: PluginContext, url: string, format: BuiltIn
         const data = await plugin.builders.data.download({ url: Asset.Url(url), isBinary: isBinary });
         const trajectory = await plugin.builders.structure.parseTrajectory(data, format);
         const model = await plugin.builders.structure.createModel(trajectory);
-        const structure = await plugin.builders.structure.createStructure(model, { name: 'model', params: { } });
+        const modelProperties = await plugin.builders.structure.insertModelProperties(model);
+        const structure = await plugin.builders.structure.createStructure(modelProperties || model, { name: 'model', params: { } });
+        await plugin.builders.structure.insertStructureProperties(structure);
         
         return { data, trajectory, model, structure };
     }catch(e) {
@@ -363,10 +523,31 @@ function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structu
     return plugin.runTask(plugin.state.data.updateTree(b));
 }
 
+async function afTransform(plugin: PluginContext, s: StateObjectRef<PluginStateObject.Molecule.Structure>, matrix: Mat4, coordinateSystem?: SymmetryOperator) {
+    const r = StateObjectRef.resolveAndCheck(plugin.state.data, s);
+    if (!r) return;
+    const o = plugin.state.data.selectQ(q => q.byRef(r.transform.ref).subtree().withTransformer(StateTransforms.Model.TransformStructureConformation))[0];
+
+    const transform = coordinateSystem && !Mat4.isIdentity(coordinateSystem.matrix)
+        ? Mat4.mul(Mat4(), coordinateSystem.matrix, matrix)
+        : matrix;
+
+    const params = {
+        transform: {
+            name: 'matrix' as const,
+            params: { data: transform, transpose: false }
+        }
+    };
+    const b = o
+        ? plugin.state.data.build().to(o).update(params)
+        : plugin.state.data.build().to(s)
+            .insert(StateTransforms.Model.TransformStructureConformation, params, { tags: 'SuperpositionTransform' });
+    await plugin.runTask(plugin.state.data.updateTree(b));
+}
+
 async function getMatrixData(plugin: PluginContext) {
     const customState = plugin.customState as any;
     const matrixAccession = customState.initParams.superpositionParams.matrixAccession ? customState.initParams.superpositionParams.matrixAccession : customState.initParams.moleculeId;
-    // const clusterRecUrlStr = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition_matrices/${matrixAccession}`;
     const clusterRecUrlStr = `${customState.initParams.pdbeUrl}static/superpose/matrices/${matrixAccession}`;
     const assetManager = plugin.managers.asset;
     const clusterRecUrl = Asset.getUrlAsset(assetManager, clusterRecUrlStr);

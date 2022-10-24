@@ -31,7 +31,7 @@ export class SuperpositionComponentControls extends CollapsableControls<{}, Stru
     }
 }
 
-interface ComponentGroups { nonLigGroups: StructureComponentRef[][], ligGroups: StructureComponentRef[][], carbGroups: StructureComponentRef[][] }
+interface ComponentGroups { nonLigGroups: StructureComponentRef[][], ligGroups: StructureComponentRef[][], carbGroups: StructureComponentRef[][], alphafold: StructureComponentRef[][] }
 
 interface ComponentListControlsState {
     segmentWatch: boolean,
@@ -51,7 +51,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         segmentWatch: false,
         ligSearchText: '',
         carbSearchText: '',
-        componentGroups: { nonLigGroups: [], ligGroups: [], carbGroups: [] },
+        componentGroups: { nonLigGroups: [], ligGroups: [], carbGroups: [], alphafold: [] },
         ligGroups: [],
         isLigCollapsed: false,
         carbGroups: [],
@@ -107,7 +107,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
     }
 
     categoriseGroups() {
-        let componentGroupsVal: ComponentGroups = { nonLigGroups: [], ligGroups: [], carbGroups: []};
+        let componentGroupsVal: ComponentGroups = { nonLigGroups: [], ligGroups: [], carbGroups: [], alphafold: [] };
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
         const customState: any = this.plugin.customState;
         componentGroups.forEach( (g: StructureComponentRef[]) => {
@@ -125,7 +125,9 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                         componentGroupsVal.ligGroups.push(g);
                     } else if(gKeys.indexOf('superposition-carb-sel') >= 0) {
                         componentGroupsVal.carbGroups.push(g);
-                    } else {
+                    } else if(gKeys.indexOf('alphafold-chain') >= 0) {
+                        componentGroupsVal.alphafold.push(g);
+                    }else {
                         componentGroupsVal.nonLigGroups.push(g);
                     }
                 } else {
@@ -135,6 +137,8 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 const gKeys = g[0].key!.split(',');
                 if(gKeys.indexOf('superposition-focus-surr-sel') >= 0 || gKeys.indexOf(`Chain-${customState.superpositionState.activeSegment - 1}`) >= 0) {
                     componentGroupsVal.nonLigGroups.push(g);
+                } else if(gKeys.indexOf('alphafold-chain') >= 0) {
+                    componentGroupsVal.alphafold.push(g);
                 }
             }
         });
@@ -239,6 +243,9 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
             {(this.state.componentGroups.nonLigGroups.length > 0 ) && <div>
                 {this.state.componentGroups.nonLigGroups.map((g: any) => <StructureComponentGroup key={g[0].cell.transform.ref} group={g} boldHeader={true} />)}
             </div>}
+            {(this.state.componentGroups.alphafold.length > 0 ) && <div>
+                {this.state.componentGroups.alphafold.map((g: any) => <StructureComponentGroup key={g[0].cell.transform.ref} group={g} boldHeader={true} type={'alphafold'} />)}
+            </div>}
             {(this.state.componentGroups.ligGroups.length > 0 ) && ligSectionHeader }
             {(!this.state.isLigCollapsed && this.state.componentGroups.ligGroups.length > 5) && ligSearchControls}
             {(this.state.componentGroups.ligGroups.length > 0 ) && <div className='msp-control-offset' style={{ maxHeight: '800px', overflowY: 'auto' }}>
@@ -255,7 +262,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
 
 type StructureComponentEntryActions = 'action' | 'label'
 
-class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureComponentRef[], boldHeader?: boolean }, { action?: StructureComponentEntryActions, isHidden: boolean, isBusy: boolean }> {
+class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureComponentRef[], boldHeader?: boolean, type?: string }, { action?: StructureComponentEntryActions, isHidden: boolean, isBusy: boolean }> {
     state = {
         action: void 0 as StructureComponentEntryActions | undefined,
         isHidden: false,
@@ -304,6 +311,11 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
         e.currentTarget.blur();
         this.plugin.managers.structure.component.toggleVisibility(this.props.group);
         this.setState({ isHidden: !this.state.isHidden });
+        if(this.props.type === 'alphafold') {
+            const spState: any = (this.plugin.customState as any).superpositionState;
+            spState.alphafold.visibility[spState.activeSegment - 1] = this.state.isHidden;
+        }
+       
     }
 
     toggleAction = () => this.setState({ action: this.state.action === 'action' ? void 0 : 'action' });
@@ -453,14 +465,16 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         };
 
         let isSurrVisual = false;
+        let isAlphafold = false;
         if(repr && repr.obj) {
             const reprObj: any = repr.obj;
             if(reprObj.tags && reprObj.tags.indexOf('superposition-focus-surr-repr') >= 0) isSurrVisual = true;
+            if(reprObj.tags && reprObj.tags.indexOf('af-superposition-visual') >= 0) isAlphafold = true;
         }
 
         return <div className='msp-representation-entry'>
             { repr.parent && <div>
-                { (clusterSelectArr.length > 2 && !isSurrVisual) && <div className='msp-representation-entry'>
+                { (clusterSelectArr.length > 2 && !isSurrVisual && !isAlphafold) && <div className='msp-representation-entry'>
                     <ParameterControls params={clusterOptions} values={this.state.clusterVal} onChangeValues={this.selectCluster} isDisabled={this.state.isBusy} />
                 </div>}
                 <div className='msp-representation-entry'>
