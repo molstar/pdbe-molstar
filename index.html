@@ -116,7 +116,7 @@
         <button onclick="viewerInstance.visual.reset({ camera: true })">Camera</button>&nbsp;
         <button onclick="viewerInstance.visual.reset({ theme: true })">Theme</button>&nbsp;
         <button onclick="viewerInstance.visual.reset({ camera: true, theme: true })">Camera & Theme</button><br><br>
-
+        <button onclick="viewerInstance.coloring.shannonEntropy({ sequence: true, het: false, keepStyle: true })">Evolutionary Conservation</button><br><br>
         <strong>Update data</strong><br>
         <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'}, false)">Update data to create new visual</button><br>
       
@@ -138,7 +138,7 @@
   
       //Set options (Checkout available options list in the documentation)
       var options = {
-        moleculeId: '1cbs',
+        moleculeId: '7k00',
         // expanded: true,
         // loadMaps: true,
         // bgColor: {r:255, g:255, b:255},

@@ -17,7 +17,23 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
     document.addEventListener('PDB.interactions.mouseout', function(e: any){
         wrapperCtx.visual.clearHighlight();
     });
+    
+    document.addEventListener("PDB.RNA.viewer.mouseover", function (e: any) {
+        if (void 0 !== e.eventData) {
+            var highlightQuery = {
+                entity_id: e.eventData.entityId,
+                start_residue_number: e.eventData.label_seq_id,
+                end_residue_number: e.eventData.label_seq_id
+            };
+            e.visual.highlight({
+                data: [highlightQuery]
+            })
+        }
+    });
 
+    document.addEventListener("PDB.RNA.viewer.mouseout", function (e: any) {
+        e.visual.clearHighlight()
+    });
     document.addEventListener('PDB.topologyViewer.click', function(e: any){
         if(typeof e.eventData !== 'undefined'){
             // Create query object from event data

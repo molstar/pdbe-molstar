@@ -13,9 +13,13 @@ import { Queries } from 'Molstar/mol-model/structure';
 import { SIFTSMapping } from 'Molstar/mol-model-props/sequence/sifts-mapping';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
+import { StructureRepresentationRegistry } from 'Molstar/mol-repr/structure/registry';
+import { ColorTheme } from 'Molstar/mol-theme/color';
+import { ModelSymmetry } from 'Molstar/mol-model-formats/structure/property/symmetry';
 
-export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
-export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean }
+export type SupportedFormats = "mmcif" | "cif" | "cifCore" | "pdb" | "pdbqt" | "gro" | "xyz" | "mol" | "sdf" | "mol2"
+export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, representationStyle?: RepresentationStyle }
+
 
 export namespace PDBeVolumes {
 
@@ -42,7 +46,7 @@ export namespace PDBeVolumes {
         };
         return pdbeParams;
     }
-
+    export type SupportedFormats = 'mmcif' | 'pdb'
     export function displayUsibilityMessage(plugin: PluginContext) {
         PluginCommands.Toast.Show(plugin, {
             title: 'Volume',
@@ -82,6 +86,16 @@ export namespace AlphafoldView {
 
     }
 }
+export interface RepresentationStyle {
+    sequence?: RepresentationStyle.Entry,
+    hetGroups?: RepresentationStyle.Entry,
+    snfg3d?: { hide?: boolean },
+    water?: RepresentationStyle.Entry
+}
+
+export namespace RepresentationStyle {
+    export type Entry = { hide?: boolean, kind?: StructureRepresentationRegistry.BuiltIn, coloring?: ColorTheme.BuiltIn }
+}
 
 export type LigandQueryParam = {
     label_comp_id_list?: any,
@@ -91,6 +105,24 @@ export type LigandQueryParam = {
     auth_seq_id?: number,
     show_all?: boolean
 };
+export enum StateElements {
+    Model = 'model',
+    ModelProps = 'model-props',
+    Assembly = 'assembly',
+
+    VolumeStreaming = 'volume-streaming',
+
+    Sequence = 'sequence',
+    SequenceVisual = 'sequence-visual',
+    Het = 'het',
+    HetVisual = 'het-visual',
+    Het3DSNFG = 'het-3dsnfg',
+    Water = 'water',
+    WaterVisual = 'water-visual',
+
+    HetGroupFocus = 'het-group-focus',
+    HetGroupFocusGroup = 'het-group-focus-group'
+}
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): {core: Expression.Expression, surroundings: Expression.Expression} {
@@ -293,6 +325,74 @@ export namespace QueryHelper {
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
         return StructureSelection.toLociWithSourceUnits(sel);
+    }
+}
+export interface ModelInfo2 {
+    hetResidues: { name: string, indices: ResidueIndex[] }[],
+    assemblies: { id: string, details: string, isPreferred: boolean }[],
+    preferredAssemblyId: string | undefined
+}
+export namespace ModelInfo2 {
+    async function getPreferredAssembly(ctx: PluginContext, model: Model) {
+        if (model.entryId.length <= 3) return void 0;
+        try {
+            const id = model.entryId.toLowerCase();
+            const src = await ctx.runTask(ctx.fetch({ url: `https://www.ebi.ac.uk/pdbe/api/pdb/entry/summary/${id}` })) as string;
+            const json = JSON.parse(src);
+            const data = json && json[id];
+
+            const assemblies = data[0] && data[0].assemblies;
+            if (!assemblies || !assemblies.length) return void 0;
+
+            for (const asm of assemblies) {
+                if (asm.preferred) {
+                    return asm.assembly_id;
+                }
+            }
+            return void 0;
+        } catch (e) {
+            console.warn('getPreferredAssembly', e);
+        }
+    }
+
+    export async function get(ctx: PluginContext, model: Model, checkPreferred: boolean): Promise<ModelInfo2> {
+        const { _rowCount: residueCount } = model.atomicHierarchy.residues;
+        const { offsets: residueOffsets } = model.atomicHierarchy.residueAtomSegments;
+        const chainIndex = model.atomicHierarchy.chainAtomSegments.index;
+        // const resn = SP.residue.label_comp_id, entType = SP.entity.type;
+
+        const pref = checkPreferred
+            ? getPreferredAssembly(ctx, model)
+            : void 0;
+
+        const hetResidues: ModelInfo2['hetResidues'] = [];
+        const hetMap = new Map<string, ModelInfo2['hetResidues'][0]>();
+
+        for (let rI = 0 as ResidueIndex; rI < residueCount; rI++) {
+            const cI = chainIndex[residueOffsets[rI]];
+            const eI = model.atomicHierarchy.index.getEntityFromChain(cI);
+            const entityType = model.entities.data.type.value(eI);
+            if (entityType !== 'non-polymer' && entityType !== 'branched') continue;
+
+            const comp_id = model.atomicHierarchy.atoms.label_comp_id.value(residueOffsets[rI]);
+
+            let lig = hetMap.get(comp_id);
+            if (!lig) {
+                lig = { name: comp_id, indices: [] };
+                hetResidues.push(lig);
+                hetMap.set(comp_id, lig);
+            }
+            lig.indices.push(rI);
+        }
+
+        const preferredAssemblyId = await pref;
+        const symmetry = ModelSymmetry.Provider.get(model);
+
+        return {
+            hetResidues: hetResidues,
+            assemblies: symmetry ? symmetry.assemblies.map(a => ({ id: a.id, details: a.details, isPreferred: a.id === preferredAssemblyId })) : [],
+            preferredAssemblyId
+        };
     }
 }
 

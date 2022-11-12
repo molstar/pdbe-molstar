@@ -42,6 +42,14 @@ import { AnimateStateInterpolation } from 'Molstar/mol-plugin-state/animation/bu
 import { AnimateStructureSpin } from 'Molstar/mol-plugin-state/animation/built-in/spin-structure';
 import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/camera-rock';
 import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
+//import { ModelInfo2, StateElements } from './helpers';
+import { ShannonEntropy } from './annotation';
+//import { ModelInfo2, StateElements, RepresentationStyle } from './helpers';
+import { ModelInfo2, StateElements, RepresentationStyle, SupportedFormats } from './helpers';
+//import { StateElements } from './helpers';
+//import { StateElements, RepresentationStyle } from './helpers';
+import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
+import { StateBuilder, StateObject } from 'Molstar/mol-state';
 
 require('Molstar/mol-plugin-ui/skin/dark.scss');
 
@@ -50,18 +58,87 @@ class PDBeMolstarPlugin {
     private _ev = RxEventHelper.create();
 
     readonly events = {
-        loadComplete: this._ev<boolean>()
+        loadComplete: this._ev<boolean>(),
+        modelInfo: this._ev<ModelInfo2>()
     };
 
     plugin: PluginContext;
-    initParams: InitParams;
+    initParams: InitParams;    
     targetElement: HTMLElement;
     assemblyRef = '';
     selectedParams: any;
     defaultRendererProps: any;
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
+    private visual1(_style?: RepresentationStyle, partial?: boolean) {
+        //const structure = this.getObj<PluginStateObject.Molecule.Structure>(StateElements.Assembly);
+        const structure = this.getObj<PluginStateObject.Molecule.Structure>(this.assemblyRef);
+        if (!structure) return;
 
+        const style = _style || {};
+
+        const update = this.state.build();
+
+        if (!partial || (partial && style.sequence)) {
+            const root = update.to(StateElements.Sequence);
+            if (style.sequence && style.sequence.hide) {
+                root.delete(StateElements.SequenceVisual);
+            } else {
+                root.applyOrUpdate(StateElements.SequenceVisual, StateTransforms.Representation.StructureRepresentation3D,
+                    createStructureRepresentationParams(this.plugin, structure, {
+                        type: (style.sequence && style.sequence.kind) || 'cartoon',
+                        color: (style.sequence && style.sequence.coloring) || 'unit-index'
+                    }));
+            }
+        }
+
+        if (!partial || (partial && style.hetGroups)) {
+            const root = update.to(StateElements.Het);
+            if (style.hetGroups && style.hetGroups.hide) {
+                root.delete(StateElements.HetVisual);
+            } else {
+                if (style.hetGroups && style.hetGroups.hide) {
+                    root.delete(StateElements.HetVisual);
+                } else {
+                    root.applyOrUpdate(StateElements.HetVisual, StateTransforms.Representation.StructureRepresentation3D,
+                        createStructureRepresentationParams(this.plugin, structure, {
+                            type: (style.hetGroups && style.hetGroups.kind) || 'ball-and-stick',
+                            color: style.hetGroups && style.hetGroups.coloring
+                        }));
+                }
+            }
+        }
+
+        if (!partial || (partial && style.snfg3d)) {
+            const root = update.to(StateElements.Het);
+            if (style.hetGroups && style.hetGroups.hide) {
+                root.delete(StateElements.HetVisual);
+            } else {
+                if (style.snfg3d && style.snfg3d.hide) {
+                    root.delete(StateElements.Het3DSNFG);
+                } else {
+                    root.applyOrUpdate(StateElements.Het3DSNFG, StateTransforms.Representation.StructureRepresentation3D,
+                        createStructureRepresentationParams(this.plugin, structure, { type: 'carbohydrate' }));
+                }
+            }
+        }
+
+        if (!partial || (partial && style.water)) {
+            const root = update.to(StateElements.Water);
+            if (style.water && style.water.hide) {
+                root.delete(StateElements.WaterVisual);
+            } else {
+                root.applyOrUpdate(StateElements.WaterVisual, StateTransforms.Representation.StructureRepresentation3D,
+                    createStructureRepresentationParams(this.plugin, structure, {
+                        type: (style.water && style.water.kind) || 'ball-and-stick',
+                        typeParams: { alpha: 0.51 },
+                        color: style.water && style.water.coloring
+                    }));
+            }
+        }
+
+        return update;
+    }
     async render(target: string | HTMLElement, options: InitParams) {
         if(!options) return;
         this.initParams = {...DefaultParams};
@@ -208,7 +285,9 @@ class PDBeMolstarPlugin {
         if(this.initParams.highlightColor || this.initParams.selectColor) {
             this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
         }
-
+        this.plugin.representation.structure.themes.colorThemeRegistry.add(ShannonEntropy.colorThemeProvider!);
+        this.plugin.managers.lociLabels.addProvider(ShannonEntropy.labelProvider!);
+        this.plugin.customModelProperties.register(ShannonEntropy.propertyProvider, true);
         // Save renderer defaults
         this.defaultRendererProps = {...this.plugin.canvas3d!.props.renderer};
 
@@ -331,7 +410,8 @@ class PDBeMolstarPlugin {
         }
     }
 
-    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '' }: LoadParams, fullLoad = true) {
+    private loadedParams: LoadParams = { url: '', format: 'mmcif', isBinary: false, assemblyId: '' };
+    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', representationStyle }: LoadParams, fullLoad = true) {
         if(fullLoad) this.clear();
         const isHetView = this.initParams.ligandView ? true : false;
         let downloadOptions: any = void 0;
@@ -388,9 +468,101 @@ class PDBeMolstarPlugin {
             await this.createLigandStructure(isBranchedView);
         }
 
-        this.events.loadComplete.next(true);
+        let loadType: 'full' | 'update' = 'full';
+
+        const state = this.plugin.state.data;
+
+        if (this.loadedParams.url !== url || this.loadedParams.format !== format) {
+            loadType = 'full';
+        } else if (this.loadedParams.url === url) {
+            //if (state.select(StateElements.Assembly).length > 0) loadType = 'update';
+            if (state.select(this.assemblyRef).length > 0) loadType = 'update';
+        }
+
+       if (loadType === 'full') {
+            await PluginCommands.State.RemoveObject(this.plugin, { state, ref: state.tree.root.ref });
+            const modelTree = this.model(this.download(state.build().toRoot(), url, isBinary), format);
+            await this.applyState(modelTree);
+            const info = await this.doInfo(true);
+            const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
+            const structureTree = this.structure(asmId);
+            await this.applyState(structureTree);
+        } else {
+            const tree = state.build();
+            const info = await this.doInfo(true);
+            const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
+            const props = {
+                type: assemblyId ? {
+                    name: 'assembly' as const,
+                    params: { id: asmId }
+                } : {
+                    name: 'model' as const,
+                    params: {}
+                }
+            };
+            //tree.to(StateElements.Assembly).update(StateTransforms.Model.StructureFromModel, p => ({ ...p, ...props }));
+                tree.to(this.assemblyRef).update(StateTransforms.Model.StructureFromModel, p => ({ ...p, ...props }));
+                await this.applyState(tree);
+            };
+
+	    await this.updateStyle(representationStyle);
+    this.events.loadComplete.next(true);
+    //}
+}
+
+   private model(b: StateBuilder.To<PluginStateObject.Data.Binary | PluginStateObject.Data.String>, format: SupportedFormats) {
+        const parsed = format === 'mmcif'
+            ? b.apply(StateTransforms.Data.ParseCif).apply(StateTransforms.Model.TrajectoryFromMmCif)
+            : b.apply(StateTransforms.Model.TrajectoryFromPDB);
+        return parsed.apply(StateTransforms.Model.ModelFromTrajectory, { modelIndex: 0 }, { ref: StateElements.Model });
+    
     }
     
+    private download(b: StateBuilder.To<PluginStateObject.Root>, url: string, isBinary: boolean) {
+        return b.apply(StateTransforms.Data.Download, { url: Asset.Url(url), isBinary });
+    }
+    private structure(assemblyId: string) {
+        const model = this.state.build().to(StateElements.Model);
+        const props = {
+            type: assemblyId ? {
+                name: 'assembly' as const,
+                params: { id: assemblyId }
+            } : {
+                name: 'model' as const,
+                params: {}
+            }
+        };
+
+        const s = model
+        //    .apply(StateTransforms.Model.StructureFromModel, props, { ref: StateElements.Assembly });
+        .apply(StateTransforms.Model.StructureFromModel, props, { ref: this.assemblyRef });
+        s.apply(StateTransforms.Model.StructureComplexElement, { type: 'atomic-sequence' }, { ref: StateElements.Sequence });
+        s.apply(StateTransforms.Model.StructureComplexElement, { type: 'atomic-het' }, { ref: StateElements.Het });
+        s.apply(StateTransforms.Model.StructureComplexElement, { type: 'water' }, { ref: StateElements.Water });
+        return s;
+    }
+    async updateStyle(style?: RepresentationStyle, partial?: boolean) {
+        const tree = this.visual1(style, partial);
+        if (!tree) return;
+        await PluginCommands.State.Update(this.plugin, { state: this.plugin.state.data, tree });
+    }
+    private async doInfo(checkPreferredAssembly: boolean) {
+        const model = this.getObj<PluginStateObject.Molecule.Model>('model');
+        if (!model) return;
+
+        const info = await ModelInfo2.get(this.plugin, model, checkPreferredAssembly);
+        this.events.modelInfo.next(info);
+        return info;
+    }
+    private applyState(tree: StateBuilder) {
+        return PluginCommands.State.Update(this.plugin, { state: this.plugin.state.data, tree });
+    }
+    private getObj<T extends StateObject>(ref: string): T['data'] {
+        const state = this.state;
+        const cell = state.select(ref)[0];
+        if (!cell || !cell.obj) return void 0;
+        return (cell.obj as T).data;
+    }
     applyVisualParams = () => {
         const TagRefs: any = {
             'structure-component-static-polymer': 'polymer',
@@ -493,7 +665,26 @@ class PDBeMolstarPlugin {
         }
         return color;
     }
+    coloring = {
+        shannonEntropy: async (params?: { sequence?: boolean, het?: boolean, keepStyle?: boolean, data: [] }) => {
+            if (!params || !params.keepStyle) {
+               // await this.updateStyle({ sequence: { kind: 'spacefill' } }, true);
+            }
 
+
+            const state = this.state;
+            const tree = state.build();
+            const colorTheme = { name: ShannonEntropy.propertyProvider.descriptor.name, params: this.plugin.representation.structure.themes.colorThemeRegistry.get(ShannonEntropy.propertyProvider.descriptor.name).defaultValues };
+
+            if (!params || !!params.sequence) {
+                tree.to(StateElements.SequenceVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            if (params && !!params.het) {
+                tree.to(StateElements.HetVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            await PluginCommands.State.Update(this.plugin, { state, tree });
+        }
+    };
     visual = {
         highlight: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
@@ -535,13 +726,13 @@ class PDBeMolstarPlugin {
                 const loci = this.getLociForParams([param], params.structureNumber);
                 if(Loci.isEmpty(loci)) return;
                 // set default selection color to minimise change display
-                this.visual.setColor({select: param.color ? param.color : { r:255, g:112, b:3}});
+                this.visual.setColor({select: param.color ? param.color : { r:255, g:255, b:255}});
                 // apply selection
                 this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
                 // create theme param values and apply them to create overpaint
                 const themeParams = StructureComponentManager.getThemeParams(this.plugin, this.plugin.managers.structure.component.pivotStructure);
                 const colorValue = ParamDefinition.getDefaultValues(themeParams);
-                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
+                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 255, 255), opacity: 1 };
                 await this.plugin.managers.structure.component.applyTheme(colorValue, structureData);
                 // add new representations
                 if(param.sideChain || param.representation){
@@ -563,7 +754,7 @@ class PDBeMolstarPlugin {
                         const comps = updatedStructureData[0].components;
                         const lastCompsIndex = comps.length - 1;
                         const recentRepComp = [comps[lastCompsIndex]];
-                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
+                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 255, 255);
                         this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
                     }
                     
