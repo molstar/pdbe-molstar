@@ -25,14 +25,14 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 start_residue_number: e.eventData.label_seq_id,
                 end_residue_number: e.eventData.label_seq_id
             };
-            e.visual.highlight({
+            wrapperCtx.visual.highlighting({
                 data: [highlightQuery]
             })
         }
     });
 
     document.addEventListener("PDB.RNA.viewer.mouseout", function (e: any) {
-        e.visual.clearHighlight()
+        wrapperCtx.visual.clearHighlighting();
     });
     document.addEventListener('PDB.topologyViewer.click', function(e: any){
         if(typeof e.eventData !== 'undefined'){

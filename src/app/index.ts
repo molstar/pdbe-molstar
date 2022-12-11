@@ -44,6 +44,7 @@ import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/c
 import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
 //import { ModelInfo2, StateElements } from './helpers';
 import { ShannonEntropy } from './annotation';
+import { TwinConsData } from './annotation';
 //import { ModelInfo2, StateElements, RepresentationStyle } from './helpers';
 import { ModelInfo2, StateElements, RepresentationStyle, SupportedFormats } from './helpers';
 //import { StateElements } from './helpers';
@@ -284,10 +285,14 @@ class PDBeMolstarPlugin {
         // Set default highlight and selection colors
         if(this.initParams.highlightColor || this.initParams.selectColor) {
             this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
+            console.log('vis', this.visual);
         }
         this.plugin.representation.structure.themes.colorThemeRegistry.add(ShannonEntropy.colorThemeProvider!);
         this.plugin.managers.lociLabels.addProvider(ShannonEntropy.labelProvider!);
         this.plugin.customModelProperties.register(ShannonEntropy.propertyProvider, true);
+        this.plugin.representation.structure.themes.colorThemeRegistry.add(TwinConsData.colorThemeProvider!);
+        this.plugin.managers.lociLabels.addProvider(TwinConsData.labelProvider!);
+        this.plugin.customModelProperties.register(TwinConsData.propertyProvider, true);
         // Save renderer defaults
         this.defaultRendererProps = {...this.plugin.canvas3d!.props.renderer};
 
@@ -670,12 +675,27 @@ class PDBeMolstarPlugin {
             if (!params || !params.keepStyle) {
                // await this.updateStyle({ sequence: { kind: 'spacefill' } }, true);
             }
-
-
             const state = this.state;
             const tree = state.build();
+            
             const colorTheme = { name: ShannonEntropy.propertyProvider.descriptor.name, params: this.plugin.representation.structure.themes.colorThemeRegistry.get(ShannonEntropy.propertyProvider.descriptor.name).defaultValues };
+            
+            if (!params || !!params.sequence) {
+                tree.to(StateElements.SequenceVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            if (params && !!params.het) {
+                tree.to(StateElements.HetVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            await PluginCommands.State.Update(this.plugin, { state, tree });
+        },
 
+        twinCons: async (params?: { sequence?: boolean, het?: boolean, keepStyle?: boolean, data: [] }) => {
+            if (!params || !params.keepStyle) {
+               // await this.updateStyle({ sequence: { kind: 'spacefill' } }, true);
+            }
+            const state = this.state;
+            const tree = state.build();
+            const colorTheme = { name: TwinConsData.propertyProvider.descriptor.name, params: this.plugin.representation.structure.themes.colorThemeRegistry.get(TwinConsData.propertyProvider.descriptor.name).defaultValues };
             if (!params || !!params.sequence) {
                 tree.to(StateElements.SequenceVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
             }
@@ -684,10 +704,14 @@ class PDBeMolstarPlugin {
             }
             await PluginCommands.State.Update(this.plugin, { state, tree });
         }
+
     };
+    
     visual = {
-        highlight: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
+        
+        highlighting: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
+            params.color = {r:65, g:96, b:91};
             if(Loci.isEmpty(loci)) return;
             if(params.color) {
                 this.visual.setColor({highlight: params.color});
@@ -696,7 +720,7 @@ class PDBeMolstarPlugin {
             if(params.focus) this.plugin.managers.camera.focusLoci(loci);
 
         },
-        clearHighlight: async() => {
+        clearHighlighting: async() => {
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
             if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
         },
