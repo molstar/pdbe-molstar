@@ -45,6 +45,7 @@ import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-
 //import { ModelInfo2, StateElements } from './helpers';
 import { ShannonEntropy } from './annotation';
 import { TwinConsData } from './annotation';
+import { CustomData } from './annotation';
 //import { ModelInfo2, StateElements, RepresentationStyle } from './helpers';
 import { ModelInfo2, StateElements, RepresentationStyle, SupportedFormats } from './helpers';
 //import { StateElements } from './helpers';
@@ -293,6 +294,9 @@ class PDBeMolstarPlugin {
         this.plugin.representation.structure.themes.colorThemeRegistry.add(TwinConsData.colorThemeProvider!);
         this.plugin.managers.lociLabels.addProvider(TwinConsData.labelProvider!);
         this.plugin.customModelProperties.register(TwinConsData.propertyProvider, true);
+        this.plugin.representation.structure.themes.colorThemeRegistry.add(CustomData.colorThemeProvider!);
+        this.plugin.managers.lociLabels.addProvider(CustomData.labelProvider!);
+        this.plugin.customModelProperties.register(CustomData.propertyProvider, true);
         // Save renderer defaults
         this.defaultRendererProps = {...this.plugin.canvas3d!.props.renderer};
 
@@ -688,7 +692,23 @@ class PDBeMolstarPlugin {
             }
             await PluginCommands.State.Update(this.plugin, { state, tree });
         },
-
+        customData: async (params?: { sequence?: boolean, het?: boolean, keepStyle?: boolean, data: [] }) => {
+            if (!params || !params.keepStyle) {
+               // await this.updateStyle({ sequence: { kind: 'spacefill' } }, true);
+            }
+            const state = this.state;
+            const tree = state.build();
+            
+            const colorTheme = { name: CustomData.propertyProvider.descriptor.name, params: this.plugin.representation.structure.themes.colorThemeRegistry.get(CustomData.propertyProvider.descriptor.name).defaultValues };
+            
+            if (!params || !!params.sequence) {
+                tree.to(StateElements.SequenceVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            if (params && !!params.het) {
+                tree.to(StateElements.HetVisual).update(StateTransforms.Representation.StructureRepresentation3D, old => ({ ...old, colorTheme }));
+            }
+            await PluginCommands.State.Update(this.plugin, { state, tree });
+        },
         twinCons: async (params?: { sequence?: boolean, het?: boolean, keepStyle?: boolean, data: [] }) => {
             if (!params || !params.keepStyle) {
                // await this.updateStyle({ sequence: { kind: 'spacefill' } }, true);
