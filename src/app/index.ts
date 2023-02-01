@@ -285,7 +285,6 @@ class PDBeMolstarPlugin {
         // Set default highlight and selection colors
         if(this.initParams.highlightColor || this.initParams.selectColor) {
             this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
-            console.log('vis', this.visual);
         }
         this.plugin.representation.structure.themes.colorThemeRegistry.add(ShannonEntropy.colorThemeProvider!);
         this.plugin.managers.lociLabels.addProvider(ShannonEntropy.labelProvider!);
@@ -415,7 +414,7 @@ class PDBeMolstarPlugin {
         }
     }
 
-    private loadedParams: LoadParams = { url: '', format: 'mmcif', isBinary: false, assemblyId: '' };
+    //private loadedParams: LoadParams = { url: '', format: 'mmcif', isBinary: false, assemblyId: '' };
     async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', representationStyle }: LoadParams, fullLoad = true) {
         if(fullLoad) this.clear();
         const isHetView = this.initParams.ligandView ? true : false;
@@ -474,16 +473,20 @@ class PDBeMolstarPlugin {
         }
 
         let loadType: 'full' | 'update' = 'full';
-
+        
         const state = this.plugin.state.data;
-
+        /*
         if (this.loadedParams.url !== url || this.loadedParams.format !== format) {
             loadType = 'full';
         } else if (this.loadedParams.url === url) {
             //if (state.select(StateElements.Assembly).length > 0) loadType = 'update';
             if (state.select(this.assemblyRef).length > 0) loadType = 'update';
+        }*/
+        if (fullLoad) {
+            loadType = 'full'
+        } else {
+            loadType = 'update'
         }
-
        if (loadType === 'full') {
             await PluginCommands.State.RemoveObject(this.plugin, { state, ref: state.tree.root.ref });
             const modelTree = this.model(this.download(state.build().toRoot(), url, isBinary), format);
@@ -492,7 +495,7 @@ class PDBeMolstarPlugin {
             const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
             const structureTree = this.structure(asmId);
             await this.applyState(structureTree);
-        } else {
+       } else {
             const tree = state.build();
             const info = await this.doInfo(true);
             const asmId = (assemblyId === 'preferred' && info && info.preferredAssemblyId) || assemblyId;
@@ -636,6 +639,7 @@ class PDBeMolstarPlugin {
         }
 
         if(assemblyRef === '') return EmptyLoci;
+        //if (this.plugin.state.data.select(assemblyRef).length == 0) return EmptyLoci;
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
         if(!data) return EmptyLoci;
         return QueryHelper.getInteractivityLoci(params, data);
@@ -724,6 +728,23 @@ class PDBeMolstarPlugin {
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
             if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
         },
+        colorByChain: async(data: string[]) => {
+            let structureData = this.plugin.managers.structure.hierarchy.current.structures;
+            /*let r1 = 0
+            let b1 = 0
+            let g1 = 0
+            let diff = 230/(structureData.length - 1)*/
+            let i = 0
+            for await (const s of structureData) {
+                if (i > 0) {
+                let color = data[i - 1]
+                //await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+                await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(color) } });
+                
+            }
+            i += 1
+        }
+        },
         select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
 
             // clear prvious selection
@@ -741,14 +762,17 @@ class PDBeMolstarPlugin {
             if(params.nonSelectedColor) {
                 for await (const s of structureData) {
                     await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+                    //await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(color) } });
                 }
             }
 
             // apply individual selections
             for await (const param of params.data) {
                 // get loci from param
+                
                 const loci = this.getLociForParams([param], params.structureNumber);
                 if(Loci.isEmpty(loci)) return;
+                
                 // set default selection color to minimise change display
                 this.visual.setColor({select: param.color ? param.color : { r:255, g:255, b:255}});
                 // apply selection
@@ -824,9 +848,9 @@ class PDBeMolstarPlugin {
         update: async (options: InitParams, fullLoad?: boolean) => {
             if(!options) return;
 
-            // for(let param in this.initParams){
-            //     if(options[param]) this.initParams[param] = options[param];
-            // }
+            for(let param in this.initParams){
+                 if(options[param]) this.initParams[param] = options[param];
+            }
 
             this.initParams = {...DefaultParams };
             for(let param in DefaultParams){
