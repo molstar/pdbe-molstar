@@ -122,12 +122,6 @@ class PDBeMolstarPlugin {
 
         if(this.initParams.alphafoldView) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, {autoAttach: true, showTooltip: true}));
-            pdbePluginSpec.components.controls = {
-                left: 'none',
-                right: 'none',
-                // top: 'none',
-                bottom: 'none'
-            }
         }
 
         if(this.initParams.sequencePanel) {
@@ -166,6 +160,7 @@ class PDBeMolstarPlugin {
         };
 
         if(this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
+        if(this.initParams.reactive && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'reactive';
 
         // override default event bindings
         if(this.initParams.selectBindings) {

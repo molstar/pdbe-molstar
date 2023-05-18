@@ -60,7 +60,7 @@ export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, o
 
 export type InitParams = {
     moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean,
-    lowPrecisionCoords?: boolean, landscape?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
+    lowPrecisionCoords?: boolean, landscape?: boolean, reactive?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, sequencePanel?: boolean,
     ligandView?: LigandQueryParam, defaultPreset?: 'default' | "unitcell" | "all-models" | "supercell",
     bgColor?: {r: number, g: number, b: number}, customData? : {url: string, format: string, binary: boolean}, loadCartoonsOnly? : boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
@@ -101,6 +101,7 @@ export const DefaultParams: InitParams = {
     pdbeLink: true,
     loadCartoonsOnly: false,
     landscape: false,
+    reactive: false,
     subscribeEvents: false,
     alphafoldView: false,
     sequencePanel: false
