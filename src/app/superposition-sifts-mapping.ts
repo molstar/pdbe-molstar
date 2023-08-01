@@ -1,6 +1,6 @@
 import { Segmentation } from 'Molstar/mol-data/int';
 import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
-import { SIFTSMapping } from 'Molstar/mol-model-props/sequence/sifts-mapping';
+import { SIFTSMapping } from './sifts-mapping';
 import { ElementIndex, ResidueIndex } from 'Molstar/mol-model/structure/model/indexing';
 import { StructureElement } from 'Molstar/mol-model/structure/structure/element';
 import { Structure } from 'Molstar/mol-model/structure';

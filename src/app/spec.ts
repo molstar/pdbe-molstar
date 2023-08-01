@@ -10,6 +10,7 @@ import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { StateActions } from 'Molstar/mol-plugin-state/actions';
 import { PDBeLociLabelProvider } from './labels';
+import { PDBeSIFTSMapping } from './sifts-mappings-behaviour'
 
 import { Loci } from 'Molstar/mol-model/loci';
 import { QueryParam, LigandQueryParam } from './helpers';
@@ -29,7 +30,7 @@ export const DefaultPluginSpec = (): PluginSpec => ({
 
         PluginSpec.Behavior(PluginBehaviors.CustomProps.StructureInfo),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.AccessibleSurfaceArea),
-        PluginSpec.Behavior(PluginBehaviors.CustomProps.BestDatabaseSequenceMapping, {autoAttach: true, showTooltip: true}),
+        PluginSpec.Behavior(PDBeSIFTSMapping, {autoAttach: true, showTooltip: true}),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.Interactions),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.SecondaryStructure),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.ValenceModel),

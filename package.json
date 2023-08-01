@@ -1,6 +1,6 @@
 {
   "name": "pdbe-molstar",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
@@ -9,11 +9,11 @@
     "build-tsc": "concurrently \"tsc --incremental\" \"tsc --build tsconfig.json --incremental\"",
     "build-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/",
     "webpack": "webpack",
-    "build-webpack": "webpack --mode production --config ./webpack.config.js",
+    "build-webpack": "webpack --mode production --config ./webpack.config.production.js",
     "watch": "concurrently -c \"green,green,gray,gray\" --names \"tsc,srv,ext,wpc\" --kill-others \"npm:watch-tsc\" \"npm:watch-extra\" \"npm:watch-webpack\"",
     "watch-tsc": "tsc --watch --incremental",
     "watch-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/ --watch",
-    "watch-webpack": "webpack -w --mode development --stats minimal",
+    "watch-webpack": "webpack -w --mode development --stats minimal --config ./webpack.config.development.js",
     "serve": "http-server -p 1338 -g",
     "bundle-webcomponent": "gulp"
   },

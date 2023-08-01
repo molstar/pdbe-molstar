@@ -54,21 +54,18 @@ const molstarConfig = {
     watchOptions: {
         aggregateTimeout: 750
     },
-    devtool: 'eval-source-map'
 }
 
 const componentConfig = {
     entry: path.resolve(__dirname, `src/web-component/index.js`),
     output: { filename: `${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`, path: path.resolve(__dirname, `lib/`) },
     target: "web",
-    devtool: "source-map",
     resolve: {
       extensions: [".js"]
     },
     externals: {
       "PDBeMolstarPlugin": "PDBeMolstarPlugin"
     },
-    // plugins: [new CleanWebpackPlugin([path.join(PACKAGE_ROOT_PATH, "build")])],
     module: {
       rules: [
         {
@@ -105,18 +102,6 @@ const componentConfig = {
             loader: "babel-loader",
             options: {
               babelrc: false,
-              // presets: [
-              //   [
-              //     "@babel/preset-env",
-              //     {
-              //       targets: {
-              //         ie: 11,
-              //         browsers: "last 2 versions"
-              //       },
-              //       modules: false
-              //     }
-              //   ]
-              // ],
               plugins: [
                 [
                   "@babel/plugin-transform-runtime",

@@ -213,13 +213,13 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
             if(modelRef){
                 const structHierarchy: any = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
                 if(structHierarchy) {
-                    const input = [structHierarchy, afStr];
+                    const input = [structHierarchy.components[0], afStr];
                     const structures = input.map(s => s.cell.obj?.data!);
                     let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly, 
                         includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
                         applyTestIndex: [1]
                     });
-
+            
                     if(entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
                         const alignWithoutPlddt = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly });
                         entries = alignWithoutPlddt.entries;

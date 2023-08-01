@@ -6,11 +6,10 @@ import Expression from 'Molstar/mol-script/language/expression';
 import { StructureSelection, QueryContext, StructureProperties } from 'Molstar/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-// import { VolumeStreaming } from '../../mol-plugin/behavior/dynamic/volume-streaming/behavior';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { Model, ResidueIndex } from 'Molstar/mol-model/structure';
 import { Queries } from 'Molstar/mol-model/structure';
-import { SIFTSMapping } from 'Molstar/mol-model-props/sequence/sifts-mapping';
+import { SIFTSMapping } from './sifts-mapping';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 

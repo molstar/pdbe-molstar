@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
+## [v3.1.2]
+- Added PDBe Sifts Mappings module to solve UniPort mappings issue
+- Split Webpack config file into separate files for Production and Development
+
 ## [v3.1.1]
 - Controls menu visible for AlphaFold view
 - ``Reactive`` parameter addition for better responsive layout support
