@@ -105,7 +105,13 @@ class PDBeMolstarPlugin {
         pdbePluginSpec.layout = {
             initial: {
                 isExpanded: this.initParams.landscape ? false : this.initParams.expanded,
-                showControls: !this.initParams.hideControls
+                showControls: !this.initParams.hideControls,
+                regionState: {
+                    left: 'full',
+                    right: 'full',
+                    top: this.initParams.sequencePanel ? 'full' : 'hidden',
+                    bottom: 'full',
+                },
             }
         };
 
@@ -113,7 +119,7 @@ class PDBeMolstarPlugin {
             controls: {
                 left: LeftPanelControls,
                 // right: DefaultStructureTools,
-                top: 'none',
+                // top: 'none',
                 bottom: 'none'
             },
             viewport: {
@@ -126,10 +132,6 @@ class PDBeMolstarPlugin {
 
         if (this.initParams.alphafoldView) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
-        }
-
-        if (this.initParams.sequencePanel) {
-            if (pdbePluginSpec.components.controls?.top) delete pdbePluginSpec.components.controls.top;
         }
 
         pdbePluginSpec.config = [
