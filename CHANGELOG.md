@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Added ``Assembly Symmetry`` to structure controls
+- Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
 
 ## [v3.1.2]
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue
