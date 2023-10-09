@@ -65,14 +65,14 @@ class PDBeMolstarPlugin {
     isSelectedColorUpdated = false;
 
     async render(target: string | HTMLElement, options: InitParams) {
-        if(!options) return;
-        this.initParams = {...DefaultParams};
-        for(let param in DefaultParams){
-            if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
+        if (!options) return;
+        this.initParams = { ...DefaultParams };
+        for (let param in DefaultParams) {
+            if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
         }
 
-        if(!this.initParams.moleculeId && !this.initParams.customData) return false;
-        if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
+        if (!this.initParams.moleculeId && !this.initParams.customData) return false;
+        if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
 
         // Set PDBe Plugin Spec
         const defaultPDBeSpec = DefaultPluginUISpec();
@@ -84,29 +84,29 @@ class PDBeMolstarPlugin {
             config: defaultPDBeSpec.config
         };
 
-        if(!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction){
+        if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
             hackRCSBAssemblySymmetry();
         }
 
-        if(this.initParams.superposition){
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(SuperpositionFocusRepresentation), PluginSpec.Behavior(MAQualityAssessment, {autoAttach: true, showTooltip: true}));
+        if (this.initParams.superposition) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(SuperpositionFocusRepresentation), PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
         }
 
         // Add custom properties
-        if(this.initParams.domainAnnotation) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, {autoAttach: true, showTooltip: false}));
+        if (this.initParams.domainAnnotation) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, { autoAttach: true, showTooltip: false }));
         }
-        if(this.initParams.validationAnnotation) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, {autoAttach: true, showTooltip: false}));
+        if (this.initParams.validationAnnotation) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: true, showTooltip: false }));
         }
 
         pdbePluginSpec.layout = {
             initial: {
                 isExpanded: this.initParams.landscape ? false : this.initParams.expanded,
                 showControls: !this.initParams.hideControls
-            }            
+            }
         };
 
         pdbePluginSpec.components = {
@@ -124,56 +124,56 @@ class PDBeMolstarPlugin {
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
         };
 
-        if(this.initParams.alphafoldView) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, {autoAttach: true, showTooltip: true}));
+        if (this.initParams.alphafoldView) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
         }
 
-        if(this.initParams.sequencePanel) {
-            if(pdbePluginSpec.components.controls?.top) delete pdbePluginSpec.components.controls.top;
+        if (this.initParams.sequencePanel) {
+            if (pdbePluginSpec.components.controls?.top) delete pdbePluginSpec.components.controls.top;
         }
 
         pdbePluginSpec.config = [
             [
-                PluginConfig.Structure.DefaultRepresentationPresetParams, 
+                PluginConfig.Structure.DefaultRepresentationPresetParams,
                 {
                     theme: {
-                            globalName: (this.initParams.alphafoldView) ? 'plddt-confidence' : undefined,
-                            carbonColor: { name: 'element-symbol', params: {} },
-                            focus: {
-                                name:  'element-symbol',
-                                params: { carbonColor: { name: 'element-symbol', params: {} } }
-                            }
+                        globalName: (this.initParams.alphafoldView) ? 'plddt-confidence' : undefined,
+                        carbonColor: { name: 'element-symbol', params: {} },
+                        focus: {
+                            name: 'element-symbol',
+                            params: { carbonColor: { name: 'element-symbol', params: {} } }
+                        }
                     }
                 }
             ]
         ];
 
-        ElementSymbolColorThemeParams.carbonColor.defaultValue = { name: 'element-symbol', params: {} }; 
+        ElementSymbolColorThemeParams.carbonColor.defaultValue = { name: 'element-symbol', params: {} };
 
         // Add animation props
-        if(!this.initParams.ligandView && !this.initParams.superposition){
+        if (!this.initParams.ligandView && !this.initParams.superposition) {
             pdbePluginSpec['animations'] = [AnimateModelIndex, AnimateCameraSpin, AnimateCameraRock, AnimateStateSnapshots, AnimateAssemblyUnwind, AnimateStructureSpin, AnimateStateInterpolation];
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(Mp4Export));
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(GeometryExport));
         }
 
-        if(this.initParams.hideCanvasControls) {
-            if(this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
-            if(this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-            if(this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+        if (this.initParams.hideCanvasControls) {
+            if (this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
+            if (this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+            if (this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         };
 
-        if(this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
-        if(this.initParams.reactive && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'reactive';
+        if (this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
+        if (this.initParams.reactive && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'reactive';
 
         // override default event bindings
-        if(this.initParams.selectBindings) {
+        if (this.initParams.selectBindings) {
             pdbePluginSpec.behaviors.push(
                 PluginSpec.Behavior(SelectLoci, { bindings: this.initParams.selectBindings })
             )
         }
 
-        if(this.initParams.focusBindings) {
+        if (this.initParams.focusBindings) {
             pdbePluginSpec.behaviors.push(
                 PluginSpec.Behavior(FocusLoci, { bindings: this.initParams.focusBindings })
             )
@@ -183,7 +183,7 @@ class PDBeMolstarPlugin {
 
         // Create/ Initialise Plugin
         this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
-        (this.plugin.customState as any).initParams = {...this.initParams};
+        (this.plugin.customState as any).initParams = { ...this.initParams };
         (this.plugin.customState as any).events = {
             segmentUpdate: this._ev<boolean>(),
             superpositionInit: this._ev<boolean>(),
@@ -191,34 +191,34 @@ class PDBeMolstarPlugin {
         };
 
         // Set background colour
-        if(this.initParams.bgColor || this.initParams.lighting){
+        if (this.initParams.bgColor || this.initParams.lighting) {
             const settings: any = {};
-            if(this.initParams.bgColor) settings.color = this.initParams.bgColor;
-            if(this.initParams.lighting) settings.lighting = this.initParams.lighting;
+            if (this.initParams.bgColor) settings.color = this.initParams.bgColor;
+            if (this.initParams.lighting) settings.lighting = this.initParams.lighting;
             this.canvas.applySettings(settings);
         }
 
         // Set selection granularity
-        if(this.initParams.granularity) {
+        if (this.initParams.granularity) {
             this.plugin.managers.interactivity.setProps({ granularity: this.initParams.granularity });
         }
 
         // Set default highlight and selection colors
-        if(this.initParams.highlightColor || this.initParams.selectColor) {
+        if (this.initParams.highlightColor || this.initParams.selectColor) {
             this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
         }
 
         // Save renderer defaults
-        this.defaultRendererProps = {...this.plugin.canvas3d!.props.renderer};
+        this.defaultRendererProps = { ...this.plugin.canvas3d!.props.renderer };
 
-        if(this.initParams.superposition){
+        if (this.initParams.superposition) {
             // Set left panel tab
             this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
             initSuperposition(this.plugin);
 
-        }else{
+        } else {
 
             // Collapse left panel and set left panel tab to none
             PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
@@ -226,12 +226,12 @@ class PDBeMolstarPlugin {
 
             // Load Molecule CIF or coordQuery and Parse
             let dataSource = this.getMoleculeSrcUrl();
-            if(dataSource){
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary});
+            if (dataSource) {
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary });
             }
 
             // Binding to other PDB Component events
-            if(this.initParams.subscribeEvents){
+            if (this.initParams.subscribeEvents) {
                 subscribeToComponentEvents(this);
             }
 
@@ -246,36 +246,36 @@ class PDBeMolstarPlugin {
         const supportedFormats = ['mmcif', 'pdb', 'sdf'];
         let id = this.initParams.moleculeId;
 
-        if(!id && !this.initParams.customData){
+        if (!id && !this.initParams.customData) {
             throw new Error(`Mandatory parameters missing!`);
         }
 
         let query = 'full';
         let sep = '?';
-        if(this.initParams.ligandView){
+        if (this.initParams.ligandView) {
             let queryParams = ['data_source=pdb-h'];
-            if(!this.initParams.ligandView.label_comp_id_list) {
-                if(this.initParams.ligandView.label_comp_id) {
+            if (!this.initParams.ligandView.label_comp_id_list) {
+                if (this.initParams.ligandView.label_comp_id) {
                     queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
-                } else if(this.initParams.ligandView.auth_seq_id) {
+                } else if (this.initParams.ligandView.auth_seq_id) {
                     queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
                 }
-                if(this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
+                if (this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
             }
             query = 'residueSurroundings?' + queryParams.join('&');
             sep = '&';
         }
-        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=${this.initParams.encoding}${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : '' }`;
+        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=${this.initParams.encoding}${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : ''}`;
         let isBinary = this.initParams.encoding === 'bcif' ? true : false;
         let format = 'mmcif';
 
-        if(this.initParams.customData){
-            if(!this.initParams.customData.url || !this.initParams.customData.format){
+        if (this.initParams.customData) {
+            if (!this.initParams.customData.url || !this.initParams.customData.format) {
                 throw new Error(`Provide all custom data parameters`);
             }
             url = this.initParams.customData.url;
             format = this.initParams.customData.format;
-            if(format === 'cif' || format === 'bcif') format = 'mmcif';
+            if (format === 'cif' || format === 'bcif') format = 'mmcif';
             // Validate supported format
             if (supportedFormats.indexOf(format) === -1) {
                 throw new Error(`${format} not supported.`);
@@ -295,31 +295,31 @@ class PDBeMolstarPlugin {
     }
 
     async createLigandStructure(isBranched: boolean) {
-        if(this.assemblyRef === '') return;
+        if (this.assemblyRef === '') return;
         for await (const comp of this.plugin.managers.structure.hierarchy.currentComponentGroups) {
             await PluginCommands.State.RemoveObject(this.plugin, { state: comp[0].cell.parent!, ref: comp[0].cell.transform.ref, removeParentGhosts: true });
         }
-        
+
         const structure = this.state.select(this.assemblyRef)[0];
 
         let ligandQuery;
-        if(isBranched) {
+        if (isBranched) {
             ligandQuery = LigandView.branchedQuery(this.initParams.ligandView?.label_comp_id_list!);
         } else {
             ligandQuery = LigandView.query(this.initParams.ligandView!);
         }
 
-        const ligandVis = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.core, 'pivot', {label: 'Ligand'});
+        const ligandVis = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.core, 'pivot', { label: 'Ligand' });
         if (ligandVis) await this.plugin.builders.structure.representation.addRepresentation(ligandVis, { type: 'ball-and-stick', color: 'element-symbol', colorParams: { carbonColor: { name: 'element-symbol', params: {} } }, size: 'uniform', sizeParams: { value: 2.5 } }, { tag: 'ligand-vis' });
 
-        const ligandSurr = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.surroundings, 'rest', {label: 'Surroundings'});
+        const ligandSurr = await this.plugin.builders.structure.tryCreateComponentFromExpression(structure, ligandQuery.surroundings, 'rest', { label: 'Surroundings' });
         if (ligandSurr) await this.plugin.builders.structure.representation.addRepresentation(ligandSurr, { type: 'ball-and-stick', color: 'element-symbol', colorParams: { carbonColor: { name: 'element-symbol', params: {} } }, size: 'uniform', sizeParams: { value: 0.8 } });
 
         // Focus ligand
         const ligRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'ligand-vis');
-        if(!ligRef) return;
+        if (!ligRef) return;
         const cell = this.plugin.state.data.cells.get(ligRef)!;
-        if(cell) {
+        if (cell) {
             const ligLoci = cell.obj!.data.repr.getLoci();
             this.plugin.managers.structure.focus.setFromLoci(ligLoci);
             setTimeout(() => {
@@ -331,69 +331,69 @@ class PDBeMolstarPlugin {
     }
 
     async load({ url, format = 'mmcif', isBinary = false, assemblyId = '' }: LoadParams, fullLoad = true) {
-        if(fullLoad) this.clear();
+        if (fullLoad) this.clear();
         const isHetView = this.initParams.ligandView ? true : false;
         let downloadOptions: any = void 0;
         let isBranchedView = false;
         if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
             isBranchedView = true;
-            downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']]};
+            downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']] };
         }
-        
+
         const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
         const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
-        if(!isHetView){
+        if (!isHetView) {
 
             await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
-                structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: { } },
+                structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
                 showUnitcell: false,
                 representationPreset: 'auto'
             });
 
-            if(this.initParams.hideStructure || this.initParams.visualStyle){
+            if (this.initParams.hideStructure || this.initParams.visualStyle) {
                 this.applyVisualParams();
             }
 
         } else {
             const model = await this.plugin.builders.structure.createModel(trajectory);
-            await this.plugin.builders.structure.createStructure(model, { name: 'model', params: { } });
+            await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
         }
 
         // show selection if param is set
-        if(this.initParams.selection) {
+        if (this.initParams.selection) {
             this.visual.select(this.initParams.selection);
         }
 
         // Store assembly ref
         const pivotIndex = this.plugin.managers.structure.hierarchy.selection.structures.length - 1;
         const pivot = this.plugin.managers.structure.hierarchy.selection.structures[pivotIndex];
-        if(pivot && pivot.cell.parent) this.assemblyRef = pivot.cell.transform.ref;
+        if (pivot && pivot.cell.parent) this.assemblyRef = pivot.cell.transform.ref;
 
         // Load Volume
-        if(this.initParams.loadMaps) {
-            if(this.assemblyRef === '') return;
+        if (this.initParams.loadMaps) {
+            if (this.assemblyRef === '') return;
             const asm = this.state.select(this.assemblyRef)[0].obj!;
             const defaultMapParams = InitVolumeStreaming.createDefaultParams(asm, this.plugin);
             const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings, '');
-            if(pdbeMapParams){
+            if (pdbeMapParams) {
                 await this.plugin.runTask(this.state.applyAction(InitVolumeStreaming, pdbeMapParams, this.assemblyRef));
-                if(pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);
+                if (pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);
             }
         }
 
         // Create Ligand Representation
-        if(isHetView){
+        if (isHetView) {
             await this.createLigandStructure(isBranchedView);
         }
 
         this.events.loadComplete.next(true);
     }
-    
+
     applyVisualParams = () => {
         const TagRefs: any = {
             'structure-component-static-polymer': 'polymer',
-            'structure-component-static-ligand' : 'het',
+            'structure-component-static-ligand': 'het',
             'structure-component-static-branched': 'carbs',
             'structure-component-static-water': 'water',
             'structure-component-static-coarse': 'coarse',
@@ -405,16 +405,16 @@ class PDBeMolstarPlugin {
             const compGrpIndex = compGrp.length - 1;
             const key = compGrp[compGrpIndex].key;
             let rm = false;
-            if(key && this.initParams.hideStructure){
+            if (key && this.initParams.hideStructure) {
                 const structType: any = TagRefs[key];
-                if(structType && this.initParams.hideStructure?.indexOf(structType) > -1) rm = true;
+                if (structType && this.initParams.hideStructure?.indexOf(structType) > -1) rm = true;
             }
-            if(rm){
+            if (rm) {
                 this.plugin.managers.structure.hierarchy.remove([compGrp[compGrpIndex]]);
             }
 
-            if(!rm && this.initParams.visualStyle){
-                if(compGrp[compGrpIndex] && compGrp[compGrpIndex].representations){
+            if (!rm && this.initParams.visualStyle) {
+                if (compGrp[compGrpIndex] && compGrp[compGrpIndex].representations) {
                     compGrp[compGrpIndex].representations.forEach(rep => {
                         const currentParams = createStructureRepresentationParams(this.plugin, void 0, { type: this.initParams.visualStyle });
                         this.plugin.managers.structure.component.updateRepresentations([compGrp[compGrpIndex]], rep, currentParams);
@@ -426,69 +426,69 @@ class PDBeMolstarPlugin {
 
     canvas = {
         toggleControls: (isVisible?: boolean) => {
-            if(typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
+            if (typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
             PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
         },
 
         toggleExpanded: (isExpanded?: boolean) => {
-            if(typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
+            if (typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
             PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
         },
 
-        setBgColor: (color?: {r: number, g: number, b: number}) => {
-            if(!color) return;
-            this.canvas.applySettings({color});
+        setBgColor: (color?: { r: number, g: number, b: number }) => {
+            if (!color) return;
+            this.canvas.applySettings({ color });
         },
 
-        applySettings: (settings?: {color?: {r: number, g: number, b: number}, lighting?: string}) => {
-            if(!settings) return;
+        applySettings: (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
+            if (!settings) return;
             const rendererParams: any = {};
-            if(settings.color) rendererParams['backgroundColor'] = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
-            if(settings.lighting) rendererParams['style'] = {name: settings.lighting};
+            if (settings.color) rendererParams['backgroundColor'] = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
+            if (settings.lighting) rendererParams['style'] = { name: settings.lighting };
             const renderer = this.plugin.canvas3d!.props.renderer;
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rendererParams}}});
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rendererParams } } });
         }
 
     }
 
     getLociForParams(params: QueryParam[], structureNumber?: number) {
         let assemblyRef = this.assemblyRef;
-        if(structureNumber) {
+        if (structureNumber) {
             assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
         }
 
-        if(assemblyRef === '') return EmptyLoci;
+        if (assemblyRef === '') return EmptyLoci;
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
-        if(!data) return EmptyLoci;
+        if (!data) return EmptyLoci;
         return QueryHelper.getInteractivityLoci(params, data);
     }
 
     getLociByPLDDT(score: number, structureNumber?: number) {
         let assemblyRef = this.assemblyRef;
-        if(structureNumber) {
+        if (structureNumber) {
             assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
         }
 
-        if(assemblyRef === '') return EmptyLoci;
+        if (assemblyRef === '') return EmptyLoci;
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
-        if(!data) return EmptyLoci;
+        if (!data) return EmptyLoci;
         return AlphafoldView.getLociByPLDDT(score, data);
     }
 
 
 
-    normalizeColor(colorVal: any, defaultColor?: Color){
+    normalizeColor(colorVal: any, defaultColor?: Color) {
         let color = Color.fromRgb(170, 170, 170);
         try {
-            if(typeof colorVal.r !== 'undefined') {
+            if (typeof colorVal.r !== 'undefined') {
                 color = Color.fromRgb(colorVal.r, colorVal.g, colorVal.b);
-            } else if(colorVal[0] === '#') {
+            } else if (colorVal[0] === '#') {
                 color = Color(Number(`0x${colorVal.substr(1)}`));
             } else {
                 color = Color(colorVal);
             }
         } catch (e) {
-            if(defaultColor) color = defaultColor;
+            if (defaultColor) color = defaultColor;
         }
         return color;
     }
@@ -496,33 +496,33 @@ class PDBeMolstarPlugin {
     visual = {
         highlight: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
-            if(Loci.isEmpty(loci)) return;
-            if(params.color) {
-                this.visual.setColor({highlight: params.color});
+            if (Loci.isEmpty(loci)) return;
+            if (params.color) {
+                this.visual.setColor({ highlight: params.color });
             }
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci });
-            if(params.focus) this.plugin.managers.camera.focusLoci(loci);
+            if (params.focus) this.plugin.managers.camera.focusLoci(loci);
 
         },
-        clearHighlight: async() => {
+        clearHighlight: async () => {
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
-            if(this.isHighlightColorUpdated) this.visual.reset({highlightColor: true});
+            if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
         },
         select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
 
             // clear prvious selection
-            if(this.selectedParams){
+            if (this.selectedParams) {
                 await this.visual.clearSelection(params.structureNumber);
             }
-            
+
             // Structure list to apply selection
             let structureData = this.plugin.managers.structure.hierarchy.current.structures;
-            if(params.structureNumber) {
+            if (params.structureNumber) {
                 structureData = [this.plugin.managers.structure.hierarchy.current.structures[params.structureNumber - 1]];
             }
 
             // set non selected theme color
-            if(params.nonSelectedColor) {
+            if (params.nonSelectedColor) {
                 for await (const s of structureData) {
                     await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
                 }
@@ -532,9 +532,9 @@ class PDBeMolstarPlugin {
             for await (const param of params.data) {
                 // get loci from param
                 const loci = this.getLociForParams([param], params.structureNumber);
-                if(Loci.isEmpty(loci)) return;
+                if (Loci.isEmpty(loci)) return;
                 // set default selection color to minimise change display
-                this.visual.setColor({select: param.color ? param.color : { r:255, g:112, b:3}});
+                this.visual.setColor({ select: param.color ? param.color : { r: 255, g: 112, b: 3 } });
                 // apply selection
                 this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
                 // create theme param values and apply them to create overpaint
@@ -543,20 +543,20 @@ class PDBeMolstarPlugin {
                 colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
                 await this.plugin.managers.structure.component.applyTheme(colorValue, structureData);
                 // add new representations
-                if(param.sideChain || param.representation){
+                if (param.sideChain || param.representation) {
                     let repr = 'ball-and-stick';
-                    if(param.representation) repr = param.representation;
+                    if (param.representation) repr = param.representation;
                     const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
                     let defaultValues = ParamDefinition.getDefaultValues(defaultParams);
                     defaultValues.options = { label: 'selection-by-script', checkExisting: params.structureNumber ? false : true };
-                    const values = {...defaultValues, ...{representation: repr} };
+                    const values = { ...defaultValues, ...{ representation: repr } };
                     const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
                     await this.plugin.managers.structure.component.add(values, structures);
-                    
+
                     // Apply uniform theme
-                    if(param.representationColor){
+                    if (param.representationColor) {
                         let updatedStructureData = this.plugin.managers.structure.hierarchy.current.structures;
-                        if(params.structureNumber) {
+                        if (params.structureNumber) {
                             updatedStructureData = [this.plugin.managers.structure.hierarchy.current.structures[params.structureNumber - 1]];
                         }
                         const comps = updatedStructureData[0].components;
@@ -565,11 +565,11 @@ class PDBeMolstarPlugin {
                         const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
                         this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
                     }
-                    
+
                     params.addedRepr = true;
                 }
                 // focus loci
-                if(param.focus) this.plugin.managers.camera.focusLoci(loci);
+                if (param.focus) this.plugin.managers.camera.focusLoci(loci);
                 // remove selection
                 this.plugin.managers.interactivity.lociSelects.deselect({ loci });
             }
@@ -585,18 +585,18 @@ class PDBeMolstarPlugin {
             const structIndex = structureNumber ? structureNumber - 1 : 0;
             this.plugin.managers.interactivity.lociSelects.deselectAll();
             // reset theme to default
-            if(this.selectedParams && this.selectedParams.nonSelectedColor) {
-                this.visual.reset({ theme: true});
+            if (this.selectedParams && this.selectedParams.nonSelectedColor) {
+                this.visual.reset({ theme: true });
             }
             // remove overpaints
             await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[structIndex].components);
             // remove selection representations
-            if(this.selectedParams && this.selectedParams.addedRepr) {
+            if (this.selectedParams && this.selectedParams.addedRepr) {
                 let selReprCells: any = [];
-                for(const c of this.plugin.managers.structure.hierarchy.current.structures[structIndex].components) {
-                    if(c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
+                for (const c of this.plugin.managers.structure.hierarchy.current.structures[structIndex].components) {
+                    if (c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
                 }
-                if(selReprCells.length > 0) {
+                if (selReprCells.length > 0) {
                     for await (const selReprCell of selReprCells) {
                         await PluginCommands.State.RemoveObject(this.plugin, { state: selReprCell.parent!, ref: selReprCell.transform.ref });
                     };
@@ -606,38 +606,38 @@ class PDBeMolstarPlugin {
             this.selectedParams = undefined;
         },
         update: async (options: InitParams, fullLoad?: boolean) => {
-            if(!options) return;
+            if (!options) return;
 
             // for(let param in this.initParams){
             //     if(options[param]) this.initParams[param] = options[param];
             // }
 
-            this.initParams = {...DefaultParams };
-            for(let param in DefaultParams){
-                if(typeof options[param] !== 'undefined') this.initParams[param] = options[param];
+            this.initParams = { ...DefaultParams };
+            for (let param in DefaultParams) {
+                if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
             }
 
-            if(!this.initParams.moleculeId && !this.initParams.customData) return false;
-            if(this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
+            if (!this.initParams.moleculeId && !this.initParams.customData) return false;
+            if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
             (this.plugin.customState as any).initParams = this.initParams;
 
             // Set background colour
-            if(this.initParams.bgColor || this.initParams.lighting){
+            if (this.initParams.bgColor || this.initParams.lighting) {
                 const settings: any = {};
-                if(this.initParams.bgColor) settings.color = this.initParams.bgColor;
-                if(this.initParams.lighting) settings.lighting = this.initParams.lighting;
+                if (this.initParams.bgColor) settings.color = this.initParams.bgColor;
+                if (this.initParams.lighting) settings.lighting = this.initParams.lighting;
                 this.canvas.applySettings(settings);
             }
 
             // Load Molecule CIF or coordQuery and Parse
             let dataSource = this.getMoleculeSrcUrl();
-            if(dataSource){
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary}, fullLoad);
+            if (dataSource) {
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary }, fullLoad);
             }
         },
-        visibility: (data: {polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any}) => {
+        visibility: (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any }) => {
 
-            if(!data) return;
+            if (!data) return;
 
             const refMap: any = {
                 polymer: 'structure-component-static-polymer',
@@ -647,14 +647,14 @@ class PDBeMolstarPlugin {
                 maps: 'volume-streaming-info'
             };
 
-            for(let visual in data){
+            for (let visual in data) {
                 const tagName = refMap[visual];
                 const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
-                if(componentRef){
+                if (componentRef) {
                     const compVisual = this.plugin.state.data.select(componentRef)[0];
-                    if(compVisual && compVisual.obj){
+                    if (compVisual && compVisual.obj) {
                         const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
-                        if(data[visual] !== currentlyVisible){
+                        if (data[visual] !== currentlyVisible) {
                             PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
                         }
                     }
@@ -665,16 +665,16 @@ class PDBeMolstarPlugin {
         },
         toggleSpin: (isSpinning?: boolean, resetCamera?: boolean) => {
             if (!this.plugin.canvas3d) return;
-            const trackball =  this.plugin.canvas3d.props.trackball;
+            const trackball = this.plugin.canvas3d.props.trackball;
 
             let toggleSpinParam: any = trackball.animate.name === 'spin' ? { name: 'off', params: {} } : { name: 'spin', params: { speed: 1 } };
 
-            if(typeof isSpinning !== 'undefined') {
+            if (typeof isSpinning !== 'undefined') {
                 toggleSpinParam = { name: 'off', params: {} };
-                if(isSpinning) toggleSpinParam = { name: 'spin', params: { speed: 1 } };
+                if (isSpinning) toggleSpinParam = { name: 'spin', params: { speed: 1 } };
             }
             PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: toggleSpinParam } } });
-            if (resetCamera) PluginCommands.Camera.Reset(this.plugin, { });
+            if (resetCamera) PluginCommands.Camera.Reset(this.plugin, {});
         },
         focus: async (params: QueryParam[], structureNumber?: number) => {
             const loci = this.getLociForParams(params, structureNumber);
@@ -684,16 +684,16 @@ class PDBeMolstarPlugin {
             if (!this.plugin.canvas3d) return;
             const renderer = this.plugin.canvas3d.props.renderer;
             let rParam: any = {};
-            if(param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
-            if(param.select) rParam['selectColor'] = this.normalizeColor(param.select);
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
-            if(rParam.highlightColor) this.isHighlightColorUpdated = true;
+            if (param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
+            if (param.select) rParam['selectColor'] = this.normalizeColor(param.select);
+            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rParam } } });
+            if (rParam.highlightColor) this.isHighlightColorUpdated = true;
         },
-        reset: async(params: {camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean}) => {
+        reset: async (params: { camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean }) => {
 
             if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
 
-            if(params.theme){
+            if (params.theme) {
                 const defaultTheme: any = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
                 const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
                 componentGroups.forEach((compGrp) => {
@@ -701,14 +701,14 @@ class PDBeMolstarPlugin {
                 });
             }
 
-            if(params.highlightColor || params.selectColor){
+            if (params.highlightColor || params.selectColor) {
                 if (!this.plugin.canvas3d) return;
                 const renderer = this.plugin.canvas3d.props.renderer;
                 let rParam: any = {};
-                if(params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
-                if(params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
-                PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: {...renderer, ...rParam } } });
-                if(rParam.highlightColor) this.isHighlightColorUpdated = false;
+                if (params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
+                if (params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
+                PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rParam } } });
+                if (rParam.highlightColor) this.isHighlightColorUpdated = false;
             }
 
         }
