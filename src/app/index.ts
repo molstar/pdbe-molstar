@@ -34,6 +34,8 @@ import { SelectLoci } from 'Molstar/mol-plugin/behavior/dynamic/representation';
 import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
 import { Mp4Export } from 'Molstar/extensions/mp4-export';
 import { GeometryExport } from 'Molstar/extensions/geo-export';
+import { RCSBAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
+import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in/model-index';
 import { AnimateCameraSpin } from 'Molstar/mol-plugin-state/animation/built-in/camera-spin';
@@ -84,6 +86,8 @@ class PDBeMolstarPlugin {
 
         if(!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction){
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
+            hackRCSBAssemblySymmetry();
         }
 
         if(this.initParams.superposition){
