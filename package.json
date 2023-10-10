@@ -1,6 +1,6 @@
 {
   "name": "pdbe-molstar",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "Molstar implementation for PDBe",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
     "clean": "rm -rf lib build tsconfig.tsbuildinfo",
     "rebuild": "npm run clean && npm run build",
-    "build-tsc": "concurrently \"tsc --incremental\" \"tsc --build tsconfig.json --incremental\"",
+    "build-tsc": "tsc --incremental",
     "build-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/",
     "webpack": "webpack",
     "build-webpack": "webpack --mode production --config ./webpack.config.production.js",
