@@ -16,6 +16,7 @@ import { Asset } from 'molstar/lib/mol-util/assets';
  */
 export function hackRCSBAssemblySymmetry() {
     AssemblySymmetry.fetch = fetch_PDBe;
+    AssemblySymmetry.isApplicable = () => true; // this disables hiding Assembly Symmetry controls (e.g. 1smv assembly 3)
     (AssemblySymmetryClusterColorThemeProvider.isApplicable as any) = () => false;
 }
 
