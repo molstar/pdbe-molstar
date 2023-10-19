@@ -19,7 +19,7 @@ export class PDBeStructureTools extends PluginUIComponent {
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
 
             <StructureSourceControls />
-            <CustomStructureControls takeKeys={[AssemblySymmetryKey]} />
+            {/* <CustomStructureControls takeKeys={[AssemblySymmetryKey]} /> */}
             <AnnotationsComponentControls />
             <StructureQuickStylesControls />
             <StructureComponentControls />

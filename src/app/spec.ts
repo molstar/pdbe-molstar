@@ -60,7 +60,7 @@ export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, o
 }
 
 export type InitParams = {
-    moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean,
+    moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean, symmetryAnnotation?: boolean,
     lowPrecisionCoords?: boolean, landscape?: boolean, reactive?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, sequencePanel?: boolean,
     ligandView?: LigandQueryParam, defaultPreset?: 'default' | "unitcell" | "all-models" | "supercell",
@@ -96,6 +96,7 @@ export const DefaultParams: InitParams = {
     loadMaps: false,
     validationAnnotation: false,
     domainAnnotation: false,
+    symmetryAnnotation: false,
     lowPrecisionCoords: false,
     expanded: false,
     hideControls: false,

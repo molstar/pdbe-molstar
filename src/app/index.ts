@@ -86,8 +86,6 @@ class PDBeMolstarPlugin {
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
-            hackRCSBAssemblySymmetry();
         }
 
         if (this.initParams.superposition) {
@@ -100,6 +98,11 @@ class PDBeMolstarPlugin {
         }
         if (this.initParams.validationAnnotation) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: true, showTooltip: false }));
+        }
+        if (this.initParams.symmetryAnnotation) {
+            console.log('Activating Symmetry annotation')
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
+            hackRCSBAssemblySymmetry();
         }
 
         pdbePluginSpec.layout = {

@@ -12,15 +12,31 @@ import { StructureHierarchyManager } from 'Molstar/mol-plugin-state/manager/stru
 const _TextsmsOutlined = <svg width='24px' height='24px' viewBox='0 0 24 24'><path fill="none" d="M0 0h24v24H0V0z" /><g><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" /><path d="M7 9h2v2H7zM11 9h2v2h-2zM15 9h2v2h-2z" /></g></svg>;
 export function TextsmsOutlinedSvg() { return _TextsmsOutlined; }
 
-export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { isCollapsed: boolean, validationApplied: boolean, domainAtnApplied: boolean, validationParams: any, domainAtnParams: any, validationOptions: any, domainAtnOptions: any, description?: string }> {
+type AnnotationType = 'validation' | 'domains'
 
-    state: any = {
+interface AnnotationsComponentControlsState {
+    isCollapsed: boolean,
+    validationApplied: boolean,
+    validationOptions: boolean,
+    validationParams: any,
+    domainsApplied: boolean,
+    domainsOptions: boolean,
+    domainsParams: any,
+    description?: string,
+}
+
+
+export class AnnotationsComponentControls extends PurePluginUIComponent<{}, AnnotationsComponentControlsState> {
+
+    state: AnnotationsComponentControlsState = {
         isCollapsed: false,
         validationApplied: false,
-        domainAtnApplied: false,
+        domainsApplied: false,
         validationOptions: false,
-        domainAtnOptions: false
-    }
+        domainsOptions: false,
+        validationParams: undefined,
+        domainsParams: undefined,
+    };
 
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, () => {
@@ -40,7 +56,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
             if (customState.initParams.validationAnnotation) validationAnnotationCtrl = true;
             if (customState.initParams.domainAnnotation) domainAnnotationCtrl = true;
         }
-        if ((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainAtnParams)) {
+        if ((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainsParams)) {
 
             const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
             if (groupRef) {
@@ -60,11 +76,11 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
                         }
                     }
 
-                    if (domainAnnotationCtrl && !this.state.domainAtnParams) {
+                    if (domainAnnotationCtrl && !this.state.domainsParams) {
                         const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
                         if (domainActionsParams) {
                             this.setState({
-                                domainAtnParams: {
+                                domainsParams: {
                                     params: domainActionsParams,
                                     values: { type: domainActionsParams.type.defaultValue }
                                 }
@@ -81,29 +97,29 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
         this.setState({ isCollapsed: !this.state.isCollapsed });
     }
 
-    toggleOptions = (type: number) => {
-        if (type === 0) this.setState({ validationOptions: !this.state.validationOptions });
-        if (type === 1) this.setState({ domainAtnOptions: !this.state.domainAtnOptions });
+    toggleOptions = (type: AnnotationType) => {
+        if (type === 'validation') this.setState({ validationOptions: !this.state.validationOptions });
+        if (type === 'domains') this.setState({ domainsOptions: !this.state.domainsOptions });
     }
 
-    applyAnnotation = (type: number, visibleState: boolean, params?: any) => {
+    applyAnnotation = (type: AnnotationType, visibleState: boolean, params?: any) => {
         // Defaults
         let themeName: any = 'polymer-id';
         let themePropsToAdd = PDBeStructureQualityReport;
-        let themePropsToRemove = this.state.domainAtnParams ? PDBeDomainAnnotations : void 0;
+        let themePropsToRemove = this.state.domainsParams ? PDBeDomainAnnotations : void 0;
 
         // Set Theme Params
-        if (type === 0) {
+        if (type === 'validation') {
             if (visibleState) {
                 themeName = 'pdbe-structure-quality-report';
             }
             this.setState({ validationApplied: visibleState });
-            this.setState({ domainAtnApplied: false });
-        } else {
+            this.setState({ domainsApplied: false });
+        } else if (type === 'domains') {
             themePropsToAdd = PDBeDomainAnnotations;
             themePropsToRemove = this.state.validationParams ? PDBeStructureQualityReport : void 0;
             if (visibleState) themeName = 'pdbe-domain-annotations';
-            this.setState({ domainAtnApplied: visibleState });
+            this.setState({ domainsApplied: visibleState });
             this.setState({ validationApplied: false });
         }
 
@@ -128,27 +144,27 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
         }
     }
 
-    initApplyAnnotation = (type: number) => {
-        if (type === 0) this.applyAnnotation(0, !this.state.validationApplied, this.state.validationParams.values);
-        if (type === 1) this.applyAnnotation(1, !this.state.domainAtnApplied, this.state.domainAtnParams.values);
+    initApplyAnnotation = (type: AnnotationType) => {
+        if (type === 'validation') this.applyAnnotation('validation', !this.state.validationApplied, this.state.validationParams.values);
+        if (type === 'domains') this.applyAnnotation('domains', !this.state.domainsApplied, this.state.domainsParams.values);
     };
 
     updateValidationParams = (val: any) => {
         const updatedParams = { ...this.state.validationParams };
         updatedParams.values = val;
         this.setState({ validationParams: updatedParams });
-        if (this.state.validationApplied) this.applyAnnotation(0, this.state.validationApplied, val);
+        if (this.state.validationApplied) this.applyAnnotation('validation', this.state.validationApplied, val);
     }
     updateDomainAtnParams = (val: any) => {
-        const updatedParams = { ...this.state.domainAtnParams };
+        const updatedParams = { ...this.state.domainsParams };
         updatedParams.values = val;
-        this.setState({ domainAtnParams: updatedParams });
-        if (this.state.domainAtnApplied) this.applyAnnotation(1, this.state.domainAtnApplied, val);
+        this.setState({ domainsParams: updatedParams });
+        if (this.state.domainsApplied) this.applyAnnotation('domains', this.state.domainsApplied, val);
     }
 
     render() {
-
-        if (!this.state.validationParams && !this.state.domainAtnParams) return <></>;
+        console.log('state:', this.state)
+        if (!this.state.validationParams && !this.state.domainsParams) return <></>;
 
         const brand = {
             accent: 'green',
@@ -175,8 +191,8 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
                     <Button noOverflow className='msp-control-button-label' title={`Validation Report Annotations.`} style={{ textAlign: 'left' }}>
                         Validation Report
                     </Button>
-                    <IconButton onClick={() => this.initApplyAnnotation(0)} toggleState={false} svg={!this.state.validationApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.validationApplied ? 'Hide' : 'Show'} Validation Report Annotation`} small className='msp-form-control' flex />
-                    <IconButton onClick={() => this.toggleOptions(0)} svg={MoreHorizSvg} title='Actions' toggleState={this.state.validationOptions} className='msp-form-control' flex />
+                    <IconButton onClick={() => this.initApplyAnnotation('validation')} toggleState={false} svg={!this.state.validationApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.validationApplied ? 'Hide' : 'Show'} Validation Report Annotation`} small className='msp-form-control' flex />
+                    <IconButton onClick={() => this.toggleOptions('validation')} svg={MoreHorizSvg} title='Actions' toggleState={this.state.validationOptions} className='msp-form-control' flex />
                 </div>
             }
             {!this.state.isCollapsed && this.state.validationParams && this.state.validationOptions && <div style={{ marginBottom: '6px' }}>
@@ -186,20 +202,20 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, { is
                     </div>
                 </div>
             </div>}
-            {!this.state.isCollapsed && this.state.domainAtnParams &&
+            {!this.state.isCollapsed && this.state.domainsParams &&
                 <div className='msp-flex-row'>
                     <Button noOverflow className='msp-control-button-label' title={`Domain Annotations.`} style={{ textAlign: 'left' }}>
                         Domains
                     </Button>
-                    <IconButton onClick={() => this.initApplyAnnotation(1)} toggleState={false} svg={!this.state.domainAtnApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.domainAtnApplied ? 'Hide' : 'Show'} Domain Annotation`} small className='msp-form-control' flex />
-                    <IconButton onClick={() => this.toggleOptions(1)} svg={MoreHorizSvg} title='Actions' toggleState={this.state.domainAtnOptions} className='msp-form-control' flex />
+                    <IconButton onClick={() => this.initApplyAnnotation('domains')} toggleState={false} svg={!this.state.domainsApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.domainsApplied ? 'Hide' : 'Show'} Domain Annotation`} small className='msp-form-control' flex />
+                    <IconButton onClick={() => this.toggleOptions('domains')} svg={MoreHorizSvg} title='Actions' toggleState={this.state.domainsOptions} className='msp-form-control' flex />
 
                 </div>
             }
-            {!this.state.isCollapsed && this.state.domainAtnParams && this.state.domainAtnOptions && <div style={{ marginBottom: '6px' }}>
+            {!this.state.isCollapsed && this.state.domainsParams && this.state.domainsOptions && <div style={{ marginBottom: '6px' }}>
                 <div className="msp-accent-offset">
                     <div className='msp-representation-entry'>
-                        <ParameterControls params={this.state.domainAtnParams.params} values={this.state.domainAtnParams.values} onChangeValues={this.updateDomainAtnParams} />
+                        <ParameterControls params={this.state.domainsParams.params} values={this.state.domainsParams.values} onChangeValues={this.updateDomainAtnParams} />
                     </div>
                 </div>
             </div>}
