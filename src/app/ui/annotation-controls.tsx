@@ -8,11 +8,15 @@ import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe/structure-qu
 import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
 import { Icon, ArrowRightSvg, ArrowDropDownSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg, MoreHorizSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { StructureHierarchyManager } from 'Molstar/mol-plugin-state/manager/structure/hierarchy';
+import { InitParams } from '../spec';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+import { AssemblySymmetryProvider } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
+import { AnnotationRowControls } from './annotation-row-controls';
 
 const _TextsmsOutlined = <svg width='24px' height='24px' viewBox='0 0 24 24'><path fill="none" d="M0 0h24v24H0V0z" /><g><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" /><path d="M7 9h2v2H7zM11 9h2v2h-2zM15 9h2v2h-2z" /></g></svg>;
 export function TextsmsOutlinedSvg() { return _TextsmsOutlined; }
 
-type AnnotationType = 'validation' | 'domains'
+type AnnotationType = 'validation' | 'domains' | 'symmetry'
 
 interface AnnotationsComponentControlsState {
     isCollapsed: boolean,
@@ -22,8 +26,12 @@ interface AnnotationsComponentControlsState {
     domainsApplied: boolean,
     domainsOptions: boolean,
     domainsParams: any,
+    symmetryApplied: boolean,
+    symmetryOptions: boolean,
+    symmetryParams: any,
     description?: string,
 }
+interface SymmetryParams { } // TODO fill
 
 
 export class AnnotationsComponentControls extends PurePluginUIComponent<{}, AnnotationsComponentControlsState> {
@@ -31,16 +39,19 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
     state: AnnotationsComponentControlsState = {
         isCollapsed: false,
         validationApplied: false,
-        domainsApplied: false,
         validationOptions: false,
-        domainsOptions: false,
         validationParams: undefined,
+        domainsApplied: false,
+        domainsOptions: false,
         domainsParams: undefined,
+        symmetryApplied: false,
+        symmetryOptions: false,
+        symmetryParams: undefined,
     };
 
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, () => {
-            this.getOptionParams();
+            this.initOptionParams();
             this.forceUpdate();
         });
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, c => this.setState({
@@ -48,49 +59,66 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         }));
     }
 
-    getOptionParams = () => {
-        let validationAnnotationCtrl = false;
-        let domainAnnotationCtrl = false;
-        const customState = this.plugin.customState as any;
-        if (customState && customState.initParams) {
-            if (customState.initParams.validationAnnotation) validationAnnotationCtrl = true;
-            if (customState.initParams.domainAnnotation) domainAnnotationCtrl = true;
-        }
-        if ((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainsParams)) {
+    initOptionParams = () => {
+        const initParams: InitParams | undefined = (this.plugin.customState as any)?.initParams; // TODO define getters/setters for manipulating custom state?
+        const validationAnnotationCtrl = !!initParams?.validationAnnotation;
+        const domainAnnotationCtrl = !!initParams?.domainAnnotation;
+        const symmetryAnnotationCtrl = !!initParams?.symmetryAnnotation;
 
-            const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
-            if (groupRef) {
-                const struct = this.plugin.state.data.select(groupRef)[0].obj;
-                if (struct) {
-                    const themeDataCtx = { structure: struct.data };
+        if ((validationAnnotationCtrl && !this.state.validationParams)
+            || (domainAnnotationCtrl && !this.state.domainsParams)
+            || (symmetryAnnotationCtrl && !this.state.symmetryParams)) {
 
-                    if (validationAnnotationCtrl && !this.state.validationParams) {
-                        const validationActionsParams = StructureQualityReportColorThemeProvider.getParams(themeDataCtx);
-                        if (validationActionsParams) {
-                            this.setState({
-                                validationParams: {
-                                    params: validationActionsParams,
-                                    values: { type: validationActionsParams.type.defaultValue }
-                                }
-                            });
-                        }
-                    }
+            const structure = this.getStructure()?.data;
+            if (structure) {
+                const themeDataCtx = { structure };
 
-                    if (domainAnnotationCtrl && !this.state.domainsParams) {
-                        const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
-                        if (domainActionsParams) {
-                            this.setState({
-                                domainsParams: {
-                                    params: domainActionsParams,
-                                    values: { type: domainActionsParams.type.defaultValue }
-                                }
-                            });
-                        }
+                if (validationAnnotationCtrl && !this.state.validationParams) {
+                    const validationActionsParams = StructureQualityReportColorThemeProvider.getParams(themeDataCtx);
+                    if (validationActionsParams) {
+                        this.setState({
+                            validationParams: {
+                                params: validationActionsParams,
+                                values: { type: validationActionsParams.type.defaultValue }
+                            }
+                        });
                     }
                 }
-            }
 
+                if (domainAnnotationCtrl && !this.state.domainsParams) {
+                    const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
+                    if (domainActionsParams) {
+                        this.setState({
+                            domainsParams: {
+                                params: domainActionsParams,
+                                values: { type: domainActionsParams.type.defaultValue }
+                            }
+                        });
+                    }
+                }
+
+                if (symmetryAnnotationCtrl && !this.state.symmetryParams) {
+                    const symmetryActionsParams = PD.clone(structure ? AssemblySymmetryProvider.getParams(structure) : AssemblySymmetryProvider.defaultParams);
+                    if ((symmetryActionsParams as any).serverType) { // TODO remove this condition and "as any" once we have newer Mol* version
+                        (symmetryActionsParams as any).serverType.isHidden = true;
+                    }
+                    symmetryActionsParams.serverUrl.isHidden = true;
+                    PD.getDefaultValues(symmetryActionsParams);
+                    console.log('params', symmetryActionsParams)
+                    this.setState({
+                        symmetryParams: {
+                            params: symmetryActionsParams,
+                            values: PD.getDefaultValues(symmetryActionsParams),
+                        }
+                    });
+                    // TODO symmetry
+                }
+            }
         }
+    }
+    getStructure = () => {
+        const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
+        return groupRef ? this.plugin.state.data.select(groupRef)[0].obj : undefined;
     }
 
     toggleCollapsed = () => {
@@ -100,9 +128,10 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
     toggleOptions = (type: AnnotationType) => {
         if (type === 'validation') this.setState({ validationOptions: !this.state.validationOptions });
         if (type === 'domains') this.setState({ domainsOptions: !this.state.domainsOptions });
+        if (type === 'symmetry') this.setState({ symmetryOptions: !this.state.symmetryOptions });
     }
 
-    applyAnnotation = (type: AnnotationType, visibleState: boolean, params?: any) => {
+    applyAnnotation = (type: 'validation' | 'domains', visibleState: boolean, params?: any) => {
         // Defaults
         let themeName: any = 'polymer-id';
         let themePropsToAdd = PDBeStructureQualityReport;
@@ -144,9 +173,14 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         }
     }
 
-    initApplyAnnotation = (type: AnnotationType) => {
+    applySymmetry(visibleState: boolean, params: SymmetryParams) {
+        this.setState({ symmetryApplied: visibleState });
+    }
+
+    toggleAnnotation = (type: AnnotationType) => {
         if (type === 'validation') this.applyAnnotation('validation', !this.state.validationApplied, this.state.validationParams.values);
         if (type === 'domains') this.applyAnnotation('domains', !this.state.domainsApplied, this.state.domainsParams.values);
+        if (type === 'symmetry') this.applySymmetry(!this.state.symmetryApplied, this.state.symmetryParams.values);
     };
 
     updateValidationParams = (val: any) => {
@@ -155,11 +189,17 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         this.setState({ validationParams: updatedParams });
         if (this.state.validationApplied) this.applyAnnotation('validation', this.state.validationApplied, val);
     }
-    updateDomainAtnParams = (val: any) => {
+    updateDomainParams = (val: any) => {
         const updatedParams = { ...this.state.domainsParams };
         updatedParams.values = val;
         this.setState({ domainsParams: updatedParams });
         if (this.state.domainsApplied) this.applyAnnotation('domains', this.state.domainsApplied, val);
+    }
+    updateSymmetryParams = (val: any) => {
+        const updatedParams = { ...this.state.symmetryParams };
+        updatedParams.values = val;
+        this.setState({ symmetryParams: updatedParams });
+        if (this.state.symmetryApplied) this.applySymmetry(this.state.symmetryApplied, val);
     }
 
     render() {
@@ -186,40 +226,82 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
                 </Button>
             </div>
 
+            {!this.state.isCollapsed && <>
+                <AnnotationRowControls title='Validation'
+                    params={this.state.validationParams?.params} values={this.state.validationParams?.values} onChangeValues={this.updateValidationParams}
+                    applied={this.state.validationApplied} onChangeApplied={() => this.toggleAnnotation('validation')} />
+                <AnnotationRowControls title='Domain Annotations' shortTitle='Domains'
+                    params={this.state.domainsParams?.params} values={this.state.domainsParams?.values} onChangeValues={this.updateDomainParams}
+                    applied={this.state.domainsApplied} onChangeApplied={() => this.toggleAnnotation('domains')} />
+                <AnnotationRowControls title='Assembly Symmetry'
+                    params={this.state.symmetryParams?.params} values={this.state.symmetryParams?.values} onChangeValues={this.updateSymmetryParams} />
+            </>}
+
+            {/* <div style={{ height: 10 }}></div>
             {!this.state.isCollapsed && this.state.validationParams &&
                 <div className='msp-flex-row'>
                     <Button noOverflow className='msp-control-button-label' title={`Validation Report Annotations.`} style={{ textAlign: 'left' }}>
                         Validation Report
                     </Button>
-                    <IconButton onClick={() => this.initApplyAnnotation('validation')} toggleState={false} svg={!this.state.validationApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.validationApplied ? 'Hide' : 'Show'} Validation Report Annotation`} small className='msp-form-control' flex />
+                    <IconButton onClick={() => this.toggleAnnotation('validation')} toggleState={false} svg={!this.state.validationApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.validationApplied ? 'Hide' : 'Show'} Validation Report Annotation`} small className='msp-form-control' flex />
                     <IconButton onClick={() => this.toggleOptions('validation')} svg={MoreHorizSvg} title='Actions' toggleState={this.state.validationOptions} className='msp-form-control' flex />
                 </div>
             }
-            {!this.state.isCollapsed && this.state.validationParams && this.state.validationOptions && <div style={{ marginBottom: '6px' }}>
-                <div className="msp-accent-offset">
-                    <div className='msp-representation-entry'>
-                        <ParameterControls params={this.state.validationParams.params} values={this.state.validationParams.values} onChangeValues={this.updateValidationParams} />
+            {!this.state.isCollapsed && this.state.validationParams && this.state.validationOptions &&
+                <div style={{ marginBottom: '6px' }}>
+                    <div className="msp-accent-offset">
+                        <div className='msp-representation-entry'>
+                            <ParameterControls params={this.state.validationParams.params} values={this.state.validationParams.values} onChangeValues={this.updateValidationParams} />
+                        </div>
                     </div>
                 </div>
-            </div>}
+            }
+
             {!this.state.isCollapsed && this.state.domainsParams &&
                 <div className='msp-flex-row'>
                     <Button noOverflow className='msp-control-button-label' title={`Domain Annotations.`} style={{ textAlign: 'left' }}>
                         Domains
                     </Button>
-                    <IconButton onClick={() => this.initApplyAnnotation('domains')} toggleState={false} svg={!this.state.domainsApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.domainsApplied ? 'Hide' : 'Show'} Domain Annotation`} small className='msp-form-control' flex />
+                    <IconButton onClick={() => this.toggleAnnotation('domains')} toggleState={false} svg={!this.state.domainsApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.domainsApplied ? 'Hide' : 'Show'} Domain Annotation`} small className='msp-form-control' flex />
                     <IconButton onClick={() => this.toggleOptions('domains')} svg={MoreHorizSvg} title='Actions' toggleState={this.state.domainsOptions} className='msp-form-control' flex />
 
                 </div>
             }
-            {!this.state.isCollapsed && this.state.domainsParams && this.state.domainsOptions && <div style={{ marginBottom: '6px' }}>
-                <div className="msp-accent-offset">
-                    <div className='msp-representation-entry'>
-                        <ParameterControls params={this.state.domainsParams.params} values={this.state.domainsParams.values} onChangeValues={this.updateDomainAtnParams} />
+            {!this.state.isCollapsed && this.state.domainsParams && this.state.domainsOptions &&
+                <div style={{ marginBottom: '6px' }}>
+                    <div className="msp-accent-offset">
+                        <div className='msp-representation-entry'>
+                            <ParameterControls params={this.state.domainsParams.params} values={this.state.domainsParams.values} onChangeValues={this.updateDomainParams} />
+                        </div>
                     </div>
                 </div>
-            </div>}
+            }
 
+            {!this.state.isCollapsed && this.state.symmetryParams &&
+                <div className='msp-flex-row'>
+                    <Button noOverflow className='msp-control-button-label' title={`Assembly Symmetry.`} style={{ textAlign: 'left' }}>
+                        Assembly Symmetry
+                    </Button>
+                    <IconButton onClick={() => this.toggleAnnotation('symmetry')} toggleState={false} svg={!this.state.symmetryApplied ? VisibilityOffOutlinedSvg : VisibilityOutlinedSvg} title={`Click to ${this.state.symmetryApplied ? 'Hide' : 'Show'} Assembly Symmetry`} small className='msp-form-control' flex />
+                    <IconButton onClick={() => this.toggleOptions('symmetry')} svg={MoreHorizSvg} title='Actions' toggleState={this.state.symmetryOptions} className='msp-form-control' flex />
+
+                </div>
+            }
+            {!this.state.isCollapsed && this.state.symmetryParams && this.state.symmetryOptions &&
+                <div style={{ marginBottom: '6px' }}>
+                    <div className="msp-accent-offset">
+                        <div className='msp-representation-entry'>
+                            {this.state.symmetryApplied &&
+                                <ParameterControls params={this.state.symmetryParams.params} values={this.state.symmetryParams.values} onChangeValues={this.updateSymmetryParams} />
+                                || <div className='msp-row-text'>
+                                    <div title='You must enable Assembly Symmetry before setting parameters'>Off</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            } */}
         </div>;
     }
 }
