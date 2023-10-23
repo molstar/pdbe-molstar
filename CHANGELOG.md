@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file, following t
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
 - Keep sequence panel in settings even when initially hidden
 - Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
+- Fixed coloring after annotation is switched off (revert to `chain-id`, not `polymer-id`)
 
 ## [v3.1.2]
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue

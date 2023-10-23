@@ -99,7 +99,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
 
     applyAnnotation = (type: 'validation' | 'domains', visibleState: boolean, params?: any) => {
         // Defaults
-        let themeName: any = 'polymer-id';  // TODO set to real default, this is not default (see 1e94 assembly 2)
+        let themeName: any = 'chain-id';
         let themePropsToAdd = PDBeStructureQualityReport;
         let themePropsToRemove = this.state.domainsParams ? PDBeDomainAnnotations : void 0;
 
@@ -119,7 +119,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         }
 
         // Update Tooltip
-        if (visibleState && themeName !== 'polymer-id') {
+        if (visibleState && themeName !== 'chain-id') {
             const addTooltipUpdate = this.plugin.state.behaviors.build().to(themePropsToAdd.id).update(themePropsToAdd, (old: any) => { old.showTooltip = true; });
             this.plugin.runTask(this.plugin.state.behaviors.updateTree(addTooltipUpdate));
 
