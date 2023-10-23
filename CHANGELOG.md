@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file, following t
 ## [Unreleased]
 
 ## [v3.1.3]
-- Added ``Assembly Symmetry`` to structure controls
+- Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
 - Keep sequence panel in settings even when initially hidden
 - Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
 

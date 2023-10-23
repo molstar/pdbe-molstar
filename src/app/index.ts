@@ -31,7 +31,7 @@ import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/struct
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { SuperpostionViewport } from './ui/superposition-viewport';
 import { SelectLoci } from 'Molstar/mol-plugin/behavior/dynamic/representation';
-import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
+import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
 import { Mp4Export } from 'Molstar/extensions/mp4-export';
 import { GeometryExport } from 'Molstar/extensions/geo-export';
 import { RCSBAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';

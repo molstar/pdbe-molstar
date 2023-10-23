@@ -1,14 +1,13 @@
-import { AssemblySymmetryClusterColorThemeProvider } from 'molstar/lib/extensions/rcsb/assembly-symmetry/color';
-import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataValue } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
-import { CustomProperty } from 'molstar/lib/mol-model-props/common/custom-property';
-import { Structure } from 'molstar/lib/mol-model/structure';
-import { Asset } from 'molstar/lib/mol-util/assets';
+import { AssemblySymmetryClusterColorThemeProvider } from 'Molstar/extensions/rcsb/assembly-symmetry/color';
+import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataValue } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
+import { CustomProperty } from 'Molstar/mol-model-props/common/custom-property';
+import { Structure } from 'Molstar/mol-model/structure';
+import { Asset } from 'Molstar/mol-util/assets';
 
 
 /** Perform "hacks" necessary to use RCSBAssemblySymmetry with PDBe symmetry API.
  * This is just a temporary solution.
- * TODO merge this https://github.com/midlik/molstar/tree/symmetry-api into core Mol*,
- * set these plugin config items:
+ * TODO update Mol* version and set these plugin config items:
  * `RCSBAssemblySymmetryConfig.DefaultServerType='pdbe'`,
  * `RCSBAssemblySymmetryConfig.DefaultServerUrl='https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'`,
  * `RCSBAssemblySymmetryConfig.ApplyColors=false`,
@@ -16,12 +15,12 @@ import { Asset } from 'molstar/lib/mol-util/assets';
  */
 export function hackRCSBAssemblySymmetry() {
     AssemblySymmetry.fetch = fetch_PDBe;
-    AssemblySymmetry.isApplicable = () => true; // this disables hiding Assembly Symmetry controls (e.g. 1smv assembly 3)
+    AssemblySymmetry.isApplicable = struct => struct?.units[0].conformation.operator.assembly !== undefined; // this disables hiding Assembly Symmetry controls (e.g. 1smv assembly 3), instead hides them for non-assembly structures
     (AssemblySymmetryClusterColorThemeProvider.isApplicable as any) = () => false;
 }
 
 /** Replacement for AssemblySymmetry.DefaultServerUrl */
-const hackedServerUrl = 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry';
+export const hackedServerUrl = 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry';
 
 /** Replacement for AssemblySymmetry.fetch */
 async function fetch_PDBe(ctx: CustomProperty.Context, structure: Structure, props: AssemblySymmetryDataProps): Promise<CustomProperty.Data<AssemblySymmetryDataValue>> {

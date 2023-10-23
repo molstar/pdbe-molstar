@@ -1,7 +1,7 @@
-import { Button, IconButton } from 'molstar/lib/mol-plugin-ui/controls/common';
-import { MoreHorizSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
-import { ParameterControls, ParameterControlsProps } from 'molstar/lib/mol-plugin-ui/controls/parameters';
-import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+import { Button, IconButton } from 'Molstar/mol-plugin-ui/controls/common';
+import { MoreHorizSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { ParameterControls, ParameterControlsProps } from 'Molstar/mol-plugin-ui/controls/parameters';
+import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import React from 'react';
 
 
@@ -56,17 +56,19 @@ export class AnnotationRowControls<P extends PD.Params> extends React.PureCompon
                     title={`Click to ${this.isApplied() ? 'hide' : 'show'} ${this.props.title}`} small className='msp-form-control' flex />
                 <IconButton onClick={() => this.toggleOptions()} svg={MoreHorizSvg} title='Options' toggleState={this.state.optionsExpanded} className='msp-form-control' flex />
             </div>
-            {this.state.optionsExpanded && this.renderOptions()}
+            {this.state.optionsExpanded &&
+                <div style={{ marginBottom: '6px' }}>
+                    <div className="msp-accent-offset">
+                        <div className='msp-representation-entry'>
+                            {this.renderOptions()}
+                        </div>
+                    </div>
+                </div>
+            }
         </>;
     }
 
     renderOptions() {
-        return <div style={{ marginBottom: '6px' }}>
-            <div className="msp-accent-offset">
-                <div className='msp-representation-entry'>
-                    <ParameterControls params={this.props.params} onChange={this.props.onChange} values={this.props.values} onChangeValues={this.props.onChangeValues} onEnter={this.props.onEnter} />
-                </div>
-            </div>
-        </div>;
+        return <ParameterControls params={this.props.params} onChange={this.props.onChange} values={this.props.values} onChangeValues={this.props.onChangeValues} onEnter={this.props.onEnter} />;
     }
 }

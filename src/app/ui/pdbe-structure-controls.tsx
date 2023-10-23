@@ -12,6 +12,7 @@ import { SuperpositionModelExportUI } from './export-superposition'
 import { AlphafoldTransparencyControls } from './alphafold-tranparency';
 import { AssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
 
+
 export class PDBeStructureTools extends PluginUIComponent {
     render() {
         const AssemblySymmetryKey = AssemblySymmetry.Tag.Representation;
@@ -19,7 +20,6 @@ export class PDBeStructureTools extends PluginUIComponent {
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
 
             <StructureSourceControls />
-            {/* <CustomStructureControls takeKeys={[AssemblySymmetryKey]} /> */}
             <AnnotationsComponentControls />
             <StructureQuickStylesControls />
             <StructureComponentControls />
