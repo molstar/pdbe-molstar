@@ -1,12 +1,13 @@
 import { AssemblySymmetry3D, tryCreateAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
 import { AssemblySymmetry, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
+import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
 import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { PluginContext } from 'Molstar/mol-plugin/context';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { UUID } from 'Molstar/mol-util';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { AnnotationRowControls } from './annotation-row-controls';
-import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 
 
 type SymmetryParams = {
@@ -21,14 +22,11 @@ type SymmetryParams = {
 type SymmetryParamValues = PD.ValuesFor<SymmetryParams>
 
 interface SymmetryControlsState {
-    /** `true` if it makes sense to show `SymmetryAnnotationControls` */
-    isApplicable: boolean,
     params: SymmetryParams,
     values: SymmetryParamValues,
 }
 
 const DefaultSymmetryControlsState: SymmetryControlsState = {
-    isApplicable: false,
     params: {
         on: PD.Boolean(false, { isHidden: true }),
         symmetryIndex: PD.Select(0, [[0, 'Auto']]),
@@ -55,7 +53,6 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
             const structureId = structureObj?.id;
             if (structureId !== this.currentStructureId) {
                 this.currentStructureId = structureId;
-                this.setState({ isApplicable: AssemblySymmetry.isApplicable(structureObj?.data) });
                 this.syncParams();
             }
         });
@@ -170,14 +167,12 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
         const newValues = { ...currValues, symmetryIndex: values.on ? values.symmetryIndex : -1 };
 
         if (struct.properties) {
-            console.log('changeParamValues 1')
             const b = this.plugin.state.data.build();
             b.to(struct.properties.cell).update(old => {
                 old.properties[AssemblySymmetryProvider.descriptor.name] = newValues;
             });
             await b.commit();
         } else {
-            console.log('changeParamValues 2')
             const pd = this.plugin.customStructureProperties.getParams(struct.cell.obj?.data);
             const params = PD.getDefaultValues(pd);
             params.properties[AssemblySymmetryProvider.descriptor.name] = newValues;
@@ -212,7 +207,6 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
     }
 
     render() {
-        if (!this.state.isApplicable) return null;
         const shortTitle = 'Assembly Symmetry' + (this.state.values.noSymmetries ? ' [Not Available]' : '');
         const title = 'Assembly Symmetry' + (this.state.values.noSymmetries ? ' [Not Available]\nSymmetry information for this assembly is not available' : '');
         return <>
@@ -233,4 +227,9 @@ class SymmetryAnnotationRowControls extends AnnotationRowControls<SymmetryParams
         }
         return super.renderOptions();
     }
+}
+
+export function isAssemblySymmetryAnnotationApplicable(plugin: PluginContext) {
+    const struct = plugin.managers.structure.hierarchy.selection.structures[0];
+    return AssemblySymmetry.isApplicable(struct?.cell.obj?.data);
 }

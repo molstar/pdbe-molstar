@@ -9,7 +9,7 @@ import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
 import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
 import { InitParams } from '../spec';
 import { AnnotationRowControls } from './annotation-row-controls';
-import { SymmetryAnnotationControls } from './symmetry-annotation-controls';
+import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } from './symmetry-annotation-controls';
 
 
 const _TextsmsOutlined = <svg width='24px' height='24px' viewBox='0 0 24 24'><path fill="none" d="M0 0h24v24H0V0z" /><g><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" /><path d="M7 9h2v2H7zM11 9h2v2h-2zM15 9h2v2h-2z" /></g></svg>;
@@ -25,6 +25,7 @@ interface AnnotationsComponentControlsState {
     domainsApplied: boolean,
     domainsOptions: boolean,
     domainsParams: any,
+    showSymmetryAnnotation: boolean,
     description?: string,
 }
 
@@ -38,6 +39,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         domainsApplied: false,
         domainsOptions: false,
         domainsParams: undefined,
+        showSymmetryAnnotation: false,
     };
 
     componentDidMount() {
@@ -54,6 +56,8 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         const initParams: InitParams | undefined = (this.plugin.customState as any)?.initParams; // TODO define getters/setters for manipulating custom state?
         const validationAnnotationCtrl = !!initParams?.validationAnnotation;
         const domainAnnotationCtrl = !!initParams?.domainAnnotation;
+        const symmetryAnnotationCtrl = !!initParams?.symmetryAnnotation && isAssemblySymmetryAnnotationApplicable(this.plugin);
+        this.setState({ showSymmetryAnnotation: symmetryAnnotationCtrl });
 
         if ((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainsParams)) {
 
@@ -158,7 +162,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
     }
 
     render() {
-        if (!this.state.validationParams && !this.state.domainsParams) return <></>;
+        if (!this.state.validationParams && !this.state.domainsParams && !this.state.showSymmetryAnnotation) return <></>;
 
         const brand = {
             accent: 'green',
@@ -187,7 +191,8 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
                 <AnnotationRowControls title='Domain Annotations' shortTitle='Domains'
                     params={this.state.domainsParams?.params} values={this.state.domainsParams?.values} onChangeValues={this.updateDomainParams}
                     applied={this.state.domainsApplied} onChangeApplied={() => this.toggleAnnotation('domains')} />
-                <SymmetryAnnotationControls />
+                {this.state.showSymmetryAnnotation &&
+                    <SymmetryAnnotationControls />}
             </>}
         </div>;
     }

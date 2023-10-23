@@ -100,7 +100,6 @@ class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: true, showTooltip: false }));
         }
         if (this.initParams.symmetryAnnotation) {
-            console.log('Activating Symmetry annotation')
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
             hackRCSBAssemblySymmetry();
         }
