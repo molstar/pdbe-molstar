@@ -30,7 +30,7 @@ export const DefaultPluginSpec = (): PluginSpec => ({
 
         PluginSpec.Behavior(PluginBehaviors.CustomProps.StructureInfo),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.AccessibleSurfaceArea),
-        PluginSpec.Behavior(PDBeSIFTSMapping, {autoAttach: true, showTooltip: true}),
+        PluginSpec.Behavior(PDBeSIFTSMapping, { autoAttach: true, showTooltip: true }),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.Interactions),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.SecondaryStructure),
         PluginSpec.Behavior(PluginBehaviors.CustomProps.ValenceModel),
@@ -64,10 +64,13 @@ export type InitParams = {
     lowPrecisionCoords?: boolean, landscape?: boolean, reactive?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, sequencePanel?: boolean,
     ligandView?: LigandQueryParam, defaultPreset?: 'default' | "unitcell" | "all-models" | "supercell",
-    bgColor?: {r: number, g: number, b: number}, customData? : {url: string, format: string, binary: boolean}, loadCartoonsOnly? : boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
-    selectColor?: {r: number, g: number, b: number}, highlightColor?: {r: number, g: number, b: number}, superpositionParams?: {matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean},
+    bgColor?: { r: number, g: number, b: number }, customData?: { url: string, format: string, binary: boolean }, loadCartoonsOnly?: boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
+    selectColor?: { r: number, g: number, b: number }, highlightColor?: { r: number, g: number, b: number }, superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean },
     hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'
-    granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any, [key: string]: any;
+    granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any, 
+    /** Show overlay with PDBe logo while the initial structure is being loaded */
+    loadingOverlay: boolean, 
+    [key: string]: any;
 }
 
 export const DefaultParams: InitParams = {
@@ -89,7 +92,7 @@ export const DefaultParams: InitParams = {
     focusBindings: undefined,
     defaultPreset: 'default',
     pdbeUrl: 'https://www.ebi.ac.uk/pdbe/',
-    bgColor:{r:0, g:0, b:0},
+    bgColor: { r: 0, g: 0, b: 0 },
     lighting: undefined,
     encoding: 'bcif',
     selectInteraction: true,
@@ -106,5 +109,6 @@ export const DefaultParams: InitParams = {
     reactive: false,
     subscribeEvents: false,
     alphafoldView: false,
-    sequencePanel: false
+    sequencePanel: false,
+    loadingOverlay: false,
 };
