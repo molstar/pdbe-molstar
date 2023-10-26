@@ -47,6 +47,7 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
+import { Task } from 'molstar/lib/mol-task';
 
 class PDBeMolstarPlugin {
 
@@ -233,14 +234,12 @@ class PDBeMolstarPlugin {
             let dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
                 if (this.initParams.loadingOverlay) {
-                    const overlay = new LoadingOverlay(this.targetElement, this.plugin?.canvas3d?.resized)
-                    overlay.show();
-                    const sub = this.events.loadComplete.subscribe(() => {
-                        overlay.hide();
-                        sub.unsubscribe();
-                    });
+                    new LoadingOverlay(this.targetElement, {
+                        resize: this.plugin?.canvas3d?.resized,
+                        hide: this.events.loadComplete,
+                    }).show();
                 }
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary });
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressBarMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
             }
 
             // Binding to other PDB Component events
@@ -343,64 +342,76 @@ class PDBeMolstarPlugin {
         }
     }
 
-    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '' }: LoadParams, fullLoad = true) {
-        if (fullLoad) this.clear();
-        const isHetView = this.initParams.ligandView ? true : false;
-        let downloadOptions: any = void 0;
-        let isBranchedView = false;
-        if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
-            isBranchedView = true;
-            downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']] };
-        }
+    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', progressBarMessage }: LoadParams, fullLoad = true) {
+        const task = Task.create(`Load ${url}`, async ctx => {
+            let done = false;
+            let success = false;
+            try {
+                if (progressBarMessage) {
+                    setTimeout(() => { if (!done) ctx.update(progressBarMessage) }, 1000); // Delay the first update to force showing message in UI
+                }
+                if (fullLoad) await this.clear();
+                const isHetView = this.initParams.ligandView ? true : false;
+                let downloadOptions: any = void 0;
+                let isBranchedView = false;
+                if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
+                    isBranchedView = true;
+                    downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']] };
+                }
 
-        const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
-        const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
+                const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
+                const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
-        if (!isHetView) {
+                if (!isHetView) {
 
-            await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
-                structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
-                showUnitcell: false,
-                representationPreset: 'auto'
-            });
+                    await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
+                        structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
+                        showUnitcell: false,
+                        representationPreset: 'auto'
+                    });
 
-            if (this.initParams.hideStructure || this.initParams.visualStyle) {
-                this.applyVisualParams();
+                    if (this.initParams.hideStructure || this.initParams.visualStyle) {
+                        this.applyVisualParams();
+                    }
+
+                } else {
+                    const model = await this.plugin.builders.structure.createModel(trajectory);
+                    await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
+                }
+
+                // show selection if param is set
+                if (this.initParams.selection) {
+                    this.visual.select(this.initParams.selection);
+                }
+
+                // Store assembly ref
+                const pivotIndex = this.plugin.managers.structure.hierarchy.selection.structures.length - 1;
+                const pivot = this.plugin.managers.structure.hierarchy.selection.structures[pivotIndex];
+                if (pivot && pivot.cell.parent) this.assemblyRef = pivot.cell.transform.ref;
+
+                // Load Volume
+                if (this.initParams.loadMaps) {
+                    if (this.assemblyRef === '') return;
+                    const asm = this.state.select(this.assemblyRef)[0].obj!;
+                    const defaultMapParams = InitVolumeStreaming.createDefaultParams(asm, this.plugin);
+                    const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings, '');
+                    if (pdbeMapParams) {
+                        await this.plugin.runTask(this.state.applyAction(InitVolumeStreaming, pdbeMapParams, this.assemblyRef));
+                        if (pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);
+                    }
+                }
+
+                // Create Ligand Representation
+                if (isHetView) {
+                    await this.createLigandStructure(isBranchedView);
+                }
+                success = true;
+            } finally {
+                done = true;
+                this.events.loadComplete.next(success);
             }
-
-        } else {
-            const model = await this.plugin.builders.structure.createModel(trajectory);
-            await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
-        }
-
-        // show selection if param is set
-        if (this.initParams.selection) {
-            this.visual.select(this.initParams.selection);
-        }
-
-        // Store assembly ref
-        const pivotIndex = this.plugin.managers.structure.hierarchy.selection.structures.length - 1;
-        const pivot = this.plugin.managers.structure.hierarchy.selection.structures[pivotIndex];
-        if (pivot && pivot.cell.parent) this.assemblyRef = pivot.cell.transform.ref;
-
-        // Load Volume
-        if (this.initParams.loadMaps) {
-            if (this.assemblyRef === '') return;
-            const asm = this.state.select(this.assemblyRef)[0].obj!;
-            const defaultMapParams = InitVolumeStreaming.createDefaultParams(asm, this.plugin);
-            const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings, '');
-            if (pdbeMapParams) {
-                await this.plugin.runTask(this.state.applyAction(InitVolumeStreaming, pdbeMapParams, this.assemblyRef));
-                if (pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);
-            }
-        }
-
-        // Create Ligand Representation
-        if (isHetView) {
-            await this.createLigandStructure(isBranchedView);
-        }
-
-        this.events.loadComplete.next(true);
+        });
+        await this.plugin.runTask(task);
     }
 
     applyVisualParams = () => {
@@ -728,7 +739,7 @@ class PDBeMolstarPlugin {
     }
 
     async clear() {
-        this.plugin.clear();
+        await this.plugin.clear();
         this.assemblyRef = '';
         this.selectedParams = void 0;
         this.isHighlightColorUpdated = false;

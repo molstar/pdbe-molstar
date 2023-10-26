@@ -14,7 +14,7 @@ import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
-export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean }
+export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressBarMessage?: string }
 
 export namespace PDBeVolumes {
 
