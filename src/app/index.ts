@@ -34,7 +34,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, PDBeVolumes, QueryHelper, QueryParam } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, PDBeVolumes, QueryHelper, QueryParam, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -47,7 +47,6 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
-import { Task } from 'molstar/lib/mol-task';
 
 class PDBeMolstarPlugin {
 
@@ -222,7 +221,10 @@ class PDBeMolstarPlugin {
             this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
-            initSuperposition(this.plugin);
+            if (this.initParams.loadingOverlay) {
+                new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
+            }
+            initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
 
@@ -234,12 +236,9 @@ class PDBeMolstarPlugin {
             let dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
                 if (this.initParams.loadingOverlay) {
-                    new LoadingOverlay(this.targetElement, {
-                        resize: this.plugin?.canvas3d?.resized,
-                        hide: this.events.loadComplete,
-                    }).show();
+                    new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
                 }
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressBarMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
+                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
             }
 
             // Binding to other PDB Component events
@@ -342,14 +341,10 @@ class PDBeMolstarPlugin {
         }
     }
 
-    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', progressBarMessage }: LoadParams, fullLoad = true) {
-        const task = Task.create(`Load ${url}`, async ctx => {
-            let done = false;
+    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', progressMessage }: LoadParams, fullLoad = true) {
+        await runWithProgressMessage(this.plugin, progressMessage, async () => {
             let success = false;
             try {
-                if (progressBarMessage) {
-                    setTimeout(() => { if (!done) ctx.update(progressBarMessage) }, 1000); // Delay the first update to force showing message in UI
-                }
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
                 let downloadOptions: any = void 0;
@@ -407,11 +402,9 @@ class PDBeMolstarPlugin {
                 }
                 success = true;
             } finally {
-                done = true;
                 this.events.loadComplete.next(success);
             }
         });
-        await this.plugin.runTask(task);
     }
 
     applyVisualParams = () => {

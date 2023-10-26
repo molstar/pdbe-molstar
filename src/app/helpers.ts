@@ -12,14 +12,15 @@ import { Queries } from 'Molstar/mol-model/structure';
 import { SIFTSMapping } from './sifts-mapping';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
+import { Task } from 'molstar/lib/mol-task';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
-export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressBarMessage?: string }
+export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
 
 export namespace PDBeVolumes {
 
-    export function mapParams(defaultParams: any, mapParams: any, ref?: string|number) {
-        const pdbeParams = {...defaultParams};
+    export function mapParams(defaultParams: any, mapParams: any, ref?: string | number) {
+        const pdbeParams = { ...defaultParams };
         pdbeParams.options.behaviorRef = 'volume-streaming' + '' + Math.floor(Math.random() * Math.floor(100));
         pdbeParams.options.emContourProvider = 'pdbe';
         pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/volume-server';
@@ -55,7 +56,7 @@ export namespace PDBeVolumes {
         const state = plugin.state.data;
         const streamingState = state.select(StateSelection.Generators.ofTransformer(CreateVolumeStreamingInfo))[0];
 
-        if(streamingState){
+        if (streamingState) {
             PluginCommands.State.ToggleVisibility(plugin, { state: state, ref: streamingState.transform.ref });
             return;
         }
@@ -92,34 +93,34 @@ export type LigandQueryParam = {
 };
 
 export namespace LigandView {
-    export function query(ligandViewParams: LigandQueryParam): {core: Expression.Expression, surroundings: Expression.Expression} {
+    export function query(ligandViewParams: LigandQueryParam): { core: Expression.Expression, surroundings: Expression.Expression } {
         let atomGroupsParams: any = {
             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
         };
 
         // Residue Param
         let residueParam: any;
-        if(ligandViewParams.auth_seq_id) {
+        if (ligandViewParams.auth_seq_id) {
             residueParam = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), ligandViewParams.auth_seq_id]);
-        } else if(ligandViewParams.label_comp_id) {
+        } else if (ligandViewParams.label_comp_id) {
             residueParam = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), ligandViewParams.label_comp_id]);
         }
-        if(residueParam) atomGroupsParams['residue-test'] = residueParam;
+        if (residueParam) atomGroupsParams['residue-test'] = residueParam;
 
         // Chain Param
-        if(ligandViewParams.auth_asym_id) {
+        if (ligandViewParams.auth_asym_id) {
             atomGroupsParams['chain-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), ligandViewParams.auth_asym_id]);
-        }else if(ligandViewParams.struct_asym_id) {
+        } else if (ligandViewParams.struct_asym_id) {
             atomGroupsParams['chain-test'] = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), ligandViewParams.struct_asym_id]);
         }
 
         // Construct core query
-        const core = ligandViewParams.show_all ? 
-            MS.struct.generator.atomGroups(atomGroupsParams) : 
+        const core = ligandViewParams.show_all ?
+            MS.struct.generator.atomGroups(atomGroupsParams) :
             MS.struct.filter.first([
                 MS.struct.generator.atomGroups(atomGroupsParams)
             ]);
-        
+
         // Construct surroundings query
         const surroundings = MS.struct.modifier.includeSurroundings({ 0: core, radius: 5, 'as-whole-residues': true });
 
@@ -130,28 +131,28 @@ export namespace LigandView {
 
     }
 
-    export function branchedQuery(params: any): {core: Expression.Expression, surroundings: Expression.Expression} {
+    export function branchedQuery(params: any): { core: Expression.Expression, surroundings: Expression.Expression } {
         let entityObjArray: any = [];
 
         params.atom_site.forEach((param: any) => {
-                let qEntities: any = {
-                    'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
-                    'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id])
-                };
-                entityObjArray.push(qEntities);
+            let qEntities: any = {
+                'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
+                'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id])
+            };
+            entityObjArray.push(qEntities);
         });
 
         const atmGroupsQueries: Expression.Expression[] = [];
 
-        entityObjArray.forEach((entityObj:any) => {
+        entityObjArray.forEach((entityObj: any) => {
             atmGroupsQueries.push(MS.struct.generator.atomGroups(entityObj));
         });
 
-        const core =  MS.struct.modifier.union([
+        const core = MS.struct.modifier.union([
             atmGroupsQueries.length === 1
                 ? atmGroupsQueries[0]
                 // Need to union before merge for fast performance
-                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([ q ])))
+                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([q])))
         ]);
 
         // Construct surroundings query
@@ -206,70 +207,70 @@ export namespace QueryHelper {
 
         params.forEach(param => {
             let selection: any = {};
-            
+
             // entity
-            if(param.entity_id) selection['entityTest'] = (l: any) =>  StructureProperties.entity.id(l.element) === param.entity_id;
+            if (param.entity_id) selection['entityTest'] = (l: any) => StructureProperties.entity.id(l.element) === param.entity_id;
 
             // chain
-            if(param.struct_asym_id){
-                selection['chainTest'] = (l: any) =>  StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
-            }else if(param.auth_asym_id){
-                selection['chainTest'] = (l: any) =>  StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
+            if (param.struct_asym_id) {
+                selection['chainTest'] = (l: any) => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
+            } else if (param.auth_asym_id) {
+                selection['chainTest'] = (l: any) => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
             }
 
             // residues
-            if(param.label_comp_id) {
-                selection['residueTest'] = (l: any) =>  StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
-            } else if(param.uniprot_accession && param.uniprot_residue_number) {
-                selection['residueTest'] = (l: any) =>  { 
-                    if(!siftMappings || currentAccession !== param.uniprot_accession) {
+            if (param.label_comp_id) {
+                selection['residueTest'] = (l: any) => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
+            } else if (param.uniprot_accession && param.uniprot_residue_number) {
+                selection['residueTest'] = (l: any) => {
+                    if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
                 }
-            } else if(param.uniprot_accession && param.start_uniprot_residue_number && param.end_uniprot_residue_number) {
-                selection['residueTest'] = (l: any) =>  { 
-                    if(!siftMappings || currentAccession !== param.uniprot_accession) {
+            } else if (param.uniprot_accession && param.start_uniprot_residue_number && param.end_uniprot_residue_number) {
+                selection['residueTest'] = (l: any) => {
+                    if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
                 }
-            } else if(param.residue_number){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
-            }else if((param.start_residue_number && param.end_residue_number) && (param.end_residue_number > param.start_residue_number)){
-                selection['residueTest'] = (l: any) =>  {
+            } else if (param.residue_number) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
+            } else if ((param.start_residue_number && param.end_residue_number) && (param.end_residue_number > param.start_residue_number)) {
+                selection['residueTest'] = (l: any) => {
                     const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
                     return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
                 };
 
-            }else if((param.start_residue_number && param.end_residue_number) && (param.end_residue_number === param.start_residue_number)){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
-            }else if(param.auth_seq_id){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
-            }else if(param.auth_residue_number && !param.auth_ins_code_id){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
-            }else if(param.auth_residue_number && param.auth_ins_code_id){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
-            }else if((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number > param.start_auth_residue_number)){
-                selection['residueTest'] = (l: any) =>  {
+            } else if ((param.start_residue_number && param.end_residue_number) && (param.end_residue_number === param.start_residue_number)) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
+            } else if (param.auth_seq_id) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
+            } else if (param.auth_residue_number && !param.auth_ins_code_id) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+            } else if (param.auth_residue_number && param.auth_ins_code_id) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+            } else if ((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number > param.start_auth_residue_number)) {
+                selection['residueTest'] = (l: any) => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
                     return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
                 };
-            }else if((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number === param.start_auth_residue_number)){
-                selection['residueTest'] = (l: any) =>  StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
+            } else if ((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number === param.start_auth_residue_number)) {
+                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
             }
 
             // atoms
-            if(param.atoms){
-                selection['atomTest'] = (l: any) =>  param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
+            if (param.atoms) {
+                selection['atomTest'] = (l: any) => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
             }
 
-            if(param.atom_id){
-                selection['atomTest'] = (l: any) =>  param.atom_id!.includes(StructureProperties.atom.id(l.element));
+            if (param.atom_id) {
+                selection['atomTest'] = (l: any) => param.atom_id!.includes(StructureProperties.atom.id(l.element));
             }
 
             selections.push(selection);
@@ -283,12 +284,12 @@ export namespace QueryHelper {
         return Queries.combinators.merge(atmGroupsQueries);
     }
 
-    export function getInteractivityLoci(params: any, contextData: any){
+    export function getInteractivityLoci(params: any, contextData: any) {
         const sel = StructureQuery.run(QueryHelper.getQueryObject(params, contextData) as any, contextData);
         return StructureSelection.toLociWithSourceUnits(sel);
     }
 
-    export function getHetLoci(queryExp: Expression.Expression, contextData: any){
+    export function getHetLoci(queryExp: Expression.Expression, contextData: any) {
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
         return StructureSelection.toLociWithSourceUnits(sel);
@@ -312,16 +313,16 @@ export namespace ModelInfo {
             const cI = chainIndex[residueOffsets[rI]];
             const eI = model.atomicHierarchy.index.getEntityFromChain(cI);
             const entityType = model.entities.data.type.value(eI);
-           
+
             if (entityType !== 'non-polymer' && entityType !== 'branched') continue;
 
             // const comp_id = model.atomicHierarchy.atoms.label_comp_id.value(rI);
             const comp_id = model.atomicHierarchy.atoms.label_comp_id.value(residueOffsets[rI]);
-            if(entityType === 'branched'){ 
-                carbEntityCount++; 
+            if (entityType === 'branched') {
+                carbEntityCount++;
             } else {
-                if(hetNames.indexOf(comp_id) === -1) hetNames.push(comp_id); 
-            }                  
+                if (hetNames.indexOf(comp_id) === -1) hetNames.push(comp_id);
+            }
 
         }
 
@@ -330,4 +331,20 @@ export namespace ModelInfo {
             carbEntityCount
         };
     }
+}
+
+/** Run `action` with showing a message in the bottom-left corner of the plugin UI */
+export async function runWithProgressMessage(plugin: PluginContext, progressMessage: string | undefined, action: () => any) {
+    const task = Task.create(progressMessage ?? 'Task', async ctx => {
+        let done = false;
+        try {
+            if (progressMessage) {
+                setTimeout(() => { if (!done) ctx.update(progressMessage) }, 1000); // Delay the first update to force showing message in UI
+            }
+            await action();
+        } finally {
+            done = true;
+        }
+    });
+    await plugin.runTask(task);
 }
