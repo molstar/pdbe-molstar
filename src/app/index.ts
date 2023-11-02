@@ -81,8 +81,8 @@ class PDBeMolstarPlugin {
             actions: [...defaultPDBeSpec.actions || []],
             behaviors: [...defaultPDBeSpec.behaviors],
             animations: [...defaultPDBeSpec.animations || []],
-            customParamEditors: defaultPDBeSpec.customParamEditors,
-            config: defaultPDBeSpec.config
+            customParamEditors: defaultPDBeSpec.customParamEditors ?? [],
+            config: defaultPDBeSpec.config ?? [],
         };
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
@@ -137,21 +137,16 @@ class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
         }
 
-        pdbePluginSpec.config = [
-            [
-                PluginConfig.Structure.DefaultRepresentationPresetParams,
-                {
-                    theme: {
-                        globalName: (this.initParams.alphafoldView) ? 'plddt-confidence' : undefined,
-                        carbonColor: { name: 'element-symbol', params: {} },
-                        focus: {
-                            name: 'element-symbol',
-                            params: { carbonColor: { name: 'element-symbol', params: {} } }
-                        }
-                    }
+        pdbePluginSpec.config!.push([PluginConfig.Structure.DefaultRepresentationPresetParams, {
+            theme: {
+                globalName: (this.initParams.alphafoldView) ? 'plddt-confidence' : undefined,
+                carbonColor: { name: 'element-symbol', params: {} },
+                focus: {
+                    name: 'element-symbol',
+                    params: { carbonColor: { name: 'element-symbol', params: {} } }
                 }
-            ]
-        ];
+            }
+        }]);
 
         ElementSymbolColorThemeParams.carbonColor.defaultValue = { name: 'element-symbol', params: {} };
 
@@ -163,9 +158,9 @@ class PDBeMolstarPlugin {
         }
 
         if (this.initParams.hideCanvasControls) {
-            if (this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
-            if (this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-            if (this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+            if (this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowExpand, false]);
+            if (this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+            if (this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowAnimation, false]);
         };
 
         if (this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';

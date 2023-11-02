@@ -38,7 +38,8 @@ export const DefaultPluginSpec = (): PluginSpec => ({
     ],
     // animations: [],
     config: [
-        [PluginConfig.VolumeStreaming.DefaultServer, 'https://www.ebi.ac.uk/pdbe/volume-server']
+        [PluginConfig.VolumeStreaming.DefaultServer, 'https://www.ebi.ac.uk/pdbe/volume-server'],
+        [PluginConfig.VolumeStreaming.EmdbHeaderServer, 'https://files.wwpdb.org/pub/emdb/structures'],
     ]
 });
 
@@ -67,9 +68,9 @@ export type InitParams = {
     bgColor?: { r: number, g: number, b: number }, customData?: { url: string, format: string, binary: boolean }, loadCartoonsOnly?: boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
     selectColor?: { r: number, g: number, b: number }, highlightColor?: { r: number, g: number, b: number }, superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean },
     hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'
-    granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any, 
+    granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any,
     /** Show overlay with PDBe logo while the initial structure is being loaded */
-    loadingOverlay: boolean, 
+    loadingOverlay: boolean,
     [key: string]: any;
 }
 
