@@ -100,7 +100,7 @@ export namespace LigandView {
 
         // Residue Param
         let residueParam: any;
-        if (ligandViewParams.auth_seq_id) {
+        if (ligandViewParams.auth_seq_id !== undefined) {
             residueParam = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), ligandViewParams.auth_seq_id]);
         } else if (ligandViewParams.label_comp_id) {
             residueParam = MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), ligandViewParams.label_comp_id]);
@@ -221,7 +221,7 @@ export namespace QueryHelper {
             // residues
             if (param.label_comp_id) {
                 selection['residueTest'] = (l: any) => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
-            } else if (param.uniprot_accession && param.uniprot_residue_number) {
+            } else if (param.uniprot_accession && param.uniprot_residue_number !== undefined) {
                 selection['residueTest'] = (l: any) => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
@@ -230,7 +230,7 @@ export namespace QueryHelper {
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
                 };
-            } else if (param.uniprot_accession && param.start_uniprot_residue_number && param.end_uniprot_residue_number) {
+            } else if (param.uniprot_accession && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
                 selection['residueTest'] = (l: any) => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
@@ -239,28 +239,28 @@ export namespace QueryHelper {
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
                 };
-            } else if (param.residue_number) {
+            } else if (param.residue_number !== undefined) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
-            } else if ((param.start_residue_number && param.end_residue_number) && (param.end_residue_number > param.start_residue_number)) {
+            } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
                 selection['residueTest'] = (l: any) => {
                     const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
                     return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
                 };
 
-            } else if ((param.start_residue_number && param.end_residue_number) && (param.end_residue_number === param.start_residue_number)) {
+            } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
-            } else if (param.auth_seq_id) {
+            } else if (param.auth_seq_id !== undefined) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
-            } else if (param.auth_residue_number && !param.auth_ins_code_id) {
+            } else if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
-            } else if (param.auth_residue_number && param.auth_ins_code_id) {
+            } else if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
-            } else if ((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number > param.start_auth_residue_number)) {
+            } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
                 selection['residueTest'] = (l: any) => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
                     return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
                 };
-            } else if ((param.start_auth_residue_number && param.end_auth_residue_number) && (param.end_auth_residue_number === param.start_auth_residue_number)) {
+            } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
             }
 

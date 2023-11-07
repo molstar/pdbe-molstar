@@ -55,7 +55,7 @@ function SuperpositionExportControls({ plugin }: { plugin: PluginContext }) {
             onClick={onExport}
             style={{ marginTop: 1 }}
             disabled={isBusy || hierarchy.structures.length === 0 || exporting}
-            commit={hierarchy.structures.length ? 'on' : 'off'}
+            commit={hierarchy.structures.length > 0 ? 'on' : 'off'}
         >
             {label}
         </Button>

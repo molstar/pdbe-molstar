@@ -263,7 +263,7 @@ class PDBeMolstarPlugin {
             if (!this.initParams.ligandView.label_comp_id_list) {
                 if (this.initParams.ligandView.label_comp_id) {
                     queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
-                } else if (this.initParams.ligandView.auth_seq_id) {
+                } else if (this.initParams.ligandView.auth_seq_id !== undefined) {
                     queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
                 }
                 if (this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
@@ -593,7 +593,6 @@ class PDBeMolstarPlugin {
 
         },
         clearSelection: async (structureNumber?: number) => {
-
             const structIndex = structureNumber ? structureNumber - 1 : 0;
             this.plugin.managers.interactivity.lociSelects.deselectAll();
             // reset theme to default
