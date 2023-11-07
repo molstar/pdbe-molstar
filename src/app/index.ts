@@ -68,7 +68,7 @@ class PDBeMolstarPlugin {
     async render(target: string | HTMLElement, options: InitParams) {
         if (!options) return;
         this.initParams = { ...DefaultParams };
-        for (let param in DefaultParams) {
+        for (const param in DefaultParams) {
             if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
         }
 
@@ -170,13 +170,13 @@ class PDBeMolstarPlugin {
         if (this.initParams.selectBindings) {
             pdbePluginSpec.behaviors.push(
                 PluginSpec.Behavior(SelectLoci, { bindings: this.initParams.selectBindings })
-            )
+            );
         }
 
         if (this.initParams.focusBindings) {
             pdbePluginSpec.behaviors.push(
                 PluginSpec.Behavior(FocusLoci, { bindings: this.initParams.focusBindings })
-            )
+            );
         }
 
         this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
@@ -228,7 +228,7 @@ class PDBeMolstarPlugin {
             this.plugin.behaviors.layout.leftPanelTabName.next('none' as any);
 
             // Load Molecule CIF or coordQuery and Parse
-            let dataSource = this.getMoleculeSrcUrl();
+            const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
                 if (this.initParams.loadingOverlay) {
                     new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
@@ -250,7 +250,7 @@ class PDBeMolstarPlugin {
 
     getMoleculeSrcUrl() {
         const supportedFormats = ['mmcif', 'pdb', 'sdf'];
-        let id = this.initParams.moleculeId;
+        const id = this.initParams.moleculeId;
 
         if (!id && !this.initParams.customData) {
             throw new Error(`Mandatory parameters missing!`);
@@ -259,7 +259,7 @@ class PDBeMolstarPlugin {
         let query = 'full';
         let sep = '?';
         if (this.initParams.ligandView) {
-            let queryParams = ['data_source=pdb-h'];
+            const queryParams = ['data_source=pdb-h'];
             if (!this.initParams.ligandView.label_comp_id_list) {
                 if (this.initParams.ligandView.label_comp_id) {
                     queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
@@ -434,7 +434,7 @@ class PDBeMolstarPlugin {
                 }
             }
         });
-    }
+    };
 
     canvas = {
         toggleControls: (isVisible?: boolean) => {
@@ -459,9 +459,9 @@ class PDBeMolstarPlugin {
             if (settings.lighting) rendererParams['style'] = { name: settings.lighting };
             const renderer = this.plugin.canvas3d!.props.renderer;
             PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rendererParams } } });
-        }
+        },
 
-    }
+    };
 
     getLociForParams(params: QueryParam[], structureNumber?: number) {
         let assemblyRef = this.assemblyRef;
@@ -559,7 +559,7 @@ class PDBeMolstarPlugin {
                     let repr = 'ball-and-stick';
                     if (param.representation) repr = param.representation;
                     const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
-                    let defaultValues = ParamDefinition.getDefaultValues(defaultParams);
+                    const defaultValues = ParamDefinition.getDefaultValues(defaultParams);
                     defaultValues.options = { label: 'selection-by-script', checkExisting: params.structureNumber ? false : true };
                     const values = { ...defaultValues, ...{ representation: repr } };
                     const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
@@ -604,7 +604,7 @@ class PDBeMolstarPlugin {
             await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[structIndex].components);
             // remove selection representations
             if (this.selectedParams && this.selectedParams.addedRepr) {
-                let selReprCells: any = [];
+                const selReprCells = [];
                 for (const c of this.plugin.managers.structure.hierarchy.current.structures[structIndex].components) {
                     if (c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
                 }
@@ -625,7 +625,7 @@ class PDBeMolstarPlugin {
             // }
 
             this.initParams = { ...DefaultParams };
-            for (let param in DefaultParams) {
+            for (const param in DefaultParams) {
                 if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
             }
 
@@ -642,7 +642,7 @@ class PDBeMolstarPlugin {
             }
 
             // Load Molecule CIF or coordQuery and Parse
-            let dataSource = this.getMoleculeSrcUrl();
+            const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
                 this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary }, fullLoad);
             }
@@ -659,7 +659,7 @@ class PDBeMolstarPlugin {
                 maps: 'volume-streaming-info'
             };
 
-            for (let visual in data) {
+            for (const visual in data) {
                 const tagName = refMap[visual];
                 const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
                 if (componentRef) {
@@ -695,7 +695,7 @@ class PDBeMolstarPlugin {
         setColor: (param: { highlight?: any, select?: any }) => {
             if (!this.plugin.canvas3d) return;
             const renderer = this.plugin.canvas3d.props.renderer;
-            let rParam: any = {};
+            const rParam: any = {};
             if (param.highlight) rParam['highlightColor'] = this.normalizeColor(param.highlight);
             if (param.select) rParam['selectColor'] = this.normalizeColor(param.select);
             PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rParam } } });
@@ -716,15 +716,14 @@ class PDBeMolstarPlugin {
             if (params.highlightColor || params.selectColor) {
                 if (!this.plugin.canvas3d) return;
                 const renderer = this.plugin.canvas3d.props.renderer;
-                let rParam: any = {};
+                const rParam: any = {};
                 if (params.highlightColor) rParam['highlightColor'] = this.defaultRendererProps.highlightColor;
                 if (params.selectColor) rParam['selectColor'] = this.defaultRendererProps.selectColor;
                 PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rParam } } });
                 if (rParam.highlightColor) this.isHighlightColorUpdated = false;
             }
-
-        }
-    }
+        },
+    };
 
     async clear() {
         await this.plugin.clear();

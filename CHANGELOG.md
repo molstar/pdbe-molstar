@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file, following t
 - Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
 - Fixed coloring after annotation is switched off (revert to `chain-id`, not `polymer-id`)
 - Loading overlay with animated PDBe logo (requires initParam `loadingOverlay`)
+- Use linting to keep code nice
 
 ## [v3.1.2]
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue

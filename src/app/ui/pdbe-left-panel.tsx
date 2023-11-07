@@ -47,14 +47,14 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
         if (this.plugin.layout.state.regionState.left !== 'full') {
             PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'full' } } });
         }
-    }
+    };
 
     tabs: { [K in LeftPanelTabName]: JSX.Element } = {
         'none': <></>,
         'root': <>
             <SectionHeader icon={HomeOutlinedSvg} title='Home' />
             <StateObjectActions state={this.plugin.state.data} nodeRef={StateTransform.RootRef} hideHeader={true} initiallyCollapsed={true} alwaysExpandFirst={true} />
-            {this.plugin.spec.components?.remoteState !== 'none' && <RemoteStateSnapshots listOnly /> }
+            {this.plugin.spec.components?.remoteState !== 'none' && <RemoteStateSnapshots listOnly />}
         </>,
         'data': <>
             <SectionHeader icon={AccountTreeOutlinedSvg} title={<><RemoveAllButton /> State Tree</>} />
@@ -74,7 +74,7 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
             <HelpContent />
             <SuperpositionHelpContent />
         </>
-    }
+    };
 
     render() {
         const tab = this.state.tab;
@@ -125,7 +125,7 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
 class FullSettings extends PluginUIComponent {
     private setSettings = (p: { param: PD.Base<any>, name: string, value: any }) => {
         PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { [p.name]: p.value } });
-    }
+    };
 
     componentDidMount() {
         this.subscribe(this.plugin.events.canvas3d.settingsUpdated, () => this.forceUpdate());
@@ -150,7 +150,7 @@ class FullSettings extends PluginUIComponent {
     }
 }
 
-class RemoveAllButton extends PluginUIComponent<{ }> {
+class RemoveAllButton extends PluginUIComponent<{}> {
     componentDidMount() {
         this.subscribe(this.plugin.state.events.cell.created, e => {
             if (e.cell.transform.parent === StateTransform.RootRef) this.forceUpdate();
@@ -164,7 +164,7 @@ class RemoveAllButton extends PluginUIComponent<{ }> {
     remove = (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
         PluginCommands.State.RemoveObject(this.plugin, { state: this.plugin.state.data, ref: StateTransform.RootRef });
-    }
+    };
 
     render() {
         const count = this.plugin.state.data.tree.children.get(StateTransform.RootRef).size;

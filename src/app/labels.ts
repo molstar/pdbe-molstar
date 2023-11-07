@@ -11,7 +11,7 @@ export const PDBeLociLabelProvider = PluginBehavior.create({
     ctor: class implements PluginBehavior<undefined> {
         private f = {
             label: (loci: Loci) => {
-                
+
                 const customState = (this.ctx.customState) as any;
                 const superpositionView = (customState && customState.initParams.superposition) ? true : false;
 

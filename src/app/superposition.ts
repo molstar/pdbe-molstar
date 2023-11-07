@@ -153,7 +153,7 @@ async function getAfUrl(plugin: PluginContext, accession: string) {
                     cif: apiResponse?.[0].cifUrl,
                     pae: apiResponse?.[0].paeImageUrl,
                     length: apiResponse?.[0].uniprotEnd
-                }
+                };
             }
         } catch (e) {
             // console.warn(e);
@@ -209,7 +209,7 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
 
         let minRmsd = 0;
         let minIndex = 0;
-        let rmsdList: any = [];
+        const rmsdList: string[] = [];
         const segmentClusters = spState.segmentData[segmentNum].clusters;
         segmentClusters.forEach((cluster: any) => {
 
@@ -366,7 +366,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
                         });
 
-                        let labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
+                        const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
                         let hetColor = Color.fromRgb(253, 3, 253);
                         if (superpositionParams && superpositionParams.ligandColor) {
                             const { r, g, b } = superpositionParams.ligandColor;
@@ -417,7 +417,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         const carbChainSel = Script.getStructureSelection(carbEntityChainInVicinity, data);
                         if (carbChainSel && carbChainSel.kind === 'sequence') {
                             // console.log(carbEntityChainId + ' chain present in 5 A radius');
-                            const carbLigands = []
+                            const carbLigands = [];
                             const carbLigNamesAndCount: any = {};
                             const carbLigList = [];
 
@@ -443,7 +443,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                                 'residue-test': MS.core.logic.or(carbLigands)
                             });
 
-                            let labelTagParams = { label: `${carbVisLabel}`, tags: [`superposition-carb-sel`] };
+                            const labelTagParams = { label: `${carbVisLabel}`, tags: [`superposition-carb-sel`] };
                             const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, branchedEntity, `${carbLigList.join('-')}-${segmentIndex}`, labelTagParams);
                             if (ligandExp) {
                                 await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'carbohydrate' }, { tag: `superposition-carb-visual` });
@@ -594,7 +594,7 @@ function getChainLigands(carbEntity: any) {
     const labelValueArr = [];
     let ligNameStr = '';
     for (const chemComp of carbEntity.chem_comp_list) {
-        labelValueArr.push(`${chemComp.chem_comp_id} (${chemComp.count})`)
+        labelValueArr.push(`${chemComp.chem_comp_id} (${chemComp.count})`);
     }
     ligNameStr = labelValueArr.join(', ');
 
@@ -603,7 +603,7 @@ function getChainLigands(carbEntity: any) {
         ligandLabels.push(ligNameStr);
         const chainLigands = [];
         for (const residue of chain.residues) {
-            chainLigands.push(residue.chem_comp_id + '-' + residue.residue_number)
+            chainLigands.push(residue.chem_comp_id + '-' + residue.residue_number);
         }
         ligands.push(chainLigands);
     }

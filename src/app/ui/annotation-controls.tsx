@@ -91,15 +91,15 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
 
             }
         }
-    }
+    };
     getStructure = () => {
         const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
         return groupRef ? this.plugin.state.data.select(groupRef)[0]?.obj : undefined;
-    }
+    };
 
     toggleCollapsed = () => {
         this.setState({ isCollapsed: !this.state.isCollapsed });
-    }
+    };
 
     applyAnnotation = (type: 'validation' | 'domains', visibleState: boolean, params?: any) => {
         // Defaults
@@ -141,7 +141,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         if (polymerGroup) {
             this.plugin.managers.structure.component.updateRepresentationsTheme(polymerGroup, { color: themeName, colorParams: params ? params : void 0 });
         }
-    }
+    };
 
     toggleAnnotation = (type: AnnotationType) => {
         if (type === 'validation') this.applyAnnotation('validation', !this.state.validationApplied, this.state.validationParams.values);
@@ -153,13 +153,13 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         updatedParams.values = val;
         this.setState({ validationParams: updatedParams });
         if (this.state.validationApplied) this.applyAnnotation('validation', this.state.validationApplied, val);
-    }
+    };
     updateDomainParams = (val: any) => {
         const updatedParams = { ...this.state.domainsParams };
         updatedParams.values = val;
         this.setState({ domainsParams: updatedParams });
         if (this.state.domainsApplied) this.applyAnnotation('domains', this.state.domainsApplied, val);
-    }
+    };
 
     render() {
         if (!this.state.validationParams && !this.state.domainsParams && !this.state.showSymmetryAnnotation) return <></>;

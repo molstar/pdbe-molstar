@@ -14,7 +14,7 @@ type DomainAnnotations = PropertyWrapper<{
     domains: IndexedCustomProperty.Residue<string[]>,
     domainNames: string[][],
     domainTypes: string[],
-}| undefined>
+} | undefined>
 
 namespace DomainAnnotations {
 
@@ -109,7 +109,7 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
     const defaultDomains = ['Pfam', 'InterPro', 'CATH', 'SCOP'];
 
     for (const db_name of Object.keys(data)) {
-        if(defaultDomains.indexOf(db_name) === -1) continue;
+        if (defaultDomains.indexOf(db_name) === -1) continue;
         const tempDomains: string[] = [];
         domainTypes.push(db_name);
         const db = data[db_name];
@@ -121,12 +121,12 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
 
                 const indexData = modelData.atomicHierarchy.index as any;
                 const indexMap = indexData.map;
-                for(let i = map.start.residue_number; i <= map.end.residue_number; i++){
+                for (let i = map.start.residue_number; i <= map.end.residue_number; i++) {
                     const seq_id = i;
                     const idx = findResidue(modelData, indexMap, map.entity_id + '', map.chain_id, seq_id);
                     let addVal: string[] = [domain.identifier];
                     const prevVal = ret.get(idx);
-                    if(prevVal){
+                    if (prevVal) {
                         prevVal.push(domain.identifier);
                         addVal = prevVal;
                     }

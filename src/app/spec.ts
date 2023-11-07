@@ -10,7 +10,7 @@ import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { StateActions } from 'Molstar/mol-plugin-state/actions';
 import { PDBeLociLabelProvider } from './labels';
-import { PDBeSIFTSMapping } from './sifts-mappings-behaviour'
+import { PDBeSIFTSMapping } from './sifts-mappings-behaviour';
 
 import { Loci } from 'Molstar/mol-model/loci';
 import { QueryParam, LigandQueryParam } from './helpers';
@@ -64,7 +64,7 @@ export type InitParams = {
     moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean, symmetryAnnotation?: boolean,
     lowPrecisionCoords?: boolean, landscape?: boolean, reactive?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
     subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, sequencePanel?: boolean,
-    ligandView?: LigandQueryParam, defaultPreset?: 'default' | "unitcell" | "all-models" | "supercell",
+    ligandView?: LigandQueryParam, defaultPreset?: 'default' | 'unitcell' | 'all-models' | 'supercell',
     bgColor?: { r: number, g: number, b: number }, customData?: { url: string, format: string, binary: boolean }, loadCartoonsOnly?: boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
     selectColor?: { r: number, g: number, b: number }, highlightColor?: { r: number, g: number, b: number }, superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean },
     hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'

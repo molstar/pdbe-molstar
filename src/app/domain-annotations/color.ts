@@ -46,7 +46,7 @@ export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: PD.Val
     };
 }
 
-export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'pdbe-domain-annotations'> =  {
+export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'pdbe-domain-annotations'> = {
     name: 'pdbe-domain-annotations',
     label: 'Domain annotations',
     category: ColorTheme.Category.Misc,
@@ -58,7 +58,7 @@ export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'p
 
         const optionObj: any = {};
         domainTypes.forEach((tp, index) => {
-            if(domainNames[index].length > 0) {
+            if (domainNames[index].length > 0) {
                 optionObj[tp as string] = PD.Group({
                     kind: PD.Select(domainNames[index][0] as string, PD.arrayToOptions(domainNames[index] as string[]))
                 }, { isFlat: true });
@@ -70,7 +70,7 @@ export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'p
                 type: PD.MappedStatic(optionObj[0], optionObj)
             };
 
-        }else{
+        } else {
             return {
                 type: PD.MappedStatic('', {
                     '': PD.EmptyGroup()

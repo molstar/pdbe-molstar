@@ -15,11 +15,11 @@ export async function superpositionExportHierarchy(plugin: PluginContext, option
         plugin.log.error(`Model export failed. See console for details.`);
     }
 }
- 
+
 function _superpositionExportHierarchy(plugin: PluginContext, options?: { format?: 'cif' | 'bcif' }) {
     return Task.create('Export', async ctx => {
         await ctx.update({ message: 'Exporting...', isIndeterminate: true, canAbort: false });
- 
+
         const format = options?.format ?? 'cif';
         //  const { structures } = plugin.managers.structure.hierarchy.current;
         const customState = plugin.customState as any;
@@ -29,18 +29,18 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
         const files: [name: string, data: string | Uint8Array][] = [];
         const entryMap = new Map<string, number>();
         const structures = superpositionState.loadedStructs[segmentIndex].slice();
-        if(superpositionState.alphafold.ref) structures.push(`AF-${customState.initParams.moleculeId}`);
-        for(const molId of structures) {
+        if (superpositionState.alphafold.ref) structures.push(`AF-${customState.initParams.moleculeId}`);
+        for (const molId of structures) {
             const modelRef = superpositionState.models[molId];
-            if(!modelRef) continue;
+            if (!modelRef) continue;
             let isStrHidden = false;
             const _s: any = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
-            if(_s.cell.state.isHidden) isStrHidden = true;
-                for(const strComp of _s.components) {
-                    if(strComp.cell.state.isHidden) isStrHidden = true;
-                }
-            if(isStrHidden) continue;
-        
+            if (_s.cell.state.isHidden) isStrHidden = true;
+            for (const strComp of _s.components) {
+                if (strComp.cell.state.isHidden) isStrHidden = true;
+            }
+            if (isStrHidden) continue;
+
             const s = _s.transform?.cell.obj?.data ?? _s.cell.obj?.data;
             if (!s) continue;
             if (s.models.length > 1) {
@@ -51,7 +51,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
                 plugin.log.warn(`[Export] Skipping ${_s.cell.obj?.label}: Non-atomic model exports not supported.`);
                 continue;
             }
- 
+
             const name = entryMap.has(s.model.entryId)
                 ? `${s.model.entryId}_${entryMap.get(s.model.entryId)! + 1}.${format}`
                 : `${s.model.entryId}.${format}`;
@@ -73,7 +73,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
             }
         }
 
-        if(files.length === 0) {
+        if (files.length === 0) {
             PluginCommands.Toast.Show(plugin, {
                 title: 'Export Models',
                 message: 'No visible structure in the 3D view to export!',
@@ -82,7 +82,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
             });
             return;
         }
- 
+
         if (files.length === 1) {
             download(new Blob([files[0][1]]), files[0][0]);
         } else if (files.length > 1) {
@@ -100,7 +100,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
             const buffer = await zip(ctx, zipData);
             download(new Blob([new Uint8Array(buffer, 0, buffer.byteLength)]), `structures_${getFormattedTime()}.zip`);
         }
- 
+
         plugin.log.info(`[Export] Done.`);
     });
 }

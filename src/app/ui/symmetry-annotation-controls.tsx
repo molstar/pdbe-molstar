@@ -80,7 +80,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
             const params = {
                 ...this.state.params,
                 symmetryIndex: PD.Select(0, options),
-            }
+            };
             const values = (realValues.symmetryIndex >= 0) ? {
                 on: true,
                 symmetryIndex: realValues.symmetryIndex,
@@ -135,7 +135,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
 
     /** Return `true` if an `AssemblySymmetry3D` node existing in the   */
     hasAssemblySymmetry3D(): boolean {
-        const struct = this.getPivotStructure()
+        const struct = this.getPivotStructure();
         const state = struct?.cell.parent;
         return state !== undefined && !!StateSelection.findTagInSubtree(state.tree, struct!.cell.transform.ref, AssemblySymmetry.Tag.Representation);
     }
@@ -190,9 +190,9 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
             if (!struct?.cell.obj) return;
             try {
                 const data = struct.cell.obj.data;
-                AssemblySymmetryDataProvider.get(data)
+                AssemblySymmetryDataProvider.get(data);
                 const params = PD.clone(data ? AssemblySymmetryProvider.getParams(data) : AssemblySymmetryProvider.defaultParams);
-                const props = PD.getDefaultValues(params)
+                const props = PD.getDefaultValues(params);
                 const propCtx = { runtime: ctx, assetManager: this.plugin.managers.asset };
                 await AssemblySymmetryDataProvider.attach(propCtx, data, props);
                 const assemblySymmetryData = AssemblySymmetryDataProvider.get(data).value;
@@ -218,7 +218,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
 }
 
 
-class SymmetryAnnotationRowControls extends AnnotationRowControls<SymmetryParams>{
+class SymmetryAnnotationRowControls extends AnnotationRowControls<SymmetryParams> {
     renderOptions() {
         if (this.props.values.noSymmetries) {
             return <div className='msp-row-text'>

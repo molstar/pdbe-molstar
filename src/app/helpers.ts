@@ -74,7 +74,7 @@ export namespace AlphafoldView {
                     })
                 ])
             ])
-        ])
+        ]);
 
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
@@ -94,7 +94,7 @@ export type LigandQueryParam = {
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): { core: Expression.Expression, surroundings: Expression.Expression } {
-        let atomGroupsParams: any = {
+        const atomGroupsParams: any = {
             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
         };
 
@@ -132,10 +132,10 @@ export namespace LigandView {
     }
 
     export function branchedQuery(params: any): { core: Expression.Expression, surroundings: Expression.Expression } {
-        let entityObjArray: any = [];
+        const entityObjArray: any[] = [];
 
         params.atom_site.forEach((param: any) => {
-            let qEntities: any = {
+            const qEntities = {
                 'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
                 'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id])
             };
@@ -201,12 +201,12 @@ export namespace QueryHelper {
 
     export function getQueryObject(params: QueryParam[], contextData: any): Expression.Expression {
 
-        let selections: any = [];
+        const selections: any[] = [];
         let siftMappings: any;
         let currentAccession: string;
 
         params.forEach(param => {
-            let selection: any = {};
+            const selection: any = {};
 
             // entity
             if (param.entity_id) selection['entityTest'] = (l: any) => StructureProperties.entity.id(l.element) === param.entity_id;
@@ -229,7 +229,7 @@ export namespace QueryHelper {
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
-                }
+                };
             } else if (param.uniprot_accession && param.start_uniprot_residue_number && param.end_uniprot_residue_number) {
                 selection['residueTest'] = (l: any) => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
@@ -238,7 +238,7 @@ export namespace QueryHelper {
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
-                }
+                };
             } else if (param.residue_number) {
                 selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
             } else if ((param.start_residue_number && param.end_residue_number) && (param.end_residue_number > param.start_residue_number)) {
@@ -276,7 +276,7 @@ export namespace QueryHelper {
             selections.push(selection);
         });
 
-        let atmGroupsQueries: any[] = [];
+        const atmGroupsQueries: any[] = [];
         selections.forEach((selection: any) => {
             atmGroupsQueries.push(Queries.generators.atoms(selection));
         });
@@ -339,7 +339,7 @@ export async function runWithProgressMessage(plugin: PluginContext, progressMess
         let done = false;
         try {
             if (progressMessage) {
-                setTimeout(() => { if (!done) ctx.update(progressMessage) }, 1000); // Delay the first update to force showing message in UI
+                setTimeout(() => { if (!done) ctx.update(progressMessage); }, 1000); // Delay the first update to force showing message in UI
             }
             await action();
         } finally {

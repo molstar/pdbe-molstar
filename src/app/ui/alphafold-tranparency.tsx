@@ -35,12 +35,12 @@ export class AlphafoldTransparencyControls extends CollapsableControls<{}, { tra
     }
 
     updateTransparency = async (val: any) => {
-        this.setState({transpareny: val});
+        this.setState({ transpareny: val });
         const superpositionState: any = (this.plugin.customState as any).superpositionState;
         const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(superpositionState.alphafold.ref!);
         await clearStructureTransparency(this.plugin, afStr.components);
         await applyAFTransparency(this.plugin, afStr, 1 - val.opacity, val.score);
-    }
+    };
 
     renderControls() {
         return <>

@@ -88,8 +88,8 @@ class SuperpositionFocusRepresentationBehavior extends PluginBehavior.WithSubscr
         });
 
         const lociDeatils = lociDetails(sourceLoci);
-        if(!lociDeatils) {
-            surroundings =  MS.struct.modifier.exceptBy({
+        if (!lociDeatils) {
+            surroundings = MS.struct.modifier.exceptBy({
                 0: surroundings,
                 by: target
             });
