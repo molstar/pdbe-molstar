@@ -249,46 +249,43 @@ class PDBeMolstarPlugin {
     }
 
     getMoleculeSrcUrl() {
-        const supportedFormats = ['mmcif', 'pdb', 'sdf'];
-        const id = this.initParams.moleculeId;
-
-        if (!id && !this.initParams.customData) {
-            throw new Error(`Mandatory parameters missing!`);
-        }
-
-        const request: Required<ModelServerRequest> = { pdbId: id!, queryType: 'full', queryParams: {} }; // TODO check `id` and remove !
-        if (this.initParams.ligandView) {
-            request.queryType = 'residueSurroundings';
-            request.queryParams['data_source'] = 'pdb-h';
-            if (!this.initParams.ligandView.label_comp_id_list) {
-                request.queryParams['label_comp_id'] = this.initParams.ligandView.label_comp_id;
-                request.queryParams['auth_seq_id'] = this.initParams.ligandView.auth_seq_id;
-                request.queryParams['auth_asym_id'] = this.initParams.ligandView.auth_asym_id;
-            }
-        }
-        let url = getStructureUrl(this.initParams, request);
-        let isBinary = this.initParams.encoding === 'bcif' ? true : false;
-        let format = 'mmcif';
-
         if (this.initParams.customData) {
-            if (!this.initParams.customData.url || !this.initParams.customData.format) {
+            let { url, format, binary } = this.initParams.customData;
+            if (!url || !format) {
                 throw new Error(`Provide all custom data parameters`);
             }
-            url = this.initParams.customData.url;
-            format = this.initParams.customData.format;
             if (format === 'cif' || format === 'bcif') format = 'mmcif';
             // Validate supported format
-            if (supportedFormats.indexOf(format) === -1) {
+            const supportedFormats = ['mmcif', 'pdb', 'sdf'];
+            if (!supportedFormats.includes(format)) {
                 throw new Error(`${format} not supported.`);
             }
-            isBinary = this.initParams.customData.binary ? this.initParams.customData.binary : false;
+            return {
+                url: url,
+                format: format,
+                isBinary: binary,
+            };
         }
 
-        return {
-            url: url,
-            format: format,
-            isBinary: isBinary
-        };
+        if (this.initParams.moleculeId) {
+            const request: Required<ModelServerRequest> = { pdbId: this.initParams.moleculeId, queryType: 'full', queryParams: {} };
+            if (this.initParams.ligandView) {
+                request.queryType = 'residueSurroundings';
+                request.queryParams['data_source'] = 'pdb-h';
+                if (!this.initParams.ligandView.label_comp_id_list) {
+                    request.queryParams['label_comp_id'] = this.initParams.ligandView.label_comp_id;
+                    request.queryParams['auth_seq_id'] = this.initParams.ligandView.auth_seq_id;
+                    request.queryParams['auth_asym_id'] = this.initParams.ligandView.auth_asym_id;
+                }
+            }
+            return {
+                url: getStructureUrl(this.initParams, request),
+                format: 'mmcif',
+                isBinary: this.initParams.encoding === 'bcif',
+            };
+        }
+
+        throw new Error(`Mandatory parameters missing! (customData or moleculeId must be defined)`);
     }
 
     get state() {

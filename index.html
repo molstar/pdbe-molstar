@@ -133,10 +133,10 @@
     </div>
     <script>
 
-      //Create plugin instance
+      // Create plugin instance
       var viewerInstance = new PDBeMolstarPlugin();
   
-      //Set options (Checkout available options list in the documentation)
+      // Set options (Checkout available options list in the documentation)
       var options = {
         moleculeId: '1cbs',
         // expanded: true,
@@ -150,7 +150,7 @@
         loadingOverlay: true,
       }
 
-      //Ligand view 
+      // // Ligand view 
       // var options = {
       //   moleculeId: '1cbs',
       //   ligandView: {label_comp_id: "REA"},
@@ -160,7 +160,7 @@
       //   bgColor: {r:255, g:255, b:255},
       // }
 
-      //Superposition options (P08083, Q14676, Q5VSL9, P54646)
+      // // Superposition options (P08083, Q14676, Q5VSL9, P54646)
       // var options = {
       //   moleculeId: 'P06213',
       //   superposition: true,
@@ -183,10 +183,10 @@
       //   hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
       // }
       
-      //Get element from HTML/Template to place the viewer 
+      // Get element from HTML/Template to place the viewer 
       var viewerContainer = document.getElementById('myViewer');
   
-      //Call render method to display the 3D view
+      // Call render method to display the 3D view
       viewerInstance.render(viewerContainer, options);
 
       // document.addEventListener('PDB.molstar.mouseover', (e) => { 
