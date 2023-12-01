@@ -34,7 +34,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, PDBeVolumes, QueryHelper, QueryParam, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -256,22 +256,17 @@ class PDBeMolstarPlugin {
             throw new Error(`Mandatory parameters missing!`);
         }
 
-        let query = 'full';
-        let sep = '?';
+        const request: Required<ModelServerRequest> = { pdbId: id!, queryType: 'full', queryParams: {} }; // TODO check `id` and remove !
         if (this.initParams.ligandView) {
-            const queryParams = ['data_source=pdb-h'];
+            request.queryType = 'residueSurroundings';
+            request.queryParams['data_source'] = 'pdb-h';
             if (!this.initParams.ligandView.label_comp_id_list) {
-                if (this.initParams.ligandView.label_comp_id) {
-                    queryParams.push('label_comp_id=' + this.initParams.ligandView.label_comp_id);
-                } else if (this.initParams.ligandView.auth_seq_id !== undefined) {
-                    queryParams.push('auth_seq_id=' + this.initParams.ligandView.auth_seq_id);
-                }
-                if (this.initParams.ligandView.auth_asym_id) queryParams.push('auth_asym_id=' + this.initParams.ligandView.auth_asym_id);
+                request.queryParams['label_comp_id'] = this.initParams.ligandView.label_comp_id;
+                request.queryParams['auth_seq_id'] = this.initParams.ligandView.auth_seq_id;
+                request.queryParams['auth_asym_id'] = this.initParams.ligandView.auth_asym_id;
             }
-            query = 'residueSurroundings?' + queryParams.join('&');
-            sep = '&';
         }
-        let url = `${this.initParams.pdbeUrl}model-server/v1/${id}/${query}${sep}encoding=${this.initParams.encoding}${this.initParams.lowPrecisionCoords ? '&lowPrecisionCoords=1' : ''}`;
+        let url = getStructureUrl(this.initParams, request);
         let isBinary = this.initParams.encoding === 'bcif' ? true : false;
         let format = 'mmcif';
 

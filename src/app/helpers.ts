@@ -13,6 +13,7 @@ import { SIFTSMapping } from './sifts-mapping';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 import { Task } from 'molstar/lib/mol-task';
+import { DefaultParams, InitParams } from './spec';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
@@ -347,4 +348,31 @@ export async function runWithProgressMessage(plugin: PluginContext, progressMess
         }
     });
     await plugin.runTask(task);
+}
+
+/** Parameters for a request to ModelServer */
+export interface ModelServerRequest {
+    pdbId: string,
+    queryType: 'full' | 'residueSurroundings' | 'atoms', // add more when needed
+    queryParams?: Record<string, any>,
+}
+
+/** Return URL for a ModelServer request.
+ * If `queryType` is 'full' and `lowPrecisionCoords` is false, return URL of the static file instead (updated mmCIF or bCIF). */
+export function getStructureUrl(initParams: InitParams, request: ModelServerRequest) {
+    const pdbeUrl = (initParams.pdbeUrl ?? DefaultParams.pdbeUrl!).replace(/\/$/, ''); // without trailing slash
+    const useStaticFile = request.queryType === 'full' && !initParams.lowPrecisionCoords;
+    if (useStaticFile) {
+        const suffix = initParams.encoding === 'bcif' ? '.bcif' : '_updated.cif';
+        return `${pdbeUrl}/entry-files/download/${request.pdbId}${suffix}`;
+    } else {
+        const queryParams = {
+            ...request.queryParams,
+            encoding: initParams.encoding,
+            lowPrecisionCoords: initParams.lowPrecisionCoords ? 1 : undefined,
+        };
+        const queryString = Object.entries(queryParams).filter(([key, value]) => value !== undefined).map(([key, value]) => `${key}=${value}`).join('&');
+        const url = `${pdbeUrl}/model-server/v1/${request.pdbId}/${request.queryType}`;
+        return (queryString !== '') ? `${url}?${queryString}` : url;
+    }
 }

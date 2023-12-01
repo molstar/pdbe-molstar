@@ -14,7 +14,7 @@ import { Color } from 'Molstar/mol-util/color/color';
 import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
-import { ModelInfo } from './helpers';
+import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
 type ClusterRec = {
@@ -293,8 +293,10 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             spState.loadedStructs[segmentIndex].push(`${s.pdb_id}_${s.struct_asym_id}`);
 
             // Set Coordinate server url
-            let strUrl = `${customState.initParams.pdbeUrl}model-server/v1/${s.pdb_id}/atoms?auth_asym_id=${s.auth_asym_id}&encoding=${customState.initParams.encoding}`;
-            if (superpositionParams && superpositionParams.ligandView) strUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${s.pdb_id}.bcif`;
+            const request: ModelServerRequest = (superpositionParams && superpositionParams.ligandView) ?
+                { pdbId: s.pdb_id, queryType: 'full' }
+                : { pdbId: s.pdb_id, queryType: 'atoms', queryParams: { auth_asym_id: s.auth_asym_id } };
+            const strUrl = getStructureUrl(customState.initParams, request);
 
             // Load Data
             let strInstance: any;

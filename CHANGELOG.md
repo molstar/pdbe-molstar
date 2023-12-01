@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file, following t
 - Loading overlay with animated PDBe logo (requires initParam `loadingOverlay`)
 - Use linting to keep code nice
 - Correctly handle numeric value 0 in selections
+- Fetch structures from static files when possible, instead of using ModelServer
 
 ## [v3.1.2]
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue
