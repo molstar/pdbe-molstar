@@ -8,6 +8,7 @@ import { superposeAf } from '../superposition';
 import { scaleLinear as d3ScaleLinear } from 'd3-scale';
 import { axisBottom as d3AxisBotom, axisLeft as d3AxisLeft } from 'd3-axis';
 import { select as d3Select } from 'd3-selection';
+import { PluginCustomState } from '../helpers';
 
 const _InfoIcon = <svg width='24px' height='24px' viewBox='0 0 24 24' strokeWidth='0.1px'><path fill="currentColor" d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" /></svg>;
 export function InfoIconSvg() { return _InfoIcon; }
@@ -30,7 +31,7 @@ export class AlphafoldPaeControls extends CollapsableControls {
 
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, sel => {
-            const superpositionState: any = (this.plugin.customState as any).superpositionState;
+            const superpositionState = PluginCustomState(this.plugin).superpositionState;
             if (superpositionState && superpositionState.alphafold.ref && superpositionState.alphafold.apiData.pae && superpositionState.alphafold.apiData.pae !== '' && superpositionState.alphafold.apiData.pae !== '') {
                 this.setState({ isHidden: false });
 
@@ -74,7 +75,7 @@ export class AlphafoldPaeControls extends CollapsableControls {
     }
 
     renderControls() {
-        const superpositionState: any = (this.plugin.customState as any).superpositionState;
+        const superpositionState = PluginCustomState(this.plugin).superpositionState;
         if (!superpositionState || !superpositionState.alphafold) return null;
 
         const errorScale = [0, 5, 10, 15, 20, 25, 30];
@@ -114,7 +115,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
 
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, sel => {
-            const superpositionState: any = (this.plugin.customState as any).superpositionState;
+            const superpositionState = PluginCustomState(this.plugin).superpositionState;
             if (superpositionState && superpositionState.alphafold.apiData.cif && superpositionState.alphafold.apiData.cif !== '') {
                 this.setState({ isHidden: false });
             }
@@ -122,7 +123,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
     }
 
     rmsdTable() {
-        const spData: any = (this.plugin.customState as any).superpositionState;
+        const spData = PluginCustomState(this.plugin).superpositionState;
         const { activeSegment } = spData;
         const { rmsds } = spData.alphafold;
         return <div className='msp-control-offset'>
@@ -146,7 +147,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
     }
 
     renderControls() {
-        const superpositionState: any = (this.plugin.customState as any).superpositionState;
+        const superpositionState = PluginCustomState(this.plugin).superpositionState;
         return <>
             {superpositionState.alphafold.ref !== '' && this.rmsdTable()}
             {superpositionState.alphafold.ref === '' && <AfSuperpositionControls />}
@@ -189,12 +190,12 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
     }
 
     get customState() {
-        return this.plugin.customState as any;
+        return PluginCustomState(this.plugin);
     }
 
     superposeDb = async () => {
         this.setState({ isBusy: true });
-        const spData: any = (this.plugin.customState as any).superpositionState;
+        const spData = this.customState.superpositionState;
         spData.alphafold.traceOnly = this.state.options.traceOnly;
         superposeAf(this.plugin, this.state.options.traceOnly);
     };

@@ -14,8 +14,9 @@ import { Color } from 'Molstar/mol-util/color/color';
 import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
-import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
+import { ModelInfo, ModelServerRequest, PluginCustomState, getStructureUrl } from './helpers';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
+
 
 type ClusterRec = {
     pdb_id: string,
@@ -32,7 +33,7 @@ export type SuperpositionData = {
 
 function getRandomColor(plugin: PluginContext, segmentIndex: number) {
     const clList: any = ColorLists;
-    const spState = (plugin.customState as any).superpositionState;
+    const spState = PluginCustomState(plugin).superpositionState;
     let palleteIndex = spState.colorState[segmentIndex].palleteIndex;
     let colorIndex = spState.colorState[segmentIndex].colorIndex;
     if (clList[spState.colorPalette[palleteIndex]].list[colorIndex + 1]) {
@@ -42,8 +43,8 @@ function getRandomColor(plugin: PluginContext, segmentIndex: number) {
         palleteIndex = spState.colorPalette[palleteIndex + 1] ? palleteIndex + 1 : 0;
     }
     const palleteName = spState.colorPalette[palleteIndex];
-    (plugin.customState as any).superpositionState.colorState[segmentIndex].palleteIndex = palleteIndex;
-    (plugin.customState as any).superpositionState.colorState[segmentIndex].colorIndex = colorIndex;
+    spState.colorState[segmentIndex].palleteIndex = palleteIndex;
+    spState.colorState[segmentIndex].colorIndex = colorIndex;
     return clList[palleteName].list[colorIndex];
 }
 
@@ -52,9 +53,8 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
     try {
         await plugin.clear();
 
-        const customState = plugin.customState as any;
-        const superpositionParams = customState.initParams.superpositionParams;
-        (plugin.customState as any).superpositionState = {
+        const customState = PluginCustomState(plugin);
+        customState.superpositionState = {
             models: {},
             entries: {},
             refMaps: {},
@@ -86,29 +86,31 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
 
         // Get segment and cluster information for the given uniprot accession
         await getSegmentData(plugin);
-        const segmentData: any = (plugin.customState as any).superpositionState.segmentData;
+        const segmentData = customState.superpositionState.segmentData;
         if (!segmentData) return;
 
         // Load Matrix Data
         await getMatrixData(plugin);
-        if (!(plugin.customState as any).superpositionState.segmentData) return;
+        if (!customState.superpositionState.segmentData) return;
 
-        const afStrUrls = await getAfUrl(plugin, customState.initParams.moleculeId);
+        if (!customState.initParams!.moleculeId) throw new Error('initParams.moleculeId is not defined');
+        const afStrUrls = await getAfUrl(plugin, customState.initParams!.moleculeId);
         if (afStrUrls) customState.superpositionState.alphafold.apiData = afStrUrls;
 
         segmentData.forEach(() => {
-            (plugin.customState as any).superpositionState.loadedStructs.push([]);
-            (plugin.customState as any).superpositionState.visibleRefs.push([]);
-            (plugin.customState as any).superpositionState.colorState.push({ palleteIndex: 0, colorIndex: -1 });
+            customState.superpositionState.loadedStructs.push([]);
+            customState.superpositionState.visibleRefs.push([]);
+            customState.superpositionState.colorState.push({ palleteIndex: 0, colorIndex: -1 });
         });
 
         // Set segment and cluster details from superPositionParams
-        const segmentIndex = (superpositionParams && superpositionParams.segment) ? superpositionParams.segment - 1 : 0;
-        (plugin.customState as any).superpositionState.activeSegment = segmentIndex + 1;
-        const clusterIndexs = (superpositionParams && superpositionParams.cluster) ? superpositionParams.cluster : void 0;
+        const superpositionParams = customState.initParams!.superpositionParams;
+        const segmentIndex = superpositionParams?.segment ? superpositionParams.segment - 1 : 0;
+        customState.superpositionState.activeSegment = segmentIndex + 1;
+        const clusterIndexs = superpositionParams?.cluster ? superpositionParams.cluster : void 0;
 
         // Emit segment API data load event
-        (plugin.customState as any).events.superpositionInit.next(true);
+        customState.events?.superpositionInit.next(true);
 
         // Get entry list to load matrix data
         let entryList: ClusterRec[] = [];
@@ -118,7 +120,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
             if (clusterIndexs && clusterIndexs.indexOf(clusterIndex) === -1) return;
 
             // Add respresentative structure to the list
-            if (superpositionParams && superpositionParams.superposeAll) {
+            if (superpositionParams?.superposeAll) {
                 entryList = entryList.concat(cluster);
             } else {
                 entryList.push(cluster[0]);
@@ -165,15 +167,15 @@ async function getAfUrl(plugin: PluginContext, accession: string) {
 }
 
 export async function loadAfStructure(plugin: PluginContext) {
-
-    const customState = plugin.customState as any;
+    const customState = PluginCustomState(plugin);
     const { structure } = await loadStructure(plugin, customState.superpositionState.alphafold.apiData.cif, 'mmcif', false);
     const strInstance = structure;
     if (!strInstance) return false;
 
     // Store Refs in state
-    const spState = (plugin.customState as any).superpositionState;
+    const spState = customState.superpositionState;
     spState.alphafold.ref = strInstance?.ref;
+    if (!customState.initParams?.moleculeId) throw new Error('initParams.moleculeId is not defined');
     spState.models[`AF-${customState.initParams.moleculeId}`] = strInstance?.ref;
 
     const chainSel = await plugin.builders.structure.tryCreateComponentStatic(strInstance, 'polymer', { label: `AlphaFold Structure`, tags: [`alphafold-chain`, `superposition-sel`] });
@@ -188,10 +190,9 @@ export async function loadAfStructure(plugin: PluginContext) {
 }
 
 export async function superposeAf(plugin: PluginContext, traceOnly: boolean, segmentIndex?: number) {
-    const customState = plugin.customState as any;
+    const customState = PluginCustomState(plugin);
     if (!customState.superpositionState || !customState.superpositionState.segmentData) return;
     const spState = customState.superpositionState;
-
 
     // Load AF structure
     const afStrRef = spState.alphafold.ref || await loadAfStructure(plugin);
@@ -271,17 +272,18 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
 }
 
 export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterRec[]) {
-    const customState = plugin.customState as any;
-    const superpositionParams = customState.initParams.superpositionParams;
+    const customState = PluginCustomState(plugin);
+    const superpositionParams = customState.initParams!.superpositionParams;
     let busyFlagOn = false;
     if (entryList.length > 1) {
         busyFlagOn = true;
-        customState.events.isBusy.next(true);
+        customState.events?.isBusy.next(true);
     }
 
     // Load Coordinates and render respresentations
     return plugin.dataTransaction(async () => {
-        const spState = (plugin.customState as any).superpositionState;
+        const spState = customState.superpositionState;
+        if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
 
         for await (const s of entryList) {
             // validate matrix availability
@@ -322,7 +324,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             if (superpositionParams && superpositionParams.ligandView && !spState.entries[s.pdb_id]) spState.entries[s.pdb_id] = strInstance?.ref;
 
             // Apply tranform matrix
-            const matrix = Mat4.ofRows((plugin.customState as any).superpositionState.matrixData[`${s.pdb_id}_${s.auth_asym_id}`].matrix);
+            const matrix = Mat4.ofRows(customState.superpositionState.matrixData[`${s.pdb_id}_${s.auth_asym_id}`].matrix);
             await transform(plugin, strInstance, matrix);
 
             // Create representations
@@ -370,7 +372,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
 
                         const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
                         let hetColor = Color.fromRgb(253, 3, 253);
-                        if (superpositionParams && superpositionParams.ligandColor) {
+                        if (superpositionParams?.ligandColor) {
                             const { r, g, b } = superpositionParams.ligandColor;
                             hetColor = Color.fromRgb(r, g, b);
                         }
@@ -482,7 +484,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
         }
         if (busyFlagOn) {
             busyFlagOn = false;
-            customState.events.isBusy.next(false);
+            customState.events?.isBusy.next(false);
         }
     });
 }
@@ -553,25 +555,26 @@ async function afTransform(plugin: PluginContext, s: StateObjectRef<PluginStateO
 }
 
 async function getMatrixData(plugin: PluginContext) {
-    const customState = plugin.customState as any;
-    const matrixAccession = customState.initParams.superpositionParams.matrixAccession ? customState.initParams.superpositionParams.matrixAccession : customState.initParams.moleculeId;
+    const customState = PluginCustomState(plugin);
+    if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
+    const matrixAccession = customState.initParams.superpositionParams?.matrixAccession ?? customState.initParams.moleculeId;
     const clusterRecUrlStr = `${customState.initParams.pdbeUrl}static/superpose/matrices/${matrixAccession}`;
     const assetManager = plugin.managers.asset;
     const clusterRecUrl = Asset.getUrlAsset(assetManager, clusterRecUrlStr);
     try {
         const clusterRecData = await plugin.runTask(assetManager.resolve(clusterRecUrl, 'json', false));
         if (clusterRecData && clusterRecData.data) {
-            (plugin.customState as any).superpositionState.matrixData = clusterRecData.data;
+            customState.superpositionState.matrixData = clusterRecData.data;
         }
     } catch (e) {
-        customState['superpositionError'] = `Matrix data not available for ${matrixAccession}`;
-        (plugin.customState as any).events.superpositionInit.next(true); // Emit segment API data load event
+        customState.superpositionError = `Matrix data not available for ${matrixAccession}`;
+        customState.events?.superpositionInit.next(true); // Emit segment API data load event
     }
 }
 
 async function getSegmentData(plugin: PluginContext) {
-
-    const customState = plugin.customState as any;
+    const customState = PluginCustomState(plugin);
+    if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
 
     // Get Data
     const segmentsUrl = `${customState.initParams.pdbeUrl}graph-api/uniprot/superposition/${customState.initParams.moleculeId}`;
@@ -583,8 +586,8 @@ async function getSegmentData(plugin: PluginContext) {
             customState.superpositionState.segmentData = result.data[customState.initParams.moleculeId!];
         }
     } catch (e) {
-        customState['superpositionError'] = `Superposition data not available for ${customState.initParams.moleculeId}`;
-        (plugin.customState as any).events.superpositionInit.next(true); // Emit segment API data load event
+        customState.superpositionError = `Superposition data not available for ${customState.initParams.moleculeId}`;
+        customState.events?.superpositionInit.next(true); // Emit segment API data load event
     }
 }
 
@@ -618,8 +621,8 @@ function getChainLigands(carbEntity: any) {
 }
 
 async function getCarbPolymerDetailsFromApi(plugin: PluginContext, pdb_id: string) {
-
-    const customState = plugin.customState as any;
+    const customState = PluginCustomState(plugin);
+    if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
 
     // Get Data
     const apiUrl = `${customState.initParams.pdbeUrl}api/pdb/entry/carbohydrate_polymer/${pdb_id}`;

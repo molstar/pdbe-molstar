@@ -34,7 +34,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, PluginCustomState, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -67,10 +67,7 @@ class PDBeMolstarPlugin {
 
     async render(target: string | HTMLElement, options: InitParams) {
         if (!options) return;
-        this.initParams = { ...DefaultParams };
-        for (const param in DefaultParams) {
-            if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
-        }
+        this.initParams = addDefaults(options, DefaultParams);
 
         if (!this.initParams.moleculeId && !this.initParams.customData) return false;
         if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
@@ -183,8 +180,8 @@ class PDBeMolstarPlugin {
 
         // Create/ Initialise Plugin
         this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
-        (this.plugin.customState as any).initParams = { ...this.initParams };
-        (this.plugin.customState as any).events = {
+        PluginCustomState(this.plugin).initParams = { ...this.initParams };
+        PluginCustomState(this.plugin).events = {
             segmentUpdate: this._ev<boolean>(),
             superpositionInit: this._ev<boolean>(),
             isBusy: this._ev<boolean>()
@@ -611,18 +608,11 @@ class PDBeMolstarPlugin {
         update: async (options: InitParams, fullLoad?: boolean) => {
             if (!options) return;
 
-            // for(let param in this.initParams){
-            //     if(options[param]) this.initParams[param] = options[param];
-            // }
-
-            this.initParams = { ...DefaultParams };
-            for (const param in DefaultParams) {
-                if (typeof options[param] !== 'undefined') this.initParams[param] = options[param];
-            }
+            this.initParams = addDefaults(options, DefaultParams);
 
             if (!this.initParams.moleculeId && !this.initParams.customData) return false;
             if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
-            (this.plugin.customState as any).initParams = this.initParams;
+            PluginCustomState(this.plugin).initParams = this.initParams;
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {

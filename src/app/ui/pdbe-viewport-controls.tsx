@@ -5,6 +5,7 @@ import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
 import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
 import { AutorenewSvg, CameraOutlinedSvg, BuildOutlinedSvg, FullscreenSvg, TuneSvg, CloseSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { PluginCustomState } from '../helpers';
 
 export class PDBeViewportControls extends ViewportControls {
     isBlack(customeState: any): boolean {
@@ -16,7 +17,7 @@ export class PDBeViewportControls extends ViewportControls {
     }
 
     render() {
-        const customeState: any = this.plugin.customState;
+        const customeState = PluginCustomState(this.plugin);
         let showPDBeLink = false;
         let showControlToggle = true;
         let showControlInfo = true;
@@ -41,9 +42,9 @@ export class PDBeViewportControls extends ViewportControls {
         return <>
             {showPDBeLink && <div className='msp-viewport-controls-buttons' style={pdbeLink.containerStyle}>
                 <div className='msp-semi-transparent-background' style={pdbeLink.bgStyle} />
-                <a className='msp-pdbe-link' style={pdbeLink.style} target="_blank" href={`https://pdbe.org/${customeState.initParams.moleculeId}`}>
+                <a className='msp-pdbe-link' style={pdbeLink.style} target="_blank" href={`https://pdbe.org/${customeState.initParams!.moleculeId}`}>
                     <img src={pdbeLink.pdbeImg.src} alt={pdbeLink.pdbeImg.alt} style={pdbeLink.pdbeImg.style} />
-                    {customeState.initParams.moleculeId}
+                    {customeState.initParams!.moleculeId}
                 </a>
             </div>}
             <div className={'msp-viewport-controls'} onMouseMove={this.onMouseMove} style={showPDBeLink ? vwpBtnsTopMargin : void 0}>

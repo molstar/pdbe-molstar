@@ -60,18 +60,49 @@ export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, o
     return ctx;
 }
 
-export type InitParams = {
-    moleculeId?: string, superposition?: boolean, pdbeUrl?: string, loadMaps?: boolean, validationAnnotation?: boolean, domainAnnotation?: boolean, symmetryAnnotation?: boolean,
-    lowPrecisionCoords?: boolean, landscape?: boolean, reactive?: boolean, expanded?: boolean, hideControls?: boolean, hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
-    subscribeEvents?: boolean, pdbeLink?: boolean, assemblyId?: string, selectInteraction?: boolean, sequencePanel?: boolean,
-    ligandView?: LigandQueryParam, defaultPreset?: 'default' | 'unitcell' | 'all-models' | 'supercell',
-    bgColor?: { r: number, g: number, b: number }, customData?: { url: string, format: string, binary: boolean }, loadCartoonsOnly?: boolean, alphafoldView?: boolean, selectBindings?: any, focusBindings?: any, lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
-    selectColor?: { r: number, g: number, b: number }, highlightColor?: { r: number, g: number, b: number }, superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean },
-    hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'], visualStyle?: 'cartoon' | 'ball-and-stick', encoding: 'cif' | 'bcif'
-    granularity?: Loci.Granularity, selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean }, mapSettings: any,
+/** RGB color (r, g, b values 0-255) */
+interface ColorParams { r: number, g: number, b: number }
+
+export interface InitParams {
+    moleculeId?: string,
+    superposition?: boolean,
+    pdbeUrl?: string,
+    loadMaps?: boolean,
+    validationAnnotation?: boolean,
+    domainAnnotation?: boolean,
+    symmetryAnnotation?: boolean,
+    lowPrecisionCoords?: boolean,
+    landscape?: boolean,
+    reactive?: boolean,
+    expanded?: boolean,
+    hideControls?: boolean,
+    hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
+    subscribeEvents?: boolean,
+    pdbeLink?: boolean,
+    assemblyId?: string,
+    selectInteraction?: boolean,
+    sequencePanel?: boolean,
+    ligandView?: LigandQueryParam,
+    defaultPreset?: 'default' | 'unitcell' | 'all-models' | 'supercell',
+    bgColor?: ColorParams,
+    customData?: { url: string, format: string, binary: boolean },
+    loadCartoonsOnly?: boolean,
+    alphafoldView?: boolean,
+    selectBindings?: any,
+    focusBindings?: any,
+    lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
+    selectColor?: ColorParams,
+    highlightColor?: ColorParams,
+    superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean, superposeAll?: boolean, ligandColor?: ColorParams },
+    hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'],
+    visualStyle?: 'cartoon' | 'ball-and-stick',
+    encoding: 'cif' | 'bcif'
+    granularity?: Loci.Granularity,
+    selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean },
+    mapSettings: any,
     /** Show overlay with PDBe logo while the initial structure is being loaded */
     loadingOverlay: boolean,
-    [key: string]: any;
+    // [key: string]: any;
 }
 
 export const DefaultParams: InitParams = {
@@ -112,4 +143,4 @@ export const DefaultParams: InitParams = {
     alphafoldView: false,
     sequencePanel: false,
     loadingOverlay: false,
-};
+} as const;

@@ -9,6 +9,7 @@ import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
 import { debounceTime } from 'rxjs/operators';
 import { Subject } from 'rxjs';
+import { PluginCustomState } from '../helpers';
 
 interface StructureComponentControlState extends CollapsableState {
     isDisabled: boolean
@@ -94,7 +95,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
     }
 
     componentDidUpdate() {
-        const customState: any = this.plugin.customState;
+        const customState = PluginCustomState(this.plugin);
         if (customState.events && !this.state.segmentWatch) {
             this.setState({ segmentWatch: true });
             this.subscribe(customState.events.segmentUpdate, () => {
@@ -109,7 +110,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
     categoriseGroups() {
         const componentGroupsVal: ComponentGroups = { nonLigGroups: [], ligGroups: [], carbGroups: [], alphafold: [] };
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-        const customState: any = this.plugin.customState;
+        const customState = PluginCustomState(this.plugin);
         componentGroups.forEach((g: StructureComponentRef[]) => {
             let isLigandView = false;
             if (customState.initParams && customState.initParams.superpositionParams && customState.initParams.superpositionParams.ligandView) {
@@ -149,8 +150,8 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         e.preventDefault();
         e.currentTarget.blur();
 
-        const customState: any = this.plugin.customState;
-        customState.events.isBusy.next(true);
+        const customState = PluginCustomState(this.plugin);
+        customState.events?.isBusy.next(true);
 
         const visualEntites = (type === 'ligands') ? this.state.ligGroups : this.state.carbGroups;
 
@@ -158,7 +159,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
             for await (const visualEntity of visualEntites) {
                 this.plugin.managers.structure.hierarchy.toggleVisibility(visualEntity, action);
             };
-            customState.events.isBusy.next(false);
+            customState.events?.isBusy.next(false);
         });
 
     };
@@ -301,7 +302,7 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
             this.setState({ isBusy: v });
         });
 
-        this.subscribe((this.plugin.customState as any).events.isBusy, (e: boolean) => {
+        this.subscribe(PluginCustomState(this.plugin).events!.isBusy, (e: boolean) => {
             this.setState({ isBusy: e });
         });
     }
@@ -312,7 +313,7 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
         this.plugin.managers.structure.component.toggleVisibility(this.props.group);
         this.setState({ isHidden: !this.state.isHidden });
         if (this.props.type === 'alphafold') {
-            const spState: any = (this.plugin.customState as any).superpositionState;
+            const spState = PluginCustomState(this.plugin).superpositionState;
             spState.alphafold.visibility[spState.activeSegment - 1] = this.state.isHidden;
         }
     };
@@ -394,7 +395,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         this.subscribe(this.plugin.behaviors.state.isBusy, v => {
             this.setState({ isBusy: v });
         });
-        this.subscribe((this.plugin.customState as any).events.isBusy, (e: boolean) => {
+        this.subscribe(PluginCustomState(this.plugin).events!.isBusy, (e: boolean) => {
             this.setState({ isBusy: e });
         });
     }
@@ -405,7 +406,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         const index = components[0].representations.indexOf(pivot);
         if (index < 0) return Promise.resolve();
 
-        const superpositionState: any = (this.plugin.customState as any).superpositionState;
+        const superpositionState = PluginCustomState(this.plugin).superpositionState;
         let filteredComps: any = [];
         if (this.state.clusterVal.cluster !== 'All') {
             const clusterData = superpositionState.segmentData[superpositionState.activeSegment - 1].clusters[parseInt(this.state.clusterVal.cluster) - 1];
@@ -454,7 +455,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
     render() {
         const repr = this.props.representation.cell;
 
-        const superpositionState: any = (this.plugin.customState as any).superpositionState;
+        const superpositionState = PluginCustomState(this.plugin).superpositionState;
         const clusterSelectArr: any = [['All', 'All']];
         superpositionState.segmentData[superpositionState.activeSegment - 1].clusters.forEach((c: any, i: number) => {
             clusterSelectArr.push([(i + 1) + '', (i + 1) + '']);

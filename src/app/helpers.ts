@@ -1,18 +1,17 @@
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import { StateSelection } from 'Molstar/mol-state';
-import Expression from 'Molstar/mol-script/language/expression';
-import { StructureSelection, QueryContext, StructureProperties } from 'Molstar/mol-model/structure';
+import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
+import { Model, Queries, QueryContext, ResidueIndex, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
+import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { PluginContext } from 'Molstar/mol-plugin/context';
+import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
+import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
-import { Model, ResidueIndex } from 'Molstar/mol-model/structure';
-import { Queries } from 'Molstar/mol-model/structure';
+import { StateSelection } from 'Molstar/mol-state';
+import { Task } from 'Molstar/mol-task';
+import { Subject } from 'rxjs';
 import { SIFTSMapping } from './sifts-mapping';
-import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
-import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
-import { Task } from 'molstar/lib/mol-task';
 import { DefaultParams, InitParams } from './spec';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -375,4 +374,30 @@ export function getStructureUrl(initParams: InitParams, request: ModelServerRequ
         const url = `${pdbeUrl}/model-server/v1/${request.pdbId}/${request.queryType}`;
         return (queryString !== '') ? `${url}?${queryString}` : url;
     }
+}
+
+
+export interface PluginCustomState {
+    initParams?: InitParams,
+    events?: {
+        segmentUpdate: Subject<boolean>,
+        superpositionInit: Subject<boolean>,
+        isBusy: Subject<boolean>,
+    },
+    superpositionState?: any, // TODO try to find type
+    superpositionError?: string,
+}
+/** Access `plugin.customState` only through this function to get proper typing.
+ * Supports getting and setting properties. */
+export function PluginCustomState(plugin: PluginContext): PluginCustomState {
+    return (plugin.customState as any) ??= {};
+}
+
+/** Create a copy of object `object`, fill in missing/undefined keys using `defaults` */
+export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaults: T): T {
+    const result: Partial<T> = { ...object };
+    for (const key in defaults) {
+        result[key] ??= defaults[key];
+    }
+    return result as T;
 }

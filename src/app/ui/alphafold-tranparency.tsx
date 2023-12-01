@@ -3,6 +3,7 @@ import { SuperpositionSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
 import { applyAFTransparency, clearStructureTransparency } from '../alphafold-transparency';
+import { PluginCustomState } from '../helpers';
 
 
 const TransparencyParams = {
@@ -27,7 +28,7 @@ export class AlphafoldTransparencyControls extends CollapsableControls<{}, { tra
 
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, sel => {
-            const superpositionState: any = (this.plugin.customState as any).superpositionState;
+            const superpositionState = PluginCustomState(this.plugin).superpositionState;
             if (superpositionState && superpositionState.alphafold.ref && superpositionState.alphafold.ref !== '') {
                 this.setState({ isHidden: false });
             }
@@ -36,7 +37,7 @@ export class AlphafoldTransparencyControls extends CollapsableControls<{}, { tra
 
     updateTransparency = async (val: any) => {
         this.setState({ transpareny: val });
-        const superpositionState: any = (this.plugin.customState as any).superpositionState;
+        const superpositionState = PluginCustomState(this.plugin).superpositionState;
         const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(superpositionState.alphafold.ref!);
         await clearStructureTransparency(this.plugin, afStr.components);
         await applyAFTransparency(this.plugin, afStr, 1 - val.opacity, val.score);

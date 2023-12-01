@@ -6,6 +6,7 @@ import { getFormattedTime } from 'Molstar/mol-util/date';
 import { download } from 'Molstar/mol-util/download';
 import { zip } from 'Molstar/mol-util/zip/zip';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { PluginCustomState } from './helpers';
 
 export async function superpositionExportHierarchy(plugin: PluginContext, options?: { format?: 'cif' | 'bcif' }) {
     try {
@@ -22,14 +23,15 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
 
         const format = options?.format ?? 'cif';
         //  const { structures } = plugin.managers.structure.hierarchy.current;
-        const customState = plugin.customState as any;
+        const customState = PluginCustomState(plugin);
         const superpositionState = customState.superpositionState;
 
         const segmentIndex = superpositionState.activeSegment - 1;
         const files: [name: string, data: string | Uint8Array][] = [];
         const entryMap = new Map<string, number>();
         const structures = superpositionState.loadedStructs[segmentIndex].slice();
-        if (superpositionState.alphafold.ref) structures.push(`AF-${customState.initParams.moleculeId}`);
+        if (!customState.initParams!.moleculeId) throw new Error('initParams.moleculeId is not defined');
+        if (superpositionState.alphafold.ref) structures.push(`AF-${customState.initParams!.moleculeId}`);
         for (const molId of structures) {
             const modelRef = superpositionState.models[molId];
             if (!modelRef) continue;

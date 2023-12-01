@@ -7,9 +7,9 @@ import { ArrowDropDownSvg, ArrowRightSvg, Icon } from 'Molstar/mol-plugin-ui/con
 import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
 import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
-import { InitParams } from '../spec';
 import { AnnotationRowControls } from './annotation-row-controls';
 import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } from './symmetry-annotation-controls';
+import { PluginCustomState } from '../helpers';
 
 
 const _TextsmsOutlined = <svg width='24px' height='24px' viewBox='0 0 24 24'><path fill="none" d="M0 0h24v24H0V0z" /><g><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" /><path d="M7 9h2v2H7zM11 9h2v2h-2zM15 9h2v2h-2z" /></g></svg>;
@@ -53,7 +53,7 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
     }
 
     initOptionParams = () => {
-        const initParams: InitParams | undefined = (this.plugin.customState as any)?.initParams; // TODO define getters/setters for manipulating custom state?
+        const initParams = PluginCustomState(this.plugin).initParams;
         const validationAnnotationCtrl = !!initParams?.validationAnnotation;
         const domainAnnotationCtrl = !!initParams?.domainAnnotation;
         const symmetryAnnotationCtrl = !!initParams?.symmetryAnnotation && isAssemblySymmetryAnnotationApplicable(this.plugin);
