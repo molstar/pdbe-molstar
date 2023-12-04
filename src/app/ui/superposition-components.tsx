@@ -9,7 +9,7 @@ import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
 import { debounceTime } from 'rxjs/operators';
 import { Subject } from 'rxjs';
-import { PluginCustomState } from '../helpers';
+import { PluginCustomState } from '../plugin-custom-state';
 
 interface StructureComponentControlState extends CollapsableState {
     isDisabled: boolean
@@ -60,7 +60,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         isBusy: false
     };
 
-    private ligInputStream = new Subject();
+    private ligInputStream = new Subject<string>();
     private handleLigInputStream = (inputStr: string) => {
         this.setState({ ligSearchText: inputStr });
         const filteredRes = this.state.componentGroups.ligGroups.filter((g: StructureComponentRef[]) => {
@@ -71,7 +71,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         this.setState({ ligGroups: filteredRes });
     };
 
-    private carbInputStream = new Subject();
+    private carbInputStream = new Subject<string>();
     private handleCarbInputStream = (inputStr: string) => {
         this.setState({ carbSearchText: inputStr });
         const filteredRes = this.state.componentGroups.carbGroups.filter((g: StructureComponentRef[]) => {
@@ -103,8 +103,8 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 this.forceUpdate();
             });
         }
-        this.subscribe(this.ligInputStream.pipe(debounceTime(1000 / 24)), (e: any) => this.handleLigInputStream(e));
-        this.subscribe(this.carbInputStream.pipe(debounceTime(1000 / 24)), (e: any) => this.handleCarbInputStream(e));
+        this.subscribe(this.ligInputStream.pipe(debounceTime(1000 / 24)), e => this.handleLigInputStream(e));
+        this.subscribe(this.carbInputStream.pipe(debounceTime(1000 / 24)), e => this.handleCarbInputStream(e));
     }
 
     categoriseGroups() {

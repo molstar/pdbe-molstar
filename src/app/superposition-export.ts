@@ -6,7 +6,8 @@ import { getFormattedTime } from 'Molstar/mol-util/date';
 import { download } from 'Molstar/mol-util/download';
 import { zip } from 'Molstar/mol-util/zip/zip';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { PluginCustomState } from './helpers';
+import { PluginCustomState } from './plugin-custom-state';
+
 
 export async function superpositionExportHierarchy(plugin: PluginContext, options?: { format?: 'cif' | 'bcif' }) {
     try {
@@ -27,7 +28,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
         if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
         if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
         const superpositionState = customState.superpositionState;
-        
+
         const segmentIndex = superpositionState.activeSegment - 1;
         const files: [name: string, data: string | Uint8Array][] = [];
         const entryMap = new Map<string, number>();

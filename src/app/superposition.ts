@@ -14,25 +14,10 @@ import { Color } from 'Molstar/mol-util/color/color';
 import { ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
-import { ModelInfo, ModelServerRequest, PluginCustomState, getStructureUrl } from './helpers';
+import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
+import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
-
-export interface ClusterRec {
-    pdb_id: string,
-    auth_asym_id: string,
-    struct_asym_id: string,
-    entity_id: string | number, // TODO simplify typing (string or number) (`ClusterRec.entity_id` had string but `Cluster.entity_id` had number! (API serves number lol))
-    is_representative: boolean,
-}
-// TODO try merge this with `Cluster`
-// TODO shouldn't `Cluster` be called `ClusterMember`?
-
-
-export interface SuperpositionData {
-    data: ClusterRec[],
-    matrix: Mat4[],
-};
 
 function getRandomColor(plugin: PluginContext, segmentIndex: number) {
     const clList: any = ColorLists;
@@ -117,9 +102,9 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         customState.events?.superpositionInit.next(true);
 
         // Get entry list to load matrix data
-        let entryList: ClusterRec[] = [];
+        let entryList: ClusterMember[] = [];
         const clusters = segmentData[segmentIndex].clusters;
-        clusters.forEach((cluster: ClusterRec[], clusterIndex: number) => {
+        clusters.forEach((cluster: ClusterMember[], clusterIndex: number) => {
             // Validate for cluster index if provided in superPositionParams
             if (clusterIndexs && clusterIndexs.indexOf(clusterIndex) === -1) return;
 
@@ -276,7 +261,7 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
 
 }
 
-export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterRec[]) {
+export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterMember[]) {
     const customState = PluginCustomState(plugin);
     const superpositionParams = customState.initParams!.superpositionParams;
     let busyFlagOn = false;

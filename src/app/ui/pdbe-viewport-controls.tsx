@@ -1,11 +1,12 @@
-import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { ControlGroup } from 'Molstar/mol-plugin-ui/controls/common';
+import { AutorenewSvg, BuildOutlinedSvg, CameraOutlinedSvg, CloseSvg, FullscreenSvg, TuneSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { ToggleSelectionModeButton } from 'Molstar/mol-plugin-ui/structure/selection';
-import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
-import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
-import { AutorenewSvg, CameraOutlinedSvg, BuildOutlinedSvg, FullscreenSvg, TuneSvg, CloseSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { PluginCustomState } from '../helpers';
+import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
+import { PluginConfig } from 'Molstar/mol-plugin/config';
+import { PluginCustomState } from '../plugin-custom-state';
+import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
+
 
 export class PDBeViewportControls extends ViewportControls {
     isBlack(customeState: any): boolean {

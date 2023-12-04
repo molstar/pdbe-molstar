@@ -34,7 +34,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, PluginCustomState, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -47,6 +47,7 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
+import { PluginCustomState } from './plugin-custom-state';
 
 class PDBeMolstarPlugin {
 

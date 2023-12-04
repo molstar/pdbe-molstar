@@ -1,9 +1,9 @@
 import { CollapsableControls } from 'Molstar/mol-plugin-ui/base';
 import { SuperpositionSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
+import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { applyAFTransparency, clearStructureTransparency } from '../alphafold-transparency';
-import { PluginCustomState } from '../helpers';
+import { PluginCustomState } from '../plugin-custom-state';
 
 
 const TransparencyParams = {

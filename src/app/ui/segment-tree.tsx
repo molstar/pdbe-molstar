@@ -1,30 +1,26 @@
-import * as React from 'react';
-import { debounceTime, filter } from 'rxjs/operators';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { State } from 'Molstar/mol-state';
-import { PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { Button, IconButton, ExpandGroup, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { StateSelection, StateObjectRef } from 'Molstar/mol-state';
-import { renderSuperposition } from '../superposition';
-import { UpdateTransformControl } from 'Molstar/mol-plugin-ui/state/update-transform';
-import { ActionMenu } from 'Molstar/mol-plugin-ui/controls/action-menu';
-import { VisibilityOutlinedSvg, VisibilityOffOutlinedSvg, ArrowDropDownSvg, ArrowRightSvg, CheckSvg, CloseSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { StructureComponentRef, StructureRepresentationRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { ColorLists } from 'Molstar/mol-util/color/lists';
-import { Color } from 'Molstar/mol-util/color';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import { Subject } from 'rxjs';
-import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { Mat4 } from 'Molstar/mol-math/linear-algebra';
+import { StructureComponentRef, StructureRepresentationRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
+import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { superposeAf } from '../superposition';
-import { PluginCustomState } from '../helpers';
+import { PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { ActionMenu } from 'Molstar/mol-plugin-ui/controls/action-menu';
+import { Button, ExpandGroup, IconButton, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
+import { ArrowDropDownSvg, ArrowRightSvg, CheckSvg, CloseSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
+import { UpdateTransformControl } from 'Molstar/mol-plugin-ui/state/update-transform';
+import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
+import { State, StateObjectRef, StateSelection } from 'Molstar/mol-state';
+import { Color } from 'Molstar/mol-util/color';
+import { ColorLists } from 'Molstar/mol-util/color/lists';
+import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import * as React from 'react';
+import { Subject } from 'rxjs';
+import { debounceTime, filter } from 'rxjs/operators';
+import { ClusterMember, PluginCustomState, Segment } from '../plugin-custom-state';
+import { renderSuperposition, superposeAf } from '../superposition';
 
 
-export interface Cluster { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
-export interface Segment { segment_start: number, segment_end: number, clusters: Cluster[][], isHetView?: boolean, isBinary?: boolean }; // TODO why types defined in UI file, move elsewhere
 const SuperpositionTag = 'SuperpositionTransform';
 
 export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBusy: boolean }> {
@@ -179,7 +175,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
                     entryList = cluster;
                 }
 
-                entryList.forEach((str: Cluster) => {
+                entryList.forEach((str: ClusterMember) => {
 
                     const structStateId = `${str.pdb_id}_${str.struct_asym_id}`;
                     const structRef = spState.models[structStateId];
