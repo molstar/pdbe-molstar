@@ -136,19 +136,19 @@
       // Create plugin instance
       var viewerInstance = new PDBeMolstarPlugin();
   
-      // // Set options (Checkout available options list in the documentation)
-      // var options = {
-      //   moleculeId: '1cbs',
-      //   // expanded: true,
-      //   // loadMaps: true,
-      //   // bgColor: {r:255, g:255, b:255},
-      //   // hideControls: true,
-      //   // domainAnnotation: true,
-      //   // validationAnnotation: true,
-      //   // symmetryAnnotation: true,
-      //   // subscribeEvents: true,
-      //   loadingOverlay: true,
-      // }
+      // Set options (Checkout available options list in the documentation)
+      var options = {
+        moleculeId: '1cbs',
+        // expanded: true,
+        // loadMaps: true,
+        // bgColor: {r:255, g:255, b:255},
+        // hideControls: true,
+        // domainAnnotation: true,
+        // validationAnnotation: true,
+        // symmetryAnnotation: true,
+        // subscribeEvents: true,
+        loadingOverlay: true,
+      };
 
       // // Ligand view 
       // var options = {
@@ -158,18 +158,18 @@
       //   expanded: false,
       //   hideControls: true,
       //   bgColor: {r:255, g:255, b:255},
-      // }
+      // };
 
-      // Superposition options (P08083, Q14676, Q5VSL9, P54646)
-      var options = {
-        moleculeId: 'P08684',
-        superposition: true,
-        expanded: true,
-        // hideControls: true,
-        bgColor: {r:255, g:255, b:255},
-        superpositionParams: { matrixAccession: 'P08684', segment:1, ligandView: true },
-        loadingOverlay: true,
-      }
+      // // Superposition options (P08083, Q14676, Q5VSL9, P54646)
+      // var options = {
+      //   moleculeId: 'P08684',
+      //   superposition: true,
+      //   expanded: true,
+      //   // hideControls: true,
+      //   bgColor: {r:255, g:255, b:255},
+      //   superpositionParams: { matrixAccession: 'P08684', segment:1, ligandView: false },
+      //   loadingOverlay: true,
+      // };
 
       // // AF
       // var options = {
@@ -181,7 +181,7 @@
       //   // hideControls: true,
       //   alphafoldView: true,
       //   hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
-      // }
+      // };
       
       // Get element from HTML/Template to place the viewer 
       var viewerContainer = document.getElementById('myViewer');

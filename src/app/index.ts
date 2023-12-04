@@ -223,7 +223,7 @@ class PDBeMolstarPlugin {
 
             // Collapse left panel and set left panel tab to none
             PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
-            this.plugin.behaviors.layout.leftPanelTabName.next('none' as any);
+            this.plugin.behaviors.layout.leftPanelTabName.next('none');
 
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();

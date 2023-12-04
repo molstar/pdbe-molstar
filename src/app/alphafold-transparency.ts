@@ -14,7 +14,7 @@ import { StructureSelection, QueryContext } from 'Molstar/mol-model/structure';
 type TransparencyEachReprCallback = (update: StateBuilder.Root, repr: StateObjectCell<PluginStateObject.Molecule.Structure.Representation3D, StateTransform<typeof StateTransforms.Representation.StructureRepresentation3D>>, transparency?: StateObjectCell<any, StateTransform<typeof StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle>>) => Promise<void>
 const TransparencyManagerTag = 'transparency-controls';
 
-function getLociByPLDDT(score: number, contextData: any) {
+function getLociByPLDDT(score: number, contextData: Structure) {
     const queryExp = MS.struct.modifier.union([
         MS.struct.modifier.wholeResidues([
             MS.struct.modifier.union([
@@ -34,7 +34,7 @@ function getLociByPLDDT(score: number, contextData: any) {
 
 export async function applyAFTransparency(plugin: PluginContext, structure: Readonly<StructureRef>, transparency: number, pLDDT = 70) {
     return plugin.dataTransaction(async ctx => {
-        const loci = getLociByPLDDT(pLDDT, structure.cell.obj?.data);
+        const loci = getLociByPLDDT(pLDDT, structure.cell.obj!.data);
         await setStructureTransparency(plugin, structure.components, transparency, loci);
     }, { canUndo: 'Apply Transparency' });
 }

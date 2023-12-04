@@ -1,5 +1,5 @@
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
-import { Model, Queries, QueryContext, ResidueIndex, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
+import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
@@ -64,7 +64,7 @@ export namespace PDBeVolumes {
 }
 
 export namespace AlphafoldView {
-    export function getLociByPLDDT(score: number, contextData: any) {
+    export function getLociByPLDDT(score: number, contextData: Structure) {
         const queryExp = MS.struct.modifier.union([
             MS.struct.modifier.wholeResidues([
                 MS.struct.modifier.union([
