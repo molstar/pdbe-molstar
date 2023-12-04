@@ -124,6 +124,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
 
     rmsdTable() {
         const spData = PluginCustomState(this.plugin).superpositionState;
+        if (!spData) throw new Error('customState.superpositionState has not been initialized');
         const { activeSegment } = spData;
         const { rmsds } = spData.alphafold;
         return <div className='msp-control-offset'>
@@ -148,6 +149,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
 
     renderControls() {
         const superpositionState = PluginCustomState(this.plugin).superpositionState;
+        if (!superpositionState) throw new Error('customState.superpositionState has not been initialized');
         return <>
             {superpositionState.alphafold.ref !== '' && this.rmsdTable()}
             {superpositionState.alphafold.ref === '' && <AfSuperpositionControls />}
@@ -196,6 +198,7 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
     superposeDb = async () => {
         this.setState({ isBusy: true });
         const spData = this.customState.superpositionState;
+        if (!spData) throw new Error('customState.superpositionState has not been initialized');
         spData.alphafold.traceOnly = this.state.options.traceOnly;
         superposeAf(this.plugin, this.state.options.traceOnly);
     };

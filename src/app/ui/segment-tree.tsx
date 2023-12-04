@@ -22,8 +22,9 @@ import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { superposeAf } from '../superposition';
 import { PluginCustomState } from '../helpers';
 
-type Cluster = { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
-type Segment = { segment_start: number, segment_end: number, clusters: Cluster[][], isHetView?: boolean, isBinary?: boolean };
+
+export interface Cluster { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
+export interface Segment { segment_start: number, segment_end: number, clusters: Cluster[][], isHetView?: boolean, isBinary?: boolean }; // TODO why types defined in UI file, move elsewhere
 const SuperpositionTag = 'SuperpositionTransform';
 
 export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBusy: boolean }> {
@@ -88,7 +89,9 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
 
     updateSegment = async (val: any) => {
         if (!this.state.segment) return;
+        if (!this.state.segment) return;
         const customState = this.customState;
+        if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
         customState.events?.isBusy.next(true);
 
         // Hide pervious segement structures
@@ -101,10 +104,10 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
 
         setTimeout(async () => {
             const updatedSegmentIndex = parseInt(val.segment.split(' ')[0]);
-            customState.superpositionState.activeSegment = updatedSegmentIndex;
+            customState.superpositionState!.activeSegment = updatedSegmentIndex;
 
             // Display current segment visible structures
-            await this.displayStructures(customState.superpositionState.activeSegment - 1);
+            await this.displayStructures(customState.superpositionState!.activeSegment - 1);
             customState.events?.isBusy.next(false);
             customState.events?.segmentUpdate.next(true);
         }, 100);
@@ -134,6 +137,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
 
         // hide structures
         const customState = this.customState;
+        if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
         customState.superpositionState.visibleRefs[segmentIndex] = [];
         for (const struct of customState.superpositionState.loadedStructs[segmentIndex]) {
             const structRef = customState.superpositionState.models[struct];
@@ -165,9 +169,10 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
     displayStructures = async (segmentIndex: number) => {
         const customState = this.customState;
         const spState = customState.superpositionState;
-        if (customState.superpositionState.visibleRefs[segmentIndex].length === 0) {
+        if (!spState) throw new Error('customState.superpositionState has not been initialized');
+        if (spState.visibleRefs[segmentIndex].length === 0) {
             const loadStrs: any = [];
-            customState.superpositionState.segmentData[segmentIndex].clusters.forEach((cluster: any) => {
+            spState.segmentData?.[segmentIndex].clusters.forEach(cluster => {
 
                 let entryList = [cluster[0]];
                 if (customState.initParams?.superpositionParams?.superposeAll) {
@@ -177,7 +182,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
                 entryList.forEach((str: Cluster) => {
 
                     const structStateId = `${str.pdb_id}_${str.struct_asym_id}`;
-                    const structRef = customState.superpositionState.models[structStateId];
+                    const structRef = spState.models[structStateId];
                     if (structRef) {
                         const cell = this.plugin.state.data.cells.get(structRef)!;
                         const isHidden = cell.state.isHidden ? true : false;
@@ -198,7 +203,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
             }
 
         } else {
-            for (const ref of customState.superpositionState.visibleRefs[segmentIndex]) {
+            for (const ref of spState.visibleRefs[segmentIndex]) {
                 const cell = this.plugin.state.data.cells.get(ref)!;
                 if (cell && cell.state.isHidden) {
                     PluginCommands.State.ToggleVisibility(this.plugin, { state: cell.parent!, ref });
@@ -213,7 +218,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
         }
 
         if (spState.alphafold.ref && spState.alphafold.visibility[segmentIndex]) {
-            const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(customState.superpositionState.alphafold.ref);
+            const afStr: any = this.plugin.managers.structure.hierarchy.current.refs.get(spState.alphafold.ref);
             if (afStr && afStr.components) {
                 for (const c of afStr.components) {
                     if (c && c.cell && c.cell.state.isHidden) {
@@ -273,6 +278,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
 
         if (this.state) {
             const segmentIndex = parseInt(this.state.segment.value.segment.split(' ')[0]) - 1;
+            if (!customState.superpositionState?.segmentData) throw new Error('customState.superpositionState.segmentData has not been initialized');
             const segmentData: Segment[] = customState.superpositionState.segmentData;
             const fullSegmentRange = `( ${segmentData[0].segment_start} - ${segmentData[segmentData.length - 1].segment_end} )`;
             sectionHeader = <SectionHeader title={`Structure clusters ${customState.initParams!.moleculeId}`} desc={fullSegmentRange} />;
@@ -519,8 +525,9 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
         if (e.ref === this.ref || isRelated) {
             return true;
         } else {
-            const invalidStruct = (this.customState.superpositionState.invalidStruct.indexOf(`${this.props.structure.pdb_id}_${this.props.structure.struct_asym_id}`) > -1) ? true : false;
-            return invalidStruct ? true : false;
+            const id = `${this.props.structure.pdb_id}_${this.props.structure.struct_asym_id}`;
+            const invalidStruct = this.customState.superpositionState?.invalidStruct.includes(id) ?? false;
+            return invalidStruct;
         }
     }
 
@@ -574,6 +581,7 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
     getRandomColor() {
         const clList: any = ColorLists;
         const spState = PluginCustomState(this.plugin).superpositionState;
+        if (!spState) throw new Error('customState.superpositionState has not been initialized');
         let palleteIndex = spState.colorState[this.props.segmentIndex].palleteIndex;
         let colorIndex = spState.colorState[this.props.segmentIndex].colorIndex;
         if (clList[spState.colorPalette[palleteIndex]].list[colorIndex + 1]) {
@@ -583,14 +591,14 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
             palleteIndex = spState.colorPalette[palleteIndex + 1] ? palleteIndex + 1 : 0;
         }
         const palleteName = spState.colorPalette[palleteIndex];
-        PluginCustomState(this.plugin).superpositionState.colorState[this.props.segmentIndex].palleteIndex = palleteIndex;
-        PluginCustomState(this.plugin).superpositionState.colorState[this.props.segmentIndex].colorIndex = colorIndex;
+        spState.colorState[this.props.segmentIndex].palleteIndex = palleteIndex;
+        spState.colorState[this.props.segmentIndex].colorIndex = colorIndex;
         return clList[palleteName].list[colorIndex];
     }
 
     async addChainRepr() {
         const uniformColor1 = this.getRandomColor();
-        const strInstance = this.plugin.state.data.select(this.ref)[0];
+        const strInstance = this.plugin.state.data.select(this.ref!)[0];
         const query = MS.struct.generator.atomGroups({
             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), this.props.structure.struct_asym_id])
         });
@@ -656,6 +664,7 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
     };
 
     getSubtitle() {
+        if (!this.customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
         const hetList = this.customState.superpositionState.hets[`${this.props.structure.pdb_id}_${this.props.structure.struct_asym_id}`];
         let subtitle: string | undefined;
         if (hetList) {
@@ -703,8 +712,8 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
     render() {
         const superpositionParams = this.customState.initParams!.superpositionParams;
         const strutStateId = `${this.props.structure.pdb_id}_${this.props.structure.struct_asym_id}`;
-        const invalidStruct = (this.customState.superpositionState.invalidStruct.indexOf(strutStateId) > -1) ? true : false;
-        const noMatrixStruct = (this.customState.superpositionState.noMatrixStruct.indexOf(strutStateId) > -1) ? true : false;
+        const invalidStruct = this.customState.superpositionState?.invalidStruct.includes(strutStateId);
+        const noMatrixStruct = this.customState.superpositionState?.noMatrixStruct.includes(strutStateId);
         const subTitle = invalidStruct ? noMatrixStruct ? ` Matrix not available!` : ` No Ligand found!` : this.getSubtitle();
 
         let strTitle = `${this.props.structure.pdb_id} chain ${this.props.structure.auth_asym_id}`;

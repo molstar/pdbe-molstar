@@ -8,11 +8,14 @@ import { PluginContext } from 'Molstar/mol-plugin/context';
 import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
-import { StateSelection } from 'Molstar/mol-state';
+import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Subject } from 'rxjs';
 import { SIFTSMapping } from './sifts-mapping';
 import { DefaultParams, InitParams } from './spec';
+import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
+import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
+import { Segment } from './ui/segment-tree';
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
@@ -377,6 +380,7 @@ export function getStructureUrl(initParams: InitParams, request: ModelServerRequ
 }
 
 
+// Move to a separate file */
 export interface PluginCustomState {
     initParams?: InitParams,
     events?: {
@@ -384,7 +388,47 @@ export interface PluginCustomState {
         superpositionInit: Subject<boolean>,
         isBusy: Subject<boolean>,
     },
-    superpositionState?: any, // TODO try to find type
+    superpositionState?: {
+        // activeSegment?: any,
+        // loadedStructs?: any,
+        // alphafold?: any,
+        // models?: any,
+        // matrixData?: any,
+        // invalidStruct?: any,
+        // noMatrixStruct?: any,
+        // segmentData?: any,
+        // colorState?: any,
+        // colorPalette?: any,
+
+        models: { [molId: string]: string },
+        entries: { [pdbId: string]: StateSelection.Selector },
+        refMaps: { [ref: string]: string },
+        segmentData: Segment[] | undefined,
+        matrixData: { [key: string]: { matrix: number[][] } },
+        activeSegment: number,
+        loadedStructs: string[][],
+        visibleRefs: StateTransform.Ref[][],
+        invalidStruct: string[],
+        noMatrixStruct: string[],
+        hets: { [key: string]: unknown[] },
+        colorPalette: ['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow'],
+        colorState: { palleteIndex: number, colorIndex: number }[],
+        alphafold: {
+            apiData: {
+                cif: string,
+                pae: string,
+                length: number,
+            },
+            length: number,
+            ref: string,
+            traceOnly: boolean,
+            visibility: boolean[],
+            transforms: Mat4[],
+            rmsds: string[][],
+            coordinateSystems: (SymmetryOperator | undefined)[]
+        }
+
+    }, // TODO try to find types
     superpositionError?: string,
 }
 /** Access `plugin.customState` only through this function to get proper typing.

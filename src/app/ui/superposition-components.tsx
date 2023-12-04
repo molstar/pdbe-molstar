@@ -112,6 +112,8 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
         const customState = PluginCustomState(this.plugin);
         componentGroups.forEach((g: StructureComponentRef[]) => {
+            const superpositionState = customState.superpositionState;
+            if (!superpositionState) throw new Error('customState.superpositionState has not been initialized');
             let isLigandView = false;
             if (customState.initParams && customState.initParams.superpositionParams && customState.initParams.superpositionParams.ligandView) {
                 isLigandView = true;
@@ -121,7 +123,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 const gKeys = g[0].key!.split(',');
                 const cId1Arr = gKeys[0].split('-');
                 if (gKeys.indexOf('superposition-focus-surr-sel') === -1) {
-                    if (cId1Arr[cId1Arr.length - 1] !== (customState.superpositionState.activeSegment - 1) + '') return;
+                    if (cId1Arr[cId1Arr.length - 1] !== (superpositionState.activeSegment - 1) + '') return;
                     if (gKeys.indexOf('superposition-ligand-sel') >= 0) {
                         componentGroupsVal.ligGroups.push(g);
                     } else if (gKeys.indexOf('superposition-carb-sel') >= 0) {
@@ -136,7 +138,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
                 }
             } else {
                 const gKeys = g[0].key!.split(',');
-                if (gKeys.indexOf('superposition-focus-surr-sel') >= 0 || gKeys.indexOf(`Chain-${customState.superpositionState.activeSegment - 1}`) >= 0) {
+                if (gKeys.indexOf('superposition-focus-surr-sel') >= 0 || gKeys.indexOf(`Chain-${superpositionState.activeSegment - 1}`) >= 0) {
                     componentGroupsVal.nonLigGroups.push(g);
                 } else if (gKeys.indexOf('alphafold-chain') >= 0) {
                     componentGroupsVal.alphafold.push(g);
@@ -314,6 +316,7 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
         this.setState({ isHidden: !this.state.isHidden });
         if (this.props.type === 'alphafold') {
             const spState = PluginCustomState(this.plugin).superpositionState;
+            if (!spState) throw new Error('customState.superpositionState has not been initialized');
             spState.alphafold.visibility[spState.activeSegment - 1] = this.state.isHidden;
         }
     };
@@ -407,8 +410,10 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         if (index < 0) return Promise.resolve();
 
         const superpositionState = PluginCustomState(this.plugin).superpositionState;
+        if (!superpositionState) throw new Error('customState.superpositionState has not been initialized');
         let filteredComps: any = [];
         if (this.state.clusterVal.cluster !== 'All') {
+            if (!superpositionState.segmentData) throw new Error('customState.superpositionState.segmentData has not been initialized');
             const clusterData = superpositionState.segmentData[superpositionState.activeSegment - 1].clusters[parseInt(this.state.clusterVal.cluster) - 1];
 
             filteredComps = clusterData.map((s: any) => {
@@ -457,6 +462,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
 
         const superpositionState = PluginCustomState(this.plugin).superpositionState;
         const clusterSelectArr: any = [['All', 'All']];
+        if (!superpositionState?.segmentData) throw new Error('customState.superpositionState.segmentData has not been initialized');
         superpositionState.segmentData[superpositionState.activeSegment - 1].clusters.forEach((c: any, i: number) => {
             clusterSelectArr.push([(i + 1) + '', (i + 1) + '']);
         });
