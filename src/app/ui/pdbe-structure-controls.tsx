@@ -8,11 +8,14 @@ import { Icon, BuildSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { SuperpositionComponentControls } from './superposition-components';
 import { StructureQuickStylesControls } from 'Molstar/mol-plugin-ui/structure/quick-styles';
 import { AlphafoldPaeControls, AlphafoldSuperpositionControls } from './alphafold-superposition';
-import { SuperpositionModelExportUI } from './export-superposition'
+import { SuperpositionModelExportUI } from './export-superposition';
 import { AlphafoldTransparencyControls } from './alphafold-tranparency';
+import { AssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
+
 
 export class PDBeStructureTools extends PluginUIComponent {
     render() {
+        const AssemblySymmetryKey = AssemblySymmetry.Tag.Representation;
         return <>
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
 
@@ -23,22 +26,26 @@ export class PDBeStructureTools extends PluginUIComponent {
             <VolumeStreamingControls />
             <VolumeSourceControls />
             <StructureMeasurementsControls />
-            <CustomStructureControls />
+            <CustomStructureControls skipKeys={[AssemblySymmetryKey]} />
         </>;
     }
 }
 
-export class CustomStructureControls extends PluginUIComponent<{ initiallyCollapsed?: boolean }> {
+export class CustomStructureControls extends PluginUIComponent<{ initiallyCollapsed?: boolean, takeKeys?: string[], skipKeys?: string[] }> {
     componentDidMount() {
         this.subscribe(this.plugin.state.behaviors.events.changed, () => this.forceUpdate());
     }
 
     render() {
-        const controls: JSX.Element[] = [];
-        this.plugin.customStructureControls.forEach((Controls, key) => {
-            controls.push(<Controls initiallyCollapsed={this.props.initiallyCollapsed} key={key} />);
-        });
-        return controls.length > 0 ? <>{controls}</> : null;
+        const takeKeys = this.props.takeKeys ?? Array.from(this.plugin.customStructureControls.keys());
+        const result: JSX.Element[] = [];
+        for (const key of takeKeys) {
+            if (this.props.skipKeys?.includes(key)) continue;
+            const Controls = this.plugin.customStructureControls.get(key);
+            if (!Controls) continue;
+            result.push(<Controls initiallyCollapsed={this.props.initiallyCollapsed} key={key} />);
+        }
+        return result.length > 0 ? <>{result}</> : null;
     }
 }
 
@@ -61,7 +68,7 @@ export class PDBeSuperpositionStructureTools extends PluginUIComponent {
             <SuperpositionComponentControls />
             <AlphafoldTransparencyControls />
             <AlphafoldPaeControls />
-            <AlphafoldSuperpositionControls/>
+            <AlphafoldSuperpositionControls />
             <StructureMeasurementsControls />
             <SuperpositionModelExportUI />
             <CustomStructureControls />

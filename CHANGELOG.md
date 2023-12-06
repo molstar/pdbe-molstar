@@ -1,6 +1,18 @@
 # Change Log
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
+## [Unreleased]
+
+## [v3.1.3]
+- Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
+- Keep sequence panel in settings even when initially hidden
+- Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
+- Fixed coloring after annotation is switched off (revert to `chain-id`, not `polymer-id`)
+- Loading overlay with animated PDBe logo (requires initParam `loadingOverlay`)
+- Use linting to keep code nice
+- Correctly handle numeric value 0 in selections
+- Fetch structures from static files when possible, instead of using ModelServer
+
 ## [v3.1.2]
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue
 - Split Webpack config file into separate files for Production and Development

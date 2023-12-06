@@ -4,6 +4,7 @@ import { Loci } from 'Molstar/mol-model/loci';
 import { StructureElement, StructureProperties } from 'Molstar/mol-model/structure';
 import { lociLabel } from 'Molstar/mol-theme/label';
 import { LociLabel } from 'Molstar/mol-plugin-state/manager/loci-label';
+import { PluginCustomState } from './plugin-custom-state';
 
 export const PDBeLociLabelProvider = PluginBehavior.create({
     name: 'pdbe-loci-label-provider',
@@ -11,9 +12,7 @@ export const PDBeLociLabelProvider = PluginBehavior.create({
     ctor: class implements PluginBehavior<undefined> {
         private f = {
             label: (loci: Loci) => {
-                
-                const customState = (this.ctx.customState) as any;
-                const superpositionView = (customState && customState.initParams.superposition) ? true : false;
+                const superpositionView = PluginCustomState(this.ctx).initParams!.superposition;
 
                 const label: string[] = [];
                 if (!superpositionView && StructureElement.Loci.is(loci) && loci.elements.length === 1) {

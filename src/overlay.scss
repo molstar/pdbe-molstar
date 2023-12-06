@@ -1,0 +1,43 @@
+.pdbemolstar-overlay {
+    z-index: 1000;
+    position: fixed;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+}
+
+.pdbemolstar-overlay-box {
+    width: 25%;
+    height: 25%;
+}
+
+svg.pdbe-animated-logo {
+    background-color: transparent;
+    width: 100%;
+    height: 100%;
+    opacity: 80%;
+
+    .path-fg {
+        stroke-dasharray: 1812 250;
+        stroke-dashoffset: -250;
+        animation: dash linear normal infinite;
+        animation-duration: 5s;
+        animation-delay: 1s;
+    }
+    @keyframes dash {
+        0% {
+            stroke-dashoffset: 1812;
+        }
+        80% {
+            stroke-dashoffset: -250;
+        }
+        100% {
+            stroke-dashoffset: -250;
+        }
+    }
+}

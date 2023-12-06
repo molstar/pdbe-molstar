@@ -19,10 +19,12 @@
         "lib": [ "es6", "dom", "esnext.asynciterable", "es2016" ],
         "rootDir": "src/app",
         "outDir": "lib",
+        "composite": true, // required if we want to set "tsBuildInfoFile"
+        "tsBuildInfoFile": "tsconfig.tsbuildinfo", // default setting would place this file out of the repo directory
         "baseUrl": "./",
         "paths": {
             "Molstar/*" : ["node_modules/molstar/lib/*"]
         }
     },
-    "include": ["src/app/*", "src/app/ui/*"]
+    "include": ["src/app"]
 }

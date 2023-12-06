@@ -1,18 +1,19 @@
-import * as React from 'react';
 import { Canvas3DParams } from 'Molstar/mol-canvas3d/canvas3d';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { StateTransform } from 'Molstar/mol-state';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
 import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { IconButton, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
+import { AccountTreeOutlinedSvg, DeleteOutlinedSvg, HelpOutlineSvg, HomeOutlinedSvg, TuneSvg } from 'Molstar/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
 import { StateObjectActions } from 'Molstar/mol-plugin-ui/state/actions';
 import { RemoteStateSnapshots, StateSnapshots } from 'Molstar/mol-plugin-ui/state/snapshots';
 import { StateTree } from 'Molstar/mol-plugin-ui/state/tree';
-import { HelpContent } from 'Molstar/mol-plugin-ui/viewport/help';
+import { HelpContent, HelpGroup, HelpText } from 'Molstar/mol-plugin-ui/viewport/help';
+import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { StateTransform } from 'Molstar/mol-state';
+import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import * as React from 'react';
+import { PluginCustomState } from '../plugin-custom-state';
 import { SegmentTree } from './segment-tree';
-import { HomeOutlinedSvg, AccountTreeOutlinedSvg, TuneSvg, HelpOutlineSvg, DeleteOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { HelpText, HelpGroup } from 'Molstar/mol-plugin-ui/viewport/help';
+
 
 const _WavesIcon = <svg width='24px' height='24px' viewBox='0 0 24 24'><path d="M17 16.99c-1.35 0-2.2.42-2.95.8-.65.33-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.95c1.35 0 2.2-.42 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.42 2.95-.8c.65-.33 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm0-4.45c-1.35 0-2.2.43-2.95.8-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.32-1.17.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm2.95-8.08c-.75-.38-1.58-.8-2.95-.8s-2.2.42-2.95.8c-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.37-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.93c1.35 0 2.2-.43 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V5.04c-.9 0-1.4-.25-2.05-.58zM17 8.09c-1.35 0-2.2.43-2.95.8-.65.35-1.15.6-2.05.6s-1.4-.25-2.05-.6c-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.35-1.15.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.32 1.18-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V9.49c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8z" /></svg>;
 export function WavesIconSvg() { return _WavesIcon; }
@@ -47,14 +48,14 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
         if (this.plugin.layout.state.regionState.left !== 'full') {
             PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'full' } } });
         }
-    }
+    };
 
     tabs: { [K in LeftPanelTabName]: JSX.Element } = {
         'none': <></>,
         'root': <>
             <SectionHeader icon={HomeOutlinedSvg} title='Home' />
             <StateObjectActions state={this.plugin.state.data} nodeRef={StateTransform.RootRef} hideHeader={true} initiallyCollapsed={true} alwaysExpandFirst={true} />
-            {this.plugin.spec.components?.remoteState !== 'none' && <RemoteStateSnapshots listOnly /> }
+            {this.plugin.spec.components?.remoteState !== 'none' && <RemoteStateSnapshots listOnly />}
         </>,
         'data': <>
             <SectionHeader icon={AccountTreeOutlinedSvg} title={<><RemoveAllButton /> State Tree</>} />
@@ -74,11 +75,11 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
             <HelpContent />
             <SuperpositionHelpContent />
         </>
-    }
+    };
 
     render() {
         const tab = this.state.tab;
-        const customState: any = this.plugin.customState;
+        const customState = PluginCustomState(this.plugin);
         return <div className='msp-left-panel-controls'>
             <div className='msp-left-panel-controls-buttons'>
                 {/* <IconButton svg={HomeOutlined} toggleState={tab === 'root'} transparent onClick={() => this.set('root')} title='Home' /> */}
@@ -125,7 +126,7 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
 class FullSettings extends PluginUIComponent {
     private setSettings = (p: { param: PD.Base<any>, name: string, value: any }) => {
         PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { [p.name]: p.value } });
-    }
+    };
 
     componentDidMount() {
         this.subscribe(this.plugin.events.canvas3d.settingsUpdated, () => this.forceUpdate());
@@ -150,7 +151,7 @@ class FullSettings extends PluginUIComponent {
     }
 }
 
-class RemoveAllButton extends PluginUIComponent<{ }> {
+class RemoveAllButton extends PluginUIComponent<{}> {
     componentDidMount() {
         this.subscribe(this.plugin.state.events.cell.created, e => {
             if (e.cell.transform.parent === StateTransform.RootRef) this.forceUpdate();
@@ -164,7 +165,7 @@ class RemoveAllButton extends PluginUIComponent<{ }> {
     remove = (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
         PluginCommands.State.RemoveObject(this.plugin, { state: this.plugin.state.data, ref: StateTransform.RootRef });
-    }
+    };
 
     render() {
         const count = this.plugin.state.data.tree.children.get(StateTransform.RootRef).size;

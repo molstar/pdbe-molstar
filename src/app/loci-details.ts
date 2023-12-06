@@ -35,7 +35,7 @@ export function lociDetails(loci: Loci): EventDetail | undefined {
         case 'bond-loci':
             const bond = loci.bonds[0];
             return bond ? bondLabel(bond, 'element') : '';
-        default :
+        default:
             return void 0;
     }
 }
@@ -70,7 +70,7 @@ function getElementDetails(location: StructureElement.Location, granularity: Lab
         elementDetails = coarseElementDetails(location as StructureElement.Location<Unit.Spheres | Unit.Gaussians>, granularity);
     }
 
-    return {...basicDetails, ...elementDetails};
+    return { ...basicDetails, ...elementDetails };
 }
 
 function atomicElementDetails(location: StructureElement.Location<Unit.Atomic>, granularity: LabelGranularity): EventDetail {
@@ -87,14 +87,14 @@ function atomicElementDetails(location: StructureElement.Location<Unit.Atomic>, 
         atom_id: [Props.atom.label_atom_id(location)],
         alt_id: Props.atom.label_alt_id(location)
     };
-    
+
     const unpLabel = BestDatabaseSequenceMappingProp.getLabel(location);
 
-    if(unpLabel) {
+    if (unpLabel) {
         const unpLabelDetails = unpLabel.split(' ');
-        if(unpLabelDetails[0] === 'UNP') {
+        if (unpLabelDetails[0] === 'UNP') {
             elementDetails.unp_accession = unpLabelDetails[1];
-            elementDetails.unp_seq_id = +unpLabelDetails[2]
+            elementDetails.unp_seq_id = +unpLabelDetails[2];
         }
     }
 
@@ -124,10 +124,12 @@ function coarseElementDetails(location: StructureElement.Location<Unit.Spheres |
 }
 
 export function bondLabel(bond: Bond.Location, granularity: LabelGranularity): any {
-    return _bundleLabel({ loci: [
-        StructureElement.Loci(bond.aStructure, [{ unit: bond.aUnit, indices: OrderedSet.ofSingleton(bond.aIndex) }]),
-        StructureElement.Loci(bond.bStructure, [{ unit: bond.bUnit, indices: OrderedSet.ofSingleton(bond.bIndex) }])
-    ]}, granularity);
+    return _bundleLabel({
+        loci: [
+            StructureElement.Loci(bond.aStructure, [{ unit: bond.aUnit, indices: OrderedSet.ofSingleton(bond.aIndex) }]),
+            StructureElement.Loci(bond.bStructure, [{ unit: bond.bUnit, indices: OrderedSet.ofSingleton(bond.bIndex) }])
+        ]
+    }, granularity);
 }
 
 export function _bundleLabel(bundle: Loci.Bundle<any>, granularity: LabelGranularity) {
