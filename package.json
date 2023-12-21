@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "lint": "eslint src",
-    "build": "npm run lint && npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
+    "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
     "clean": "rm -rf lib build tsconfig.tsbuildinfo",
     "rebuild": "npm run clean && npm run build",
     "build-tsc": "tsc --incremental",
