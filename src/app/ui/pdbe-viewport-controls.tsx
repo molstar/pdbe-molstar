@@ -48,7 +48,7 @@ export class PDBeViewportControls extends ViewportControls {
                     {customeState.initParams!.moleculeId}
                 </a>
             </div>}
-            <div className={'msp-viewport-controls'} onMouseMove={this.onMouseMove} style={showPDBeLink ? vwpBtnsTopMargin : void 0}>
+            <div className={'msp-viewport-controls'} style={showPDBeLink ? vwpBtnsTopMargin : void 0}>
                 <div className='msp-viewport-controls-buttons'>
                     <div>
                         <div className='msp-semi-transparent-background' />

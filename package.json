@@ -79,6 +79,6 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "lit-element": "^2.2.1",
-    "molstar": "^3.15.0"
+    "molstar": "3.43.1"
   }
 }
