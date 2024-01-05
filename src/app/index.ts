@@ -320,11 +320,9 @@ class PDBeMolstarPlugin {
             const repr = cell.obj.data.repr as Representation<unknown>;
             const ligLoci = repr.getAllLoci()[0]; // getAllLoci returns multiple copies of the same loci (one per representation visual)
             this.plugin.managers.structure.focus.setFromLoci(ligLoci);
-            setTimeout(() => {
-                // focus-add is not handled in camera behavior, doing it here
-                const current = this.plugin.managers.structure.focus.current?.loci;
-                if (current) this.plugin.managers.camera.focusLoci(current);
-            }, 500);
+            // focus-add is not handled in camera behavior, doing it here
+            const current = this.plugin.managers.structure.focus.current?.loci;
+            if (current) this.plugin.managers.camera.focusLoci(current);
         }
     }
 
