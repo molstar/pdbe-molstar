@@ -31,11 +31,13 @@ import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
 import { ParamDefinition } from 'Molstar/mol-util/param-definition';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
+import { Representation } from 'molstar/lib/mol-repr/representation';
 import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
+import { PluginCustomState } from './plugin-custom-state';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
@@ -47,7 +49,6 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
-import { PluginCustomState } from './plugin-custom-state';
 
 class PDBeMolstarPlugin {
 
@@ -315,8 +316,9 @@ class PDBeMolstarPlugin {
         const ligRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'ligand-vis');
         if (!ligRef) return;
         const cell = this.plugin.state.data.cells.get(ligRef)!;
-        if (cell) {
-            const ligLoci = cell.obj!.data.repr.getLoci();
+        if (cell?.obj) {
+            const repr = cell.obj.data.repr as Representation<unknown>;
+            const ligLoci = repr.getAllLoci()[0]; // getAllLoci returns multiple copies of the same loci (one per representation visual)
             this.plugin.managers.structure.focus.setFromLoci(ligLoci);
             setTimeout(() => {
                 // focus-add is not handled in camera behavior, doing it here
