@@ -1,5 +1,5 @@
-import { AssemblySymmetry3D, tryCreateAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
-import { AssemblySymmetry, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
+import { AssemblySymmetry3D, getRCSBAssemblySymmetryConfig, tryCreateAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
+import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
 import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
 import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { PluginContext } from 'Molstar/mol-plugin/context';
@@ -108,7 +108,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
 
     /** Get the first loaded structure, if any. */
     getPivotStructure(): StructureRef | undefined {
-        return this.plugin.managers.structure.hierarchy.selection.structures[0];
+        return getPivotStructure(this.plugin);
     }
 
     /** Get parameters currently applied in `AssemblySymmetryProvider` */
@@ -187,17 +187,22 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
     async initSymmetry(initialSymmetryIndex?: number) {
         await Task.create('Initialize Assembly Symmetry', async ctx => {
             const struct = this.getPivotStructure();
-            if (!struct?.cell.obj) return;
+            const data = struct?.cell.obj?.data;
+            if (!data) return;
             try {
-                const data = struct.cell.obj.data;
-                AssemblySymmetryDataProvider.get(data);
-                const params = PD.clone(data ? AssemblySymmetryProvider.getParams(data) : AssemblySymmetryProvider.defaultParams);
-                const props = PD.getDefaultValues(params);
                 const propCtx = { runtime: ctx, assetManager: this.plugin.managers.asset };
-                await AssemblySymmetryDataProvider.attach(propCtx, data, props);
+
+                const config = getRCSBAssemblySymmetryConfig(this.plugin);
+                const symmetryDataProps: AssemblySymmetryDataProps = {
+                    serverType: config.DefaultServerType,
+                    serverUrl: config.DefaultServerUrl,
+                };
+                await AssemblySymmetryDataProvider.attach(propCtx, data, symmetryDataProps);
+
                 const assemblySymmetryData = AssemblySymmetryDataProvider.get(data).value;
                 const symmetryIndex = initialSymmetryIndex ?? (assemblySymmetryData ? AssemblySymmetry.firstNonC1(assemblySymmetryData) : -1);
-                await AssemblySymmetryProvider.attach(propCtx, data, { ...props, symmetryIndex });
+                const symmetryProps: AssemblySymmetryProps = { ...symmetryDataProps, symmetryIndex };
+                await AssemblySymmetryProvider.attach(propCtx, data, symmetryProps);
             } catch (e) {
                 this.plugin.log.error(`Assembly Symmetry: ${e}`);
                 return;
@@ -229,7 +234,16 @@ class SymmetryAnnotationRowControls extends AnnotationRowControls<SymmetryParams
     }
 }
 
+/** Get the first loaded structure, if any. */
+function getPivotStructure(plugin: PluginContext): StructureRef | undefined {
+    return plugin.managers.structure.hierarchy.selection.structures[0];
+}
+
 export function isAssemblySymmetryAnnotationApplicable(plugin: PluginContext) {
-    const struct = plugin.managers.structure.hierarchy.selection.structures[0];
+    const struct = getPivotStructure(plugin);
     return AssemblySymmetry.isApplicable(struct?.cell.obj?.data);
+    // It would be nice to disable the default `AssemblySymmetry.isApplicable` behavior
+    // (i.e. hiding Assembly Symmetry controls for non-biological assemblies, e.g. 1smv assembly 3)
+    // by `AssemblySymmetry.isApplicable = struct => struct?.units[0].conformation.operator.assembly !== undefined;`
+    // But we cannot easily override the `fetch` function which calls the original `isApplicable`.
 }

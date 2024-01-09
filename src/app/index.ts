@@ -2,7 +2,7 @@ import { GeometryExport } from 'Molstar/extensions/geo-export';
 import { MAQualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/behavior';
 import { Mp4Export } from 'Molstar/extensions/mp4-export';
 import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
-import { RCSBAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
+import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
 import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
 import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
 import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/camera-rock';
@@ -32,7 +32,6 @@ import { Color } from 'Molstar/mol-util/color/color';
 import { ParamDefinition } from 'Molstar/mol-util/param-definition';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { Representation } from 'molstar/lib/mol-repr/representation';
-import { hackRCSBAssemblySymmetry } from './assembly-symmetry';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
@@ -101,7 +100,11 @@ class PDBeMolstarPlugin {
         }
         if (this.initParams.symmetryAnnotation) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
-            hackRCSBAssemblySymmetry();
+            pdbePluginSpec.config!.push(
+                [RCSBAssemblySymmetryConfig.DefaultServerType, 'pdbe'],
+                [RCSBAssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
+                [RCSBAssemblySymmetryConfig.ApplyColors, false],
+            );
         }
 
         pdbePluginSpec.layout = {
