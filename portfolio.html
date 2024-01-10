@@ -34,7 +34,7 @@
 </head>
 
 <body style="position: fixed; top: 5px; bottom: 5px; left: 5px; right: 5px;">
-  <div style="height: 100px; padding: 8px;">
+  <div style="height: 100px; padding: 6px;">
     <div style="position: relative; height: 100%;">
       <div id="examples"></div>
       <div
@@ -52,13 +52,16 @@
     /** Load specified `url` in the iframe element #viewer-frame */
     function loadUrl(url) {
       document.getElementById('viewer-frame-url').setAttribute('href', url);
+      document.getElementById('viewer-frame-url').setAttribute('title', url);
       document.getElementById('viewer-frame-url').innerHTML = url;
       document.getElementById('viewer-frame').setAttribute('src', url);
     }
-    /** Return a URL with viewer init params `option` encoded in URL parameter 'options' */
-    function linkWithOptions(options) {
+    /** Return a URL with viewer init params `option` encoded in URL parameter 'options',
+     * and optionally parameters for PDBeMolstarPlugin.visual.select function encoded in URL parameter 'select'. */
+    function linkWithOptions(options, select) {
       const url = new URL('./index.html', window.location);
-      url.searchParams.set('options', JSON.stringify(options));
+      if (options) url.searchParams.set('options', JSON.stringify(options));
+      if (select) url.searchParams.set('select', JSON.stringify(select));
       return url.href
         .replace(/%7B/g, '{').replace(/%7D/g, '}')
         .replace(/%5B/g, '[').replace(/%5D/g, ']')
@@ -73,7 +76,6 @@
         node.className = 'example-button';
         node.id = `example-button-${key}`;
         node.innerText = key;
-        const targetUrl = linkWithOptions(EXAMPLES[key]);
         node.setAttribute('onclick', `loadExample('${key}');`);
         document.getElementById('examples').appendChild(node);
       }
@@ -87,78 +89,196 @@
       document.getElementById(`example-button-${key}`)?.setAttribute('selected', 'selected');
       window.location.hash = key;
     }
-    /** Load example in the iframe, update highlighted button and URL fragment*/
+    /** Load example in the iframe, update highlighted button and URL fragment */
     function loadExample(key) {
-      const targetUrl = linkWithOptions(EXAMPLES[key]);
+      const example = EXAMPLES[key];
+      const targetUrl = linkWithOptions(example.options, example.select);
       setSelectedButton(key);
       loadUrl(targetUrl);
     }
     /** Return viewer init params for superposition view */
-    function superpositionParams(uniprotId) {
+    function superpositionExample(uniprotId) {
       return {
-        moleculeId: uniprotId,
-        superposition: true,
-        expanded: true,
-        // hideControls: true,
-        bgColor: { r: 255, g: 255, b: 255 },
-        superpositionParams: { matrixAccession: uniprotId, segment: 1, ligandView: false },
-        loadingOverlay: true,
+        options: {
+          moleculeId: uniprotId,
+          superposition: true,
+          expanded: true,
+          // hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          superpositionParams: { matrixAccession: uniprotId, segment: 1, ligandView: false },
+          loadingOverlay: true,
+        },
       };
     }
 
+    const urlEnv = 'www'; // www | wwwdev
+
     const EXAMPLES = {
       'Basic': {
-        moleculeId: '1cbs',
-        // expanded: true,
-        // loadMaps: true,
-        // bgColor: {r:255, g:255, b:255},
-        // hideControls: true,
-        // domainAnnotation: true,
-        // validationAnnotation: true,
-        // symmetryAnnotation: true,
-        // subscribeEvents: true,
-        loadingOverlay: true,
+        options: {
+          moleculeId: '1cbs',
+          // expanded: true,
+          // loadMaps: true,
+          // bgColor: {r:255, g:255, b:255},
+          // hideControls: true,
+          // domainAnnotation: true,
+          // validationAnnotation: true,
+          // symmetryAnnotation: true,
+          // subscribeEvents: true,
+          loadingOverlay: true,
+        },
       },
 
       'Annotations': {
-        moleculeId: '1e94',
-        assemblyId: '1',
-        // expanded: true,
-        // loadMaps: true,
-        // bgColor: {r:255, g:255, b:255},
-        // hideControls: true,
-        domainAnnotation: true,
-        validationAnnotation: true,
-        symmetryAnnotation: true,
-        // subscribeEvents: true,
-        loadingOverlay: true,
+        options: {
+          moleculeId: '1e94',
+          assemblyId: '1',
+          // expanded: true,
+          // loadMaps: true,
+          // bgColor: {r:255, g:255, b:255},
+          // hideControls: true,
+          domainAnnotation: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          // subscribeEvents: true,
+          loadingOverlay: true,
+        },
       },
 
       'Ligand view': {
-        moleculeId: '1cbs',
-        ligandView: { label_comp_id: "REA" },
-        loadMaps: true,
-        expanded: false,
-        hideControls: true,
-        bgColor: { r: 255, g: 255, b: 255 },
+        options: {
+          moleculeId: '1cbs',
+          ligandView: { label_comp_id: "REA" },
+          loadMaps: true,
+          expanded: false,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+        },
       },
 
-      'Superposition P08083': superpositionParams('P08083'),
-      'Superposition Q14676': superpositionParams('Q14676'),
-      'Superposition Q5VSL9': superpositionParams('Q5VSL9'),
-      'Superposition P54646': superpositionParams('P54646'),
+      'Superposition P08083': superpositionExample('P08083'),
+      'Superposition Q14676': superpositionExample('Q14676'),
+      'Superposition Q5VSL9': superpositionExample('Q5VSL9'),
+      'Superposition P54646': superpositionExample('P54646'),
 
       'AlphaFold': {
-        customData: {
-          url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v1.cif',
-          format: 'cif'
+        options: {
+          customData: {
+            url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v1.cif',
+            format: 'cif'
+          },
+          bgColor: { r: 255, g: 255, b: 255 },
+          // hideControls: true,
+          alphafoldView: true,
+          hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
         },
-        bgColor: { r: 255, g: 255, b: 255 },
-        // hideControls: true,
-        alphafoldView: true,
-        hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
       },
 
+      // Settings on real PDBe pages (last updated 2024/01/10):
+      'Home page': {
+        options: {
+          moleculeId: '1cbs',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          expanded: true,
+          subscribeEvents: false,
+          sequencePanel: true,
+          assemblyId: 'preferred',
+          loadingOverlay: true,
+        },
+      },
+
+      'Protein page': {
+        options: {
+          moleculeId: '7xv8',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: true,
+          loadingOverlay: true,
+        },
+        select: {
+          data: [{ struct_asym_id: 'A', color: { r: 114, g: 0, b: 0 } }],
+          nonSelectedColor: { r: 231, g: 200, b: 200 },
+        },
+      },
+
+      'Nucleotide page': {
+        options: {
+          moleculeId: '7xv8',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: true,
+          loadingOverlay: true,
+        },
+        select: {
+          data: [{ struct_asym_id: 'C', color: { r: 114, g: 0, b: 0 } }],
+          nonSelectedColor: { r: 231, g: 200, b: 200 },
+        },
+      },
+
+      'Ligand page': {
+        options: {
+          moleculeId: '1cbs',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          pdbeLink: false,
+          ligandView: { label_comp_id: 'REA', auth_asym_id: 'A', auth_seq_id: 200, hydrogens: true },
+          mapSettings: {
+            '2fo-fc': { opacity: 0.15 }
+          },
+        },
+      },
+
+      'Modres page': {
+        options: {
+          moleculeId: '3uot',
+          customData: {
+            url: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/model-server/v1/3uot/atoms?label_entity_id=1',
+            format: 'cif'
+          },
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          validationAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: false,
+        },
+      },
+
+      'Branched page': {
+        options: {
+          moleculeId: '3d11',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          pdbeLink: false,
+          ligandView: { label_comp_id_list: { atom_site: [{ auth_asym_id: 'B', auth_seq_id: 1 }, { auth_asym_id: 'B', auth_seq_id: 2 }], radius: 5 } },
+          mapSettings: {
+            '2fo-fc': { opacity: 0.15 }
+          },
+        },
+      },
+
+      // TODO pdbe search page
     };
 
 

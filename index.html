@@ -154,27 +154,17 @@
   </div>
 
   <script>
-    function getOptions() {
-      const optionsString = new URL(window.location).searchParams.get('options');
+    function getJsonParam(paramName) {
+      const optionsString = new URL(window.location).searchParams.get(paramName);
       const options = JSON.parse(optionsString);
-      return options ?? {};
-    }
-    function linkWithOptions(options) {
-      const url = new URL(window.location);
-      url.searchParams.set('options', JSON.stringify(options));
-      return url.href
-        .replace(/%7B/g, '{').replace(/%7D/g, '}')
-        .replace(/%5B/g, '[').replace(/%5D/g, ']')
-        .replace(/%3A/g, ':')
-        .replace(/%2C/g, ',')
-        .replace(/%22/g, '"');
+      return options ?? undefined;
     }
 
     // Create plugin instance
-    var viewerInstance = new PDBeMolstarPlugin();
+    const viewerInstance = new PDBeMolstarPlugin();
 
     // Set default options (Checkout available options list in the documentation)
-    var defaultOptions = {
+    const defaultOptions = {
       moleculeId: '1cbs',
       // expanded: true,
       // loadMaps: true,
@@ -185,11 +175,12 @@
       // symmetryAnnotation: true,
       // subscribeEvents: true,
       loadingOverlay: true,
-      hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
+      // hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
     };
-    const options = { ...defaultOptions, ...getOptions() };
+    const options = { ...defaultOptions, ...getJsonParam('options') };
+    console.log('options', options);
 
-    const optionsDiv = document.getElementById('options')
+    const optionsDiv = document.getElementById('options');
     optionsDiv.innerHTML = JSON.stringify(options, undefined, 2).replace(/"(\w+)":/g, '$1:');
 
     // Get element from HTML/Template to place the viewer 
@@ -197,6 +188,12 @@
 
     // Call render method to display the 3D view
     viewerInstance.render(viewerContainer, options);
+
+    const selectData = getJsonParam('select');
+    console.log('select', selectData);
+    if (selectData) {
+      viewerInstance.events.loadComplete.subscribe(() => viewerInstance.visual.select(selectData));
+    }
 
     // document.addEventListener('PDB.molstar.mouseover', (e) => { 
     //   //do something on event

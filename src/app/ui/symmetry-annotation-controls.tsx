@@ -241,7 +241,8 @@ function getPivotStructure(plugin: PluginContext): StructureRef | undefined {
 
 export function isAssemblySymmetryAnnotationApplicable(plugin: PluginContext) {
     const struct = getPivotStructure(plugin);
-    return AssemblySymmetry.isApplicable(struct?.cell.obj?.data);
+    const isAssembly = struct?.cell.obj?.data?.units[0].conformation.operator.assembly !== undefined;
+    return isAssembly && AssemblySymmetry.isApplicable(struct?.cell.obj?.data);
     // It would be nice to disable the default `AssemblySymmetry.isApplicable` behavior
     // (i.e. hiding Assembly Symmetry controls for non-biological assemblies, e.g. 1smv assembly 3)
     // by `AssemblySymmetry.isApplicable = struct => struct?.units[0].conformation.operator.assembly !== undefined;`
