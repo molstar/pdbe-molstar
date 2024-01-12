@@ -18,3 +18,9 @@ npm run serve
 ```sh
 npm run watch
 ```
+
+## Manual testing
+
+- Run locally by `npm run serve`
+- Go to <http://127.0.0.1:1338/portfolio.html> and check the viewer with various different setting (some of these reflect the actual setting on PDBe pages)
+- If you want to tweak the options, go to "Frame URL" and change the options in the URL

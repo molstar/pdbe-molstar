@@ -159,6 +159,16 @@
       const options = JSON.parse(optionsString);
       return options ?? undefined;
     }
+    /** Load CSS with a different skin (theme) */
+    function loadSkin(skin) {
+      if (skin) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = `build/pdbe-molstar-${skin}-3.1.3.css`;
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+    }
 
     // Create plugin instance
     const viewerInstance = new PDBeMolstarPlugin();
@@ -174,7 +184,7 @@
       // validationAnnotation: true,
       // symmetryAnnotation: true,
       // subscribeEvents: true,
-      loadingOverlay: true,
+      // loadingOverlay: true,
       // hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
     };
     const options = { ...defaultOptions, ...getJsonParam('options') };
@@ -194,6 +204,8 @@
     if (selectData) {
       viewerInstance.events.loadComplete.subscribe(() => viewerInstance.visual.select(selectData));
     }
+
+    loadSkin(getJsonParam('skin'));
 
     // document.addEventListener('PDB.molstar.mouseover', (e) => { 
     //   //do something on event

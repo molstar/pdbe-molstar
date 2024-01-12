@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, following t
 
 - Mol* core dependency updated to 3.44.0
 - Removed Assembly Symmetry hack (now will hide assembly symmetry section for non-biological assemblies)
+- Manual testing via ``portfolio.html``
 
 ## [v3.1.3]
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
