@@ -1,4 +1,5 @@
 var gulp = require('gulp');
+const fs = require('fs');
 const path = require('path');
 var del = require('del');
 var concat = require('gulp-concat');
@@ -33,8 +34,12 @@ const banner = ['/**',
   ''].join('\n');
 
 
-gulp.task('clean', function() {
-    return del([`build/${PKG_JSON.name}-component-${PKG_JSON.version}.js`, '!build']);
+gulp.task('clean-all', function() {
+    return del(['lib', 'build', 'tsconfig.tsbuildinfo']);
+});
+
+gulp.task('clean-component', function() {
+    return del([`build/${PKG_JSON.name}-component-${PKG_JSON.version}.js`]);
 });
 
 gulp.task('concat', function () {
@@ -45,4 +50,4 @@ gulp.task('concat', function () {
         .pipe(gulp.dest('build/'));
 });
 
-gulp.task('default', gulp.series('clean', 'concat'));
+gulp.task('bundle-webcomponent', gulp.series('clean-component', 'concat'));

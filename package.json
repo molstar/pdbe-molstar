@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\"",
     "lint": "eslint src",
     "build": "npm run build-tsc && npm run build-extra && npm run build-webpack && npm run bundle-webcomponent",
-    "clean": "rm -rf lib build tsconfig.tsbuildinfo",
+    "clean": "gulp clean-all",
     "rebuild": "npm run clean && npm run build",
     "build-tsc": "tsc --incremental",
     "build-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/",
@@ -18,7 +18,7 @@
     "watch-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/ --watch",
     "watch-webpack": "webpack -w --mode development --stats minimal --config ./webpack.config.development.js",
     "serve": "http-server -p 1338 -g",
-    "bundle-webcomponent": "gulp"
+    "bundle-webcomponent": "gulp bundle-webcomponent"
   },
   "files": [
     "lib/",
