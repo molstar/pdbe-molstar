@@ -6,12 +6,12 @@ var concat = require('gulp-concat');
 var header = require('gulp-header');
 
 const PACKAGE_ROOT_PATH = process.cwd();
-const PKG_JSON = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
+const PACKAGE = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
 
 const banner = [
     '/**',
-    ` * ${PKG_JSON.name}`,
-    ` * @version ${PKG_JSON.version}`,
+    ` * ${PACKAGE.name}`,
+    ` * @version ${PACKAGE.version}`,
     ' * @link https://github.com/PDBeurope/pdbe-molstar',
     ' * @license Apache 2.0',
     ' */',
@@ -37,41 +37,44 @@ const license = [
     '',
 ].join('\n');
 
+// Remove any files produced by the build process
 gulp.task('clean-all', function () {
     return del(['lib', 'build', 'tsconfig.tsbuildinfo']);
 });
 
+// Remove built web component
 gulp.task('clean-component', function () {
-    return del([`build/${PKG_JSON.name}-component-${PKG_JSON.version}.js`]);
+    return del([`build/${PACKAGE.name}-component-${PACKAGE.version}.js`]);
 });
 
 gulp.task('concat', function () {
     return gulp
         .src([
-            `build/${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`,
-            `lib/${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`,
+            `build/${PACKAGE.name}-plugin-${PACKAGE.version}.js`,
+            `lib/${PACKAGE.name}-component-build-${PACKAGE.version}.js`,
         ])
-        .pipe(concat(`${PKG_JSON.name}-component-${PKG_JSON.version}.js`))
+        .pipe(concat(`${PACKAGE.name}-component-${PACKAGE.version}.js`))
         .pipe(header(license, {}))
         .pipe(header(banner, {}))
         .pipe(gulp.dest('build/'));
 });
 
+// Build web component
 gulp.task('bundle-webcomponent', gulp.series('clean-component', 'concat'));
 
-function replaceSkin(srcFile, skin) {
-    const destFile = path.join(
-        path.dirname(srcFile),
-        `_${skin}_${path.basename(srcFile)}`
-    );
+function replaceSkin(srcFile, skin, destFile) {
     let text = fs.readFileSync(srcFile, { encoding: 'utf8' });
-    text = text.replace(
-        'mol-plugin-ui/skin/dark.scss',
-        `mol-plugin-ui/skin/${skin}.scss`
-    );
+    text = text.replaceAll('mol-plugin-ui/skin/dark.scss', `mol-plugin-ui/skin/${skin}.scss`);
     fs.writeFileSync(destFile, text, { encoding: 'utf8' });
 }
-gulp.task('skin', async function () {
-    replaceSkin('lib/index.js', 'light');
-    replaceSkin('lib/index.d.ts', 'light');
+
+// Prepare module files for light skin
+gulp.task('light-skin', async function () {
+    replaceSkin('lib/index.js', 'light', 'lib/index(light).js');
+    replaceSkin('lib/index.d.ts', 'light', 'lib/index(light).d.ts');
+});
+
+// Remove unnecessary files produced by the build process
+gulp.task('clean-rubbish', function () {
+    return del([`build/${PACKAGE.name}-light-plugin-${PACKAGE.version}.*`]);
 });

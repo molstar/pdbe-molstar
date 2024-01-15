@@ -4,15 +4,20 @@ const ExtraWatchWebpackPlugin = require('extra-watch-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const PACKAGE_ROOT_PATH = process.cwd();
-const PKG_JSON = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
+const PACKAGE = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
 
+/** Webpack configuration for building the plugin bundle (pdbe-molstar-plugin-*.js, pdbe-molstar-*.css).
+ * Also builds the light-skin version (pdbe-molstar-light-plugin-*.js, pdbe-molstar-light-*.css). */
 const molstarConfig = {
-    target: 'web',
-    entry: path.resolve(__dirname, `lib/index.js`),
-    output: {
-        filename: `${PKG_JSON.name}-plugin-${PKG_JSON.version}.js`,
-        path: path.resolve(__dirname, `build/`),
+    entry: {
+        [PACKAGE.name]: path.resolve(__dirname, 'lib/index.js'),
+        [PACKAGE.name + '-light']: path.resolve(__dirname, 'lib/index(light).js'),
     },
+    output: {
+        filename: `[name]-plugin-${PACKAGE.version}.js`,
+        path: path.resolve(__dirname, 'build/'),
+    },
+    target: 'web',
     module: {
         rules: [
             {
@@ -40,13 +45,10 @@ const molstarConfig = {
         }),
         new webpack.DefinePlugin({
             'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
-            __MOLSTAR_DEBUG_TIMESTAMP__: webpack.DefinePlugin.runtimeValue(
-                () => `${new Date().valueOf()}`,
-                true
-            ),
+            __MOLSTAR_DEBUG_TIMESTAMP__: webpack.DefinePlugin.runtimeValue(() => `${new Date().valueOf()}`, true),
         }),
         new MiniCssExtractPlugin({
-            filename: `${PKG_JSON.name}-${PKG_JSON.version}.css`,
+            filename: `[name]-${PACKAGE.version}.css`,
         }),
     ],
     resolve: {
@@ -66,11 +68,14 @@ const molstarConfig = {
     },
 };
 
+/** Webpack configuration for building a part of the web-component bundle,
+ * which will be concatenated with the plugin bundle to build the full
+ * web-component bundle (pdbe-molstar-component-*.js) */
 const componentConfig = {
     entry: path.resolve(__dirname, `src/web-component/index.js`),
     output: {
-        filename: `${PKG_JSON.name}-component-build-${PKG_JSON.version}.js`,
-        path: path.resolve(__dirname, `lib/`),
+        filename: `${PACKAGE.name}-component-build-${PACKAGE.version}.js`,
+        path: path.resolve(__dirname, 'lib/'),
     },
     target: 'web',
     resolve: {
@@ -83,10 +88,7 @@ const componentConfig = {
         rules: [
             {
                 test: /\.css$/,
-                use: [
-                    'style-loader',
-                    { loader: 'css-loader', options: { importLoaders: 1 } },
-                ],
+                use: ['style-loader', { loader: 'css-loader', options: { importLoaders: 1 } }],
             },
             {
                 test: /.(jpg|jpeg|png|svg)$/,
@@ -98,7 +100,7 @@ const componentConfig = {
                     const nonEs5SyntaxPackages = ['lit-element', 'lit-html'];
 
                     // DO transpile these packages
-                    if (nonEs5SyntaxPackages.some((pkg) => path.match(pkg))) {
+                    if (nonEs5SyntaxPackages.some(pkg => path.match(pkg))) {
                         return false;
                     }
 
