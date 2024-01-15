@@ -188,24 +188,25 @@
       // hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
     };
     const options = { ...defaultOptions, ...getJsonParam('options') };
-    console.log('options', options);
 
     const optionsDiv = document.getElementById('options');
     optionsDiv.innerHTML = JSON.stringify(options, undefined, 2).replace(/"(\w+)":/g, '$1:');
 
     // Get element from HTML/Template to place the viewer 
-    var viewerContainer = document.getElementById('myViewer');
+    const viewerContainer = document.getElementById('myViewer');
 
     // Call render method to display the 3D view
     viewerInstance.render(viewerContainer, options);
 
     const selectData = getJsonParam('select');
-    console.log('select', selectData);
     if (selectData) {
       viewerInstance.events.loadComplete.subscribe(() => viewerInstance.visual.select(selectData));
     }
 
     loadSkin(getJsonParam('skin'));
+
+    const size = getJsonParam('size');
+    if (size) viewerContainer.setAttribute('style', `width: ${size[0]}px; height: ${size[1]}px;`);
 
     // document.addEventListener('PDB.molstar.mouseover', (e) => { 
     //   //do something on event

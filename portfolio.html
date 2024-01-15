@@ -167,6 +167,7 @@
       },
 
       'PDBe Protein': {
+        size: [473, 403],
         options: {
           moleculeId: '7xv8',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -187,6 +188,7 @@
       },
 
       'PDBe Nucleotide': {
+        size: [986, 365],
         options: {
           moleculeId: '7xv8',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -208,6 +210,7 @@
 
       'PDBe Ligand': {
         skin: 'light',
+        size: [468, 400],
         options: {
           moleculeId: '1cbs',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -224,6 +227,7 @@
 
       'PDBe Branched': {
         skin: 'light',
+        size: [468, 400],
         options: {
           moleculeId: '3d11',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -239,6 +243,7 @@
       },
 
       'PDBe Modres': {
+        size: [468, 400],
         options: {
           moleculeId: '3uot',
           customData: {
@@ -274,6 +279,7 @@
       // Settings on real PDBe-KB pages (last updated 2024/01/12 based on pdbe-kb-protein-pages):
       'PDBe-KB Home': {
         skin: 'light',
+        size: [417, 315],
         options: {
           moleculeId: '4cfe',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -329,7 +335,26 @@
         },
       },
 
-      // TODO AlphaFold pages (e.g. https://www.alphafold.ebi.ac.uk/entry/O15552)
+      // Settings on real AlphaFold pages (last updated 2024/01/15 based on https://www.alphafold.ebi.ac.uk/entry/O15552)
+      'AlphaFold Home': {
+        skin: 'light',
+        size: [767, 446],
+        options: {
+          customData: {
+            url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v4.cif',
+            format: 'cif',
+            binary: false,
+          },
+          subscribeEvents: false,
+          bgColor: { r: 255, g: 255, b: 255 },
+          selectInteraction: false,
+          alphafoldView: true,
+          reactive: true,
+          sequencePanel: true,
+          hideCanvasControls: ['animation'],
+        },
+      },
+
     };
 
 
