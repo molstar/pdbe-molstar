@@ -30,19 +30,22 @@
 </head>
 
 <body style="position: fixed; top: 5px; bottom: 5px; left: 5px; right: 5px;">
-  <div style="height: 100px; padding: 6px;">
+  <div style="height: 120px; padding: 6px;">
     <div style="position: relative; height: 100%;">
       <div id="examples"></div>
       <div
         style="position: absolute; bottom: 0px; left: 0px; right: 0px; white-space: nowrap; overflow-x: hidden; font-size: small;">
-        Frame URL:
-        <a id="viewer-frame-url" href=""></a>
+        <p id="reference-link" style="margin-bottom: 6px;"></p>
+        <p>
+          Frame URL:
+          <a id="viewer-frame-url" target="_blank" href=""></a>
+        </p>
       </div>
     </div>
   </div>
 
   <iframe id="viewer-frame" src="./index.html"
-    style="height: calc(100% - 100px); width: 100%; border: solid black 1px; background-color: white;"></iframe>
+    style="height: calc(100% - 120px); width: 100%; border: solid black 1px; background-color: white;"></iframe>
 
   <script>
     /** Load specified `url` in the iframe element #viewer-frame */
@@ -51,6 +54,15 @@
       document.getElementById('viewer-frame-url').setAttribute('title', url);
       document.getElementById('viewer-frame-url').innerHTML = url;
       document.getElementById('viewer-frame').setAttribute('src', url);
+    }
+    /** Show a div with link to the reference page with original visualization */
+    function showReferenceLink(url) {
+      const p = document.getElementById('reference-link');
+      if (url) {
+        p.innerHTML = `Reference: <a target="_blank" href="${url}" title="${url}">${url}</a>`;
+      } else {
+        p.innerHTML = '';
+      }
     }
     /** Return a URL with `params` JSON-encoded in URL parameters (e.g. 'options', 'select', 'skin'...) */
     function linkWithParams(params) {
@@ -93,6 +105,7 @@
       const targetUrl = linkWithParams(EXAMPLES[key]);
       setSelectedButton(key);
       loadUrl(targetUrl);
+      showReferenceLink(EXAMPLES[key].reference);
     }
 
     const urlEnv = 'www'; // www | wwwdev
@@ -151,6 +164,7 @@
 
       // Settings on real PDBe pages (last updated 2024/01/10 based on karakoram):
       'PDBe Home': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/1hda',
         options: {
           moleculeId: '1hda',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -167,6 +181,7 @@
       },
 
       'PDBe Protein': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/7xv8/protein/1',
         size: [473, 403],
         options: {
           moleculeId: '7xv8',
@@ -188,6 +203,7 @@
       },
 
       'PDBe Nucleotide': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/7xv8/DNA/2',
         size: [986, 365],
         options: {
           moleculeId: '7xv8',
@@ -209,6 +225,7 @@
       },
 
       'PDBe Ligand': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/1cbs/bound/REA',
         skin: 'light',
         size: [468, 400],
         options: {
@@ -226,6 +243,7 @@
       },
 
       'PDBe Branched': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/3d11/branched/2',
         skin: 'light',
         size: [468, 400],
         options: {
@@ -243,6 +261,7 @@
       },
 
       'PDBe Modres': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/3uot/modified/MSE',
         size: [468, 400],
         options: {
           moleculeId: '3uot',
@@ -261,6 +280,7 @@
       },
 
       'PDBe Search': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/search/index?text:1cbs',
         options: {
           moleculeId: '1cbs',
           pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
@@ -278,6 +298,7 @@
 
       // Settings on real PDBe-KB pages (last updated 2024/01/12 based on pdbe-kb-protein-pages):
       'PDBe-KB Home': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646',
         skin: 'light',
         size: [417, 315],
         options: {
@@ -298,6 +319,7 @@
       },
 
       'PDBe-KB Superposed': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646',
         skin: 'light',
         options: {
           moleculeId: 'P54646',
@@ -317,6 +339,7 @@
       },
 
       'PDBe-KB Superposed Ligands': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646',
         skin: 'light',
         options: {
           moleculeId: 'P54646',
@@ -337,6 +360,7 @@
 
       // Settings on real AlphaFold pages (last updated 2024/01/15 based on https://www.alphafold.ebi.ac.uk/entry/O15552)
       'AlphaFold Home': {
+        reference: 'https://www.alphafold.ebi.ac.uk/entry/O15552',
         skin: 'light',
         size: [767, 446],
         options: {

@@ -20,10 +20,17 @@
       background-color: #474748 !important;
     }
 
+    body {
+      padding: 30px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
     .content {
       display: flex;
-      flex-wrap: wrap;
-      padding: 30px;
+      flex-wrap: wrap-reverse;
       gap: 30px;
     }
 
@@ -37,11 +44,6 @@
       margin-bottom: 20px;
     }
 
-    .viewerSection {
-      margin-bottom: 300px;
-      /* Generous margin to fit control panel in vertical layout */
-    }
-
     #myViewer {
       width: 450px;
       height: 450px;
@@ -52,6 +54,8 @@
 </head>
 
 <body>
+  <h2>PDBe Molstar</h2>
+  
   <div class="content">
     <div class="controlsSection">
       <h3>Canvas/ layout methods</h3>
