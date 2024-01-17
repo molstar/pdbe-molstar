@@ -186,7 +186,6 @@ class PDBeMolstarPlugin {
         this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
 
         // Create/ Initialise Plugin
-        console.log('spec:', pdbePluginSpec)
         this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
         PluginCustomState(this.plugin).initParams = { ...this.initParams };
         PluginCustomState(this.plugin).events = {
@@ -415,7 +414,7 @@ class PDBeMolstarPlugin {
             let rm = false;
             if (key && this.initParams.hideStructure) {
                 const structType: any = TagRefs[key];
-                if (structType && this.initParams.hideStructure?.indexOf(structType) > -1) rm = true;
+                if (structType && this.initParams.hideStructure?.includes(structType)) rm = true;
             }
             if (rm) {
                 this.plugin.managers.structure.hierarchy.remove([compGrp[compGrpIndex]]);
