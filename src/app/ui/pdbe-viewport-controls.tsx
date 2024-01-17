@@ -1,11 +1,11 @@
-import { ControlGroup } from 'Molstar/mol-plugin-ui/controls/common';
-import { AutorenewSvg, BuildOutlinedSvg, CameraOutlinedSvg, CloseSvg, FullscreenSvg, TuneSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ToggleSelectionModeButton } from 'Molstar/mol-plugin-ui/structure/selection';
+// import { ControlGroup } from 'Molstar/mol-plugin-ui/controls/common';
+// import { AutorenewSvg, BuildOutlinedSvg, CameraOutlinedSvg, CloseSvg, FullscreenSvg, TuneSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+// import { ToggleSelectionModeButton } from 'Molstar/mol-plugin-ui/structure/selection';
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
-import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
+// import { SimpleSettingsControl } from 'Molstar/mol-plugin-ui/viewport/simple-settings';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { PluginCustomState } from '../plugin-custom-state';
-import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
+// import { DownloadScreenshotControls } from './pdbe-screenshot-controls';
 
 
 export class PDBeViewportControls extends ViewportControls {
@@ -26,6 +26,8 @@ export class PDBeViewportControls extends ViewportControls {
         if (customeState && customeState.initParams && customeState.initParams.superposition) showPDBeLink = false;
         if (customeState && customeState.initParams && customeState.initParams.hideCanvasControls && customeState.initParams.hideCanvasControls.indexOf('controlToggle') > -1) showControlToggle = false;
         if (customeState && customeState.initParams && customeState.initParams.hideCanvasControls && customeState.initParams.hideCanvasControls.indexOf('controlInfo') > -1) showControlInfo = false;
+        console.log('showControlToggle', showControlToggle, this.plugin.config.get(PluginConfig.Viewport.ShowControls));
+        console.log('showControlInfo', showControlInfo, this.plugin.config.get(PluginConfig.Viewport.ShowSettings));
         const bgColor = this.isBlack(customeState) ? '#fff' : '#555';
         const pdbeLink: any = {
             parentStyle: { width: 'auto' },
@@ -38,7 +40,7 @@ export class PDBeViewportControls extends ViewportControls {
                 style: { height: '12px', width: '12px', border: 0, position: 'absolute', margin: '4px 0 0 -13px' }
             }
         };
-        const vwpBtnsTopMargin = { marginTop: '30px' };
+        // const vwpBtnsTopMargin = { marginTop: '30px' };
 
         return <>
             {showPDBeLink && <div className='msp-viewport-controls-buttons' style={pdbeLink.containerStyle}>
@@ -48,39 +50,42 @@ export class PDBeViewportControls extends ViewportControls {
                     {customeState.initParams!.moleculeId}
                 </a>
             </div>}
-            <div className={'msp-viewport-controls'} style={showPDBeLink ? vwpBtnsTopMargin : void 0}>
-                <div className='msp-viewport-controls-buttons'>
-                    <div>
-                        <div className='msp-semi-transparent-background' />
-                        {this.icon(AutorenewSvg, this.resetCamera, 'Reset Camera')}
+            <div style={{ position: 'absolute', top: showPDBeLink ? 30 : 0, right: 0 }}>
+                {super.render()}
+                {/* <div className={'msp-viewport-controls'}>
+                    <div className='msp-viewport-controls-buttons'>
+                        <div>
+                            <div className='msp-semi-transparent-background' />
+                            {this.icon(AutorenewSvg, this.resetCamera, 'Reset Camera')}
+                        </div>
+                        <div>
+                            <div className='msp-semi-transparent-background' />
+                            {this.icon(CameraOutlinedSvg, this.toggleScreenshotExpanded, 'Screenshot / State Snapshot', this.state.isScreenshotExpanded)}
+                        </div>
+                        <div>
+                            <div className='msp-semi-transparent-background' />
+                            {this.plugin.config.get(PluginConfig.Viewport.ShowControls) && this.icon(BuildOutlinedSvg, this.toggleControls, 'Toggle Controls Panel', this.plugin.layout.state.showControls)}
+                            {this.plugin.config.get(PluginConfig.Viewport.ShowExpand) && this.icon(FullscreenSvg, this.toggleExpanded, 'Toggle Expanded Viewport', this.plugin.layout.state.isExpanded)}
+                            {this.plugin.config.get(PluginConfig.Viewport.ShowSettings) && this.icon(TuneSvg, this.toggleSettingsExpanded, 'Settings / Controls Info', this.state.isSettingsExpanded)}
+                        </div>
+                        {this.plugin.config.get(PluginConfig.Viewport.ShowSelectionMode) && <div>
+                            <div className='msp-semi-transparent-background' />
+                            <ToggleSelectionModeButton />
+                        </div>}
                     </div>
-                    <div>
-                        <div className='msp-semi-transparent-background' />
-                        {this.icon(CameraOutlinedSvg, this.toggleScreenshotExpanded, 'Screenshot / State Snapshot', this.state.isScreenshotExpanded)}
-                    </div>
-                    <div>
-                        <div className='msp-semi-transparent-background' />
-                        {showControlToggle && this.icon(BuildOutlinedSvg, this.toggleControls, 'Toggle Controls Panel', this.plugin.layout.state.showControls)}
-                        {this.plugin.config.get(PluginConfig.Viewport.ShowExpand) && this.icon(FullscreenSvg, this.toggleExpanded, 'Toggle Expanded Viewport', this.plugin.layout.state.isExpanded)}
-                        {showControlInfo && this.icon(TuneSvg, this.toggleSettingsExpanded, 'Settings / Controls Info', this.state.isSettingsExpanded)}
-                    </div>
-                    {this.plugin.config.get(PluginConfig.Viewport.ShowSelectionMode) && <div>
-                        <div className='msp-semi-transparent-background' />
-                        <ToggleSelectionModeButton />
+                    {this.state.isScreenshotExpanded && <div className='msp-viewport-controls-panel'>
+                        <ControlGroup header='Screenshot / State' title='Click to close.' initialExpanded={true} hideExpander={true} hideOffset={true} onHeaderClick={this.toggleScreenshotExpanded}
+                            topRightIcon={CloseSvg} noTopMargin childrenClassName='msp-viewport-controls-panel-controls'>
+                            <DownloadScreenshotControls close={this.toggleScreenshotExpanded} />
+                        </ControlGroup>
                     </div>}
-                </div>
-                {this.state.isScreenshotExpanded && <div className='msp-viewport-controls-panel'>
-                    <ControlGroup header='Screenshot / State' title='Click to close.' initialExpanded={true} hideExpander={true} hideOffset={true} onHeaderClick={this.toggleScreenshotExpanded}
-                        topRightIcon={CloseSvg} noTopMargin childrenClassName='msp-viewport-controls-panel-controls'>
-                        <DownloadScreenshotControls close={this.toggleScreenshotExpanded} />
-                    </ControlGroup>
-                </div>}
-                {this.state.isSettingsExpanded && <div className='msp-viewport-controls-panel'>
-                    <ControlGroup header='Settings / Controls Info' title='Click to close.' initialExpanded={true} hideExpander={true} hideOffset={true} onHeaderClick={this.toggleSettingsExpanded}
-                        topRightIcon={CloseSvg} noTopMargin childrenClassName='msp-viewport-controls-panel-controls'>
-                        <SimpleSettingsControl />
-                    </ControlGroup>
-                </div>}
+                    {this.state.isSettingsExpanded && <div className='msp-viewport-controls-panel'>
+                        <ControlGroup header='Settings / Controls Info' title='Click to close.' initialExpanded={true} hideExpander={true} hideOffset={true} onHeaderClick={this.toggleSettingsExpanded}
+                            topRightIcon={CloseSvg} noTopMargin childrenClassName='msp-viewport-controls-panel-controls'>
+                            <SimpleSettingsControl />
+                        </ControlGroup>
+                    </div>}
+                </div> */}
             </div>
         </>;
     }

@@ -160,9 +160,11 @@ class PDBeMolstarPlugin {
         }
 
         if (this.initParams.hideCanvasControls) {
-            if (this.initParams.hideCanvasControls.indexOf('expand') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowExpand, false]);
-            if (this.initParams.hideCanvasControls.indexOf('selection') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-            if (this.initParams.hideCanvasControls.indexOf('animation') > -1) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowAnimation, false]);
+            if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowExpand, false]);
+            if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+            if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowAnimation, false]);
+            if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowControls, false]);
+            if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSettings, false]);
         };
 
         if (this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
@@ -184,6 +186,7 @@ class PDBeMolstarPlugin {
         this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
 
         // Create/ Initialise Plugin
+        console.log('spec:', pdbePluginSpec)
         this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
         PluginCustomState(this.plugin).initParams = { ...this.initParams };
         PluginCustomState(this.plugin).events = {
@@ -617,6 +620,13 @@ class PDBeMolstarPlugin {
             if (!this.initParams.moleculeId && !this.initParams.customData) return false;
             if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
             PluginCustomState(this.plugin).initParams = this.initParams;
+
+            // Show/hide buttons in the viewport control panel
+            this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls?.includes('expand'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls?.includes('selection'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls?.includes('animation'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls?.includes('controlToggle'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls?.includes('controlInfo'));
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
