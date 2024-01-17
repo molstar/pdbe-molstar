@@ -184,6 +184,7 @@ class PDBeMolstarPlugin {
         }
 
         this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
+        (this.targetElement as any).viewerInstance = this;
 
         // Create/ Initialise Plugin
         this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
