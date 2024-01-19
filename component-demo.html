@@ -36,6 +36,16 @@
         h2 {
             margin-bottom: 20px;
         }
+        h3 {
+            margin-bottom: 2px;
+        }
+        h4 {
+            margin-top: 6px;
+            margin-bottom: 2px;
+        }
+        h4:first-child {
+            margin-top: 0px;
+        }
 
         .content {
             display: flex;
@@ -58,6 +68,16 @@
             height: 450px;
             position: relative;
         }
+
+        button {
+            margin-right: 8px;
+            margin-bottom: 8px;
+            padding: 1px;
+            padding-inline: 4px;
+        }
+        button:last-child {
+            margin-bottom: 0px;
+        }
     </style>
 </head>
 
@@ -68,89 +88,99 @@
         <div class="controlsSection">
             <h3>Canvas/ layout methods</h3>
             <div class="controlBox">
-                <strong>Set Background</strong><br>
-                <button onclick="viewerInstance.canvas.setBgColor({r:255, g:255, b:255})">White</button>&nbsp;
-                <button onclick="viewerInstance.canvas.setBgColor({r:0, g:0, b:0})">Black</button><br><br>
+                <h4>Set Background</h4>
+                <button onclick="viewerInstance.canvas.setBgColor({ r: 255, g: 255, b: 255 })">White</button>
+                <button onclick="viewerInstance.canvas.setBgColor({ r: 0, g: 0, b: 0 })">Black</button>
 
-                <strong>Toggle controls menu</strong><br>
-                <button onclick="viewerInstance.canvas.toggleControls(false)">Hide</button>&nbsp;
-                <button onclick="viewerInstance.canvas.toggleControls(true)">Show</button>&nbsp;
-                <button onclick="viewerInstance.canvas.toggleControls()">Toggle</button><br><br>
+                <h4>Toggle controls menu</h4>
+                <button onclick="viewerInstance.canvas.toggleControls(false)">Hide</button>
+                <button onclick="viewerInstance.canvas.toggleControls(true)">Show</button>
+                <button onclick="viewerInstance.canvas.toggleControls()">Toggle</button>
 
-                <strong>Toggle Fullscreen</strong><br>
-                <button onclick="viewerInstance.canvas.toggleExpanded(true)">Show Fullscreen</button><br>
+                <h4>Toggle Fullscreen</h4>
+                <button onclick="viewerInstance.canvas.toggleExpanded(true)">Show Fullscreen</button>
             </div>
 
             <h3>Visual Methods</h3>
             <div class="controlBox">
-                <strong>Change representation visibility</strong><br>
-                <button onclick="viewerInstance.visual.visibility({water:false})">Hide Water Visual</button>&nbsp;
-                <button onclick="viewerInstance.visual.visibility({water:true})">Show Water Visual</button><br><br>
+                <h4>Change representation visibility</h4>
+                <button onclick="viewerInstance.visual.visibility({ water: false })">Hide Water Visual</button>
+                <button onclick="viewerInstance.visual.visibility({ water: true })">Show Water Visual</button>
 
-                <strong>Toggle Spin</strong><br>
-                <button onclick="viewerInstance.visual.toggleSpin(true)">Rotate</button>&nbsp;
-                <button onclick="viewerInstance.visual.toggleSpin(false)">Stop</button>&nbsp;
-                <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button><br><br>
+                <h4>Toggle Spin</h4>
+                <button onclick="viewerInstance.visual.toggleSpin(true)">Rotate</button>
+                <button onclick="viewerInstance.visual.toggleSpin(false)">Stop</button>
+                <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button>
 
-                <strong>Focus</strong><br>
-                <button
-                    onclick="viewerInstance.visual.focus([{struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18}])">Focus
-                    on Chain A:14-18</button><br><br>
+                <h4>Focus</h4>
+                <button onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
+                    Focus on Chain A:14-18
+                </button>
 
-                <strong>Highlight</strong><br>
-                <button
-                    onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color:{r:255,g:255,b:0} })">Highlight
-                    Chain A:14-18</button>&nbsp;
-                <button onclick="viewerInstance.visual.clearHighlight()">Clear Highlight</button><br><br>
+                <h4>Highlight</h4>
+                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
+                    Highlight Chain A:14-18
+                </button>
+                <button onclick="viewerInstance.visual.clearHighlight()">
+                    Clear Highlight
+                </button>
+                
+                <h4>Selection</h4>
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
+                    Select & Focus on Chain A
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
+                    Select & Focus on Chain B
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
+                    Select Chain B:1-6
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 255, g: 255, b: 0 } }]})">
+                    Select Chain B:1-6 & Chain B:15-20
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', unp_accession: 'P02070', unp_res_num_start: 127, unp_res_num_end: 132, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
+                    Select Uniprot
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.clearSelection()">
+                    Clear Selection
+                </button>
 
-                <strong>Selection</strong><br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color:{r:255,g:255,b:0}, focus: true }]})">Select
-                    & Focus on Chain B:1-6</button><br><br>
-                <button onclick="
-                var selectSections = [
-                  {
-                    struct_asym_id: 'B', 
-                    start_residue_number: 8, 
-                    end_residue_number: 10, 
-                    color:{r:255,g:0,b:255},
-                    sideChain: true
-                  },
-                  {
-                    struct_asym_id: 'B', 
-                    start_residue_number: 2, 
-                    end_residue_number: 5, 
-                    color:{r:255,g:0,b:0}
-                  }
-                ]
-                viewerInstance.visual.select({ data: selectSections, nonSelectedColor: {r:255,g:255,b:255}})">Select on
-                    Chain B:2-5 & Chain B:8-10</button><br><br>
+                <h4>Set highlight / selection colour</h4>
+                <button onclick="viewerInstance.visual.setColor({ highlight: { r: 255, g: 255, b: 0 } })">
+                    Yellow highlight
+                </button>
+                <button onclick="viewerInstance.visual.reset({ highlightColor: true })">
+                    Reset
+                </button>
+                <br>
+                <button onclick="viewerInstance.visual.setColor({ select: { r: 255, g: 0, b: 0} })">
+                    Red selection
+                </button>
+                <button onclick="viewerInstance.visual.reset({ selectColor: true })">
+                    Reset
+                </button>
 
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{struct_asym_id: 'B', color:{r:255,g:255,b:0}, focus:true}], nonSelectedColor: {r:255,g:255,b:255} })">Select
-                    & Focus on Chain B</button><br><br>
+                <h4>Reset Visual</h4>
+                <button onclick="viewerInstance.visual.reset({ camera: true })">
+                    Camera
+                </button>
+                <button onclick="viewerInstance.visual.reset({ theme: true })">
+                    Theme
+                </button>
+                <button onclick="viewerInstance.visual.reset({ camera: true, theme: true })">
+                    Camera & Theme
+                </button>
 
-                <button onclick="viewerInstance.visual.clearSelection()">Clear Selection</button><br><br>
-
-                <strong>Set highlight / selection colour</strong><br>
-                <button onclick="viewerInstance.visual.setColor({ highlight: {r:255,g:255,b:0} })">Yellow
-                    highlight</button>&nbsp;
-                <button onclick="viewerInstance.visual.reset({ highlightColor: true })">Reset</button><br><br>
-                <button onclick="viewerInstance.visual.setColor({ select: {r:255,g:0,b:0} })">Red
-                    selection</button>&nbsp;
-                <button onclick="viewerInstance.visual.reset({ selectColor: true })">Reset</button><br><br>
-
-                <strong>Reset Visual</strong><br>
-                <button onclick="viewerInstance.visual.reset({ camera: true })">Camera</button>&nbsp;
-                <button onclick="viewerInstance.visual.reset({ theme: true })">Theme</button>&nbsp;
-                <button onclick="viewerInstance.visual.reset({ camera: true, theme: true })">Camera &
-                    Theme</button><br><br>
-
-                <strong>Update data</strong><br>
-                <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'})">Update data to create new
-                    visual</button><br>
+                <h4>Update data</h4>
+                <button onclick="viewerInstance.visual.update({moleculeId: '1cbs'}, false)">
+                    Update data to create new visual
+                </button>
             </div>
-
         </div>
 
         <div class="viewerSection">
@@ -186,11 +216,10 @@
     <script>
         var viewerInstance;
         window.onload = function () {
-            var pdbeMolstarComponent = document.getElementById('pdbeMolstarComponent');
+            const pdbeMolstarComponent = document.getElementById('pdbeMolstarComponent');
             viewerInstance = pdbeMolstarComponent.viewerInstance;
         };
     </script>
-
 </body>
 
 </html>
