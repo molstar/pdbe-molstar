@@ -405,11 +405,11 @@ export class PDBeMolstarPlugin {
     }
 
     applyVisualParams = () => {
-
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
         for (const compGroup of componentGroups) {
             const compRef = compGroup[compGroup.length - 1];
-            const remove = this.initParams.hideStructure?.some(type => StructureComponentTags[type] === compRef.key);
+            const tag = compRef.key ?? '';
+            const remove = this.initParams.hideStructure?.some(type => StructureComponentTags[type]?.includes(tag));
             if (remove) {
                 this.plugin.managers.structure.hierarchy.remove([compRef]);
             }
@@ -638,14 +638,16 @@ export class PDBeMolstarPlugin {
             if (!data) return;
 
             for (const visual in data) {
-                const tag = StructureComponentTags[visual as keyof typeof StructureComponentTags] ?? '';
-                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tag);
-                if (componentRef) {
-                    const compVisual = this.plugin.state.data.select(componentRef)[0];
-                    if (compVisual && compVisual.obj) {
-                        const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
-                        if (data[visual] !== currentlyVisible) {
-                            PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
+                const tags = StructureComponentTags[visual as keyof typeof StructureComponentTags] ?? [];
+                for (const tag of tags) {
+                    const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tag);
+                    if (componentRef) {
+                        const compVisual = this.plugin.state.data.select(componentRef)[0];
+                        if (compVisual && compVisual.obj) {
+                            const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
+                            if (data[visual] !== currentlyVisible) {
+                                PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
+                            }
                         }
                     }
                 }
@@ -713,13 +715,13 @@ export class PDBeMolstarPlugin {
 
 
 const StructureComponentTags = {
-    polymer: 'structure-component-static-polymer',
-    het: 'structure-component-static-ligand',
-    water: 'structure-component-static-water',
-    carbs: 'structure-component-static-branched',
-    nonStandard: 'structure-component-static-non-standard',
-    coarse: 'structure-component-static-coarse',
-    maps: 'volume-streaming-info',
+    polymer: ['structure-component-static-polymer'],
+    het: ['structure-component-static-ligand', 'structure-component-static-ion'],
+    water: ['structure-component-static-water'],
+    carbs: ['structure-component-static-branched'],
+    nonStandard: ['structure-component-static-non-standard'],
+    coarse: ['structure-component-static-coarse'],
+    maps: ['volume-streaming-info'],
 };
 
 
