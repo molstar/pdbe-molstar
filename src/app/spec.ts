@@ -60,9 +60,24 @@ export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, o
     return ctx;
 }
 
-/** RGB color (r, g, b values 0-255) */
-interface ColorParams { r: number, g: number, b: number }
 
+/** RGB color (r, g, b values 0-255) */
+export interface ColorParams { r: number, g: number, b: number }
+
+export const Preset = ['default', 'unitcell', 'all-models', 'supercell'] as const;
+export type Preset = (typeof Preset)[number]
+
+export const Lighting = ['flat', 'matte', 'glossy', 'metallic', 'plastic'] as const;
+export type Lighting = (typeof Lighting)[number]
+
+export const VisualStyle = ['cartoon', 'ball-and-stick'] as const;
+export type VisualStyle = (typeof VisualStyle)[number]
+
+export const Encoding = ['cif', 'bcif'] as const;
+export type Encoding = (typeof Encoding)[number]
+
+
+/** Options for initializing `PDBeMolstarPlugin` */
 export interface InitParams {
     moleculeId?: string,
     superposition?: boolean,
@@ -76,35 +91,36 @@ export interface InitParams {
     reactive?: boolean,
     expanded?: boolean,
     hideControls?: boolean,
-    hideCanvasControls?: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo'],
+    hideCanvasControls?: ('expand' | 'selection' | 'animation' | 'controlToggle' | 'controlInfo')[],
     subscribeEvents?: boolean,
     pdbeLink?: boolean,
     assemblyId?: string,
     selectInteraction?: boolean,
     sequencePanel?: boolean,
     ligandView?: LigandQueryParam,
-    defaultPreset?: 'default' | 'unitcell' | 'all-models' | 'supercell',
+    defaultPreset?: Preset,
     bgColor?: ColorParams,
     customData?: { url: string, format: string, binary: boolean },
     loadCartoonsOnly?: boolean,
     alphafoldView?: boolean,
     selectBindings?: any,
     focusBindings?: any,
-    lighting?: 'flat' | 'matte' | 'glossy' | 'metallic' | 'plastic' | undefined,
+    lighting?: Lighting,
     selectColor?: ColorParams,
     highlightColor?: ColorParams,
     superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean, superposeAll?: boolean, ligandColor?: ColorParams },
-    hideStructure?: ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'],
-    visualStyle?: 'cartoon' | 'ball-and-stick',
-    encoding: 'cif' | 'bcif'
+    hideStructure?: ('polymer' | 'het' | 'water' | 'carbs' | 'nonStandard' | 'coarse')[],
+    visualStyle?: VisualStyle,
+    encoding: Encoding,
     granularity?: Loci.Granularity,
     selection?: { data: QueryParam[], nonSelectedColor?: any, clearPrevious?: boolean },
     mapSettings: any,
     /** Show overlay with PDBe logo while the initial structure is being loaded */
-    loadingOverlay: boolean,
+    loadingOverlay?: boolean,
     // [key: string]: any;
 }
 
+/** Default values for `InitParams` */
 export const DefaultParams: InitParams = {
     moleculeId: undefined,
     superposition: undefined,
@@ -144,3 +160,13 @@ export const DefaultParams: InitParams = {
     sequencePanel: false,
     loadingOverlay: false,
 } as const;
+
+/** Return `undefined` if `params` are valid, an error message otherwise. */
+export function validateInitParams(params: Partial<InitParams>): string | undefined {
+    if (!params.moleculeId && !params.customData?.url) return 'Option `moleculeId` or `customData` must be defined';
+    if (params.customData) {
+        if (!params.customData.url) return 'Option `customData.url` must be a non-empty string';
+        if (!params.customData.format) return 'Option `customData.format` must be a non-empty string';
+    }
+    return undefined;
+}

@@ -38,6 +38,7 @@ import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes,
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
+import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
@@ -49,7 +50,7 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
 
-class PDBeMolstarPlugin {
+export class PDBeMolstarPlugin {
 
     private _ev = RxEventHelper.create();
 
@@ -65,6 +66,11 @@ class PDBeMolstarPlugin {
     defaultRendererProps: any;
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
+
+    /** Extract InitParams from attributes of an HTML element */
+    static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
+        return initParamsFromHtmlAttributes(element);
+    }
 
     async render(target: string | HTMLElement, options: InitParams) {
         if (!options) return;

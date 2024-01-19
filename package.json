@@ -10,11 +10,11 @@
     "rebuild": "npm run clean && npm run build",
     "clean": "gulp clean-all",
     "build-tsc": "tsc --incremental",
-    "build-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/",
+    "build-extra": "cpx 'src/**/*.{scss,html,ico}' lib/",
     "build-webpack": "webpack --mode production --config ./webpack.config.production.js",
-    "watch": "concurrently -c \"green,green,gray,gray\" --names \"tsc,srv,ext,wpc\" --kill-others \"npm:watch-tsc\" \"npm:watch-extra\" \"npm:watch-webpack\"",
+    "watch": "concurrently -c 'green,gray,blue' --names 'tsc,ext,wpc' --kill-others 'npm:watch-tsc' 'npm:watch-extra' 'npm:watch-webpack'",
     "watch-tsc": "tsc --watch --incremental",
-    "watch-extra": "cpx \"src/**/*.{scss,html,ico}\" lib/ --watch",
+    "watch-extra": "cpx 'src/**/*.{scss,html,ico}' lib/ --watch",
     "watch-webpack": "webpack -w --mode development --stats minimal --config ./webpack.config.development.js",
     "serve": "http-server -p 1338 -g",
     "bundle-webcomponent": "gulp bundle-webcomponent"
@@ -78,7 +78,7 @@
     "d3-brush": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
-    "lit-element": "^2.2.1",
+    "lit": "^3.1.1",
     "molstar": "3.44.0",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0"
