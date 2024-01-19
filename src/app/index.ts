@@ -405,37 +405,23 @@ export class PDBeMolstarPlugin {
     }
 
     applyVisualParams = () => {
-        const TagRefs: any = {
-            'structure-component-static-polymer': 'polymer',
-            'structure-component-static-ligand': 'het',
-            'structure-component-static-branched': 'carbs',
-            'structure-component-static-water': 'water',
-            'structure-component-static-coarse': 'coarse',
-            'non-standard': 'nonStandard'
-        };
 
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-        componentGroups.forEach((compGrp) => {
-            const compGrpIndex = compGrp.length - 1;
-            const key = compGrp[compGrpIndex].key;
-            let rm = false;
-            if (key && this.initParams.hideStructure) {
-                const structType: any = TagRefs[key];
-                if (structType && this.initParams.hideStructure?.includes(structType)) rm = true;
+        for (const compGroup of componentGroups) {
+            const compRef = compGroup[compGroup.length - 1];
+            const remove = this.initParams.hideStructure?.some(type => StructureComponentTags[type] === compRef.key);
+            if (remove) {
+                this.plugin.managers.structure.hierarchy.remove([compRef]);
             }
-            if (rm) {
-                this.plugin.managers.structure.hierarchy.remove([compGrp[compGrpIndex]]);
-            }
-
-            if (!rm && this.initParams.visualStyle) {
-                if (compGrp[compGrpIndex] && compGrp[compGrpIndex].representations) {
-                    compGrp[compGrpIndex].representations.forEach(rep => {
+            if (!remove && this.initParams.visualStyle) {
+                if (compRef && compRef.representations) {
+                    compRef.representations.forEach(rep => {
                         const currentParams = createStructureRepresentationParams(this.plugin, void 0, { type: this.initParams.visualStyle });
-                        this.plugin.managers.structure.component.updateRepresentations([compGrp[compGrpIndex]], rep, currentParams);
+                        this.plugin.managers.structure.component.updateRepresentations([compRef], rep, currentParams);
                     });
                 }
             }
-        });
+        }
     };
 
     canvas = {
@@ -648,21 +634,12 @@ export class PDBeMolstarPlugin {
                 this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary }, fullLoad);
             }
         },
-        visibility: (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, maps?: boolean, [key: string]: any }) => {
-
+        visibility: (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, nonStandard?: boolean, maps?: boolean, [key: string]: any }) => {
             if (!data) return;
 
-            const refMap: any = {
-                polymer: 'structure-component-static-polymer',
-                het: 'structure-component-static-ligand',
-                water: 'structure-component-static-water',
-                carbs: 'structure-component-static-branched',
-                maps: 'volume-streaming-info'
-            };
-
             for (const visual in data) {
-                const tagName = refMap[visual];
-                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tagName);
+                const tag = StructureComponentTags[visual as keyof typeof StructureComponentTags] ?? '';
+                const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tag);
                 if (componentRef) {
                     const compVisual = this.plugin.state.data.select(componentRef)[0];
                     if (compVisual && compVisual.obj) {
@@ -672,7 +649,6 @@ export class PDBeMolstarPlugin {
                         }
                     }
                 }
-
             }
 
         },
@@ -734,5 +710,17 @@ export class PDBeMolstarPlugin {
         this.isSelectedColorUpdated = false;
     }
 }
+
+
+const StructureComponentTags = {
+    polymer: 'structure-component-static-polymer',
+    het: 'structure-component-static-ligand',
+    water: 'structure-component-static-water',
+    carbs: 'structure-component-static-branched',
+    nonStandard: 'structure-component-static-non-standard',
+    coarse: 'structure-component-static-coarse',
+    maps: 'volume-streaming-info',
+};
+
 
 (window as any).PDBeMolstarPlugin = PDBeMolstarPlugin;

@@ -35,7 +35,6 @@ const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
     'hide-controls': setBool('hideControls'),
     'subscribe-events': setBool('subscribeEvents'),
     'pdbe-link': setBool('pdbeLink'),
-    'load-cartoons-only': setBool('loadCartoonsOnly'),
     'select-interaction': setBool('selectInteraction'),
     'landscape': setBool('landscape'),
     'highlight-color-r': setColorComponent('highlightColor', 'r'),
