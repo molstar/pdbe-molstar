@@ -10,8 +10,9 @@ import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
-import { SIFTSMapping } from './sifts-mapping';
+import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { DefaultParams, InitParams } from './spec';
+import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -200,84 +201,85 @@ export type QueryParam = {
 export namespace QueryHelper {
 
     export function getQueryObject(params: QueryParam[], contextData: any): Expression.Expression {
-
-        const selections: any[] = [];
-        let siftMappings: any;
+        const selections: Partial<AtomsQueryParams>[] = [];
+        let siftMappings: SIFTSMappingMapping | undefined;
         let currentAccession: string;
 
         params.forEach(param => {
-            const selection: any = {};
+            const selection: Partial<AtomsQueryParams> = {};
 
             // entity
-            if (param.entity_id) selection['entityTest'] = (l: any) => StructureProperties.entity.id(l.element) === param.entity_id;
+            if (param.entity_id) selection['entityTest'] = l => StructureProperties.entity.id(l.element) === param.entity_id;
 
             // chain
             if (param.struct_asym_id) {
-                selection['chainTest'] = (l: any) => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
+                selection['chainTest'] = l => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
             } else if (param.auth_asym_id) {
-                selection['chainTest'] = (l: any) => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
+                selection['chainTest'] = l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
             }
 
             // residues
             if (param.label_comp_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
+                selection['residueTest'] = l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
             } else if (param.uniprot_accession && param.uniprot_residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
+                        console.log('siftMappings:', siftMappings)
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
-                    return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
+                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
                 };
             } else if (param.uniprot_accession && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
+                        console.log('siftMappings:', siftMappings)
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
-                    return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
+                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
                 };
             } else if (param.residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
             } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
                     return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
                 };
 
             } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
             } else if (param.auth_seq_id !== undefined) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
             } else if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             } else if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
                     return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
                 };
             } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
             }
 
             // atoms
             if (param.atoms) {
-                selection['atomTest'] = (l: any) => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
+                selection['atomTest'] = l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
             }
 
             if (param.atom_id) {
-                selection['atomTest'] = (l: any) => param.atom_id!.includes(StructureProperties.atom.id(l.element));
+                selection['atomTest'] = l => param.atom_id!.includes(StructureProperties.atom.id(l.element));
             }
 
             selections.push(selection);
         });
 
-        const atmGroupsQueries: any[] = [];
-        selections.forEach((selection: any) => {
+        const atmGroupsQueries: StructureQuery[] = [];
+        selections.forEach(selection => {
             atmGroupsQueries.push(Queries.generators.atoms(selection));
         });
 

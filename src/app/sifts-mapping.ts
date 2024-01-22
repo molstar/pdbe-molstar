@@ -7,7 +7,7 @@ import { CustomModelProperty } from 'Molstar/mol-model-props/common/custom-model
 
 export { SIFTSMapping as SIFTSMapping };
 
-interface SIFTSMappingMapping {
+export interface SIFTSMappingMapping {
     readonly dbName: string[],
     readonly accession: string[],
     readonly num: string[],

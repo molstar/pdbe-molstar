@@ -142,7 +142,7 @@
                     Select Chain B:1-6 & Chain B:15-20
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', unp_accession: 'P02070', unp_res_num_start: 127, unp_res_num_end: 132, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
+                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
                     Select Uniprot
                 </button>
                 <br>
@@ -188,7 +188,7 @@
             <!-- Molstar container -->
             <div id="myViewer">
                 <pdbe-molstar id="pdbeMolstarComponent"
-                    molecule-id="1gkt" assembly-id="1"
+                    molecule-id="1hda" assembly-id="1"
                     pdbe-url="https://www.ebi.ac.uk/pdbe/" 
                     bg-color-b="20" bg-color-r="15" bg-color-g="0"
                     load-maps="true"
