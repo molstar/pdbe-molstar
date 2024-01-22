@@ -225,7 +225,6 @@ export namespace QueryHelper {
                 selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
-                        console.log('siftMappings:', siftMappings)
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
@@ -235,7 +234,6 @@ export namespace QueryHelper {
                 selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
-                        console.log('siftMappings:', siftMappings)
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
