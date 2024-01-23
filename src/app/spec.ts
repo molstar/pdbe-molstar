@@ -1,19 +1,14 @@
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import { Loci } from 'Molstar/mol-model/loci';
+import { StateActions } from 'Molstar/mol-plugin-state/actions';
 import { VolumeStreamingCustomControls } from 'Molstar/mol-plugin-ui/custom/volume';
-import { Plugin } from 'Molstar/mol-plugin-ui/plugin';
+import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { PluginBehaviors } from 'Molstar/mol-plugin/behavior';
 import { CreateVolumeStreamingBehavior } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
-import { PluginSpec } from 'Molstar/mol-plugin/spec';
-import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
-import { StateActions } from 'Molstar/mol-plugin-state/actions';
+import { PluginSpec } from 'Molstar/mol-plugin/spec';
+import { LigandQueryParam, QueryParam } from './helpers';
 import { PDBeLociLabelProvider } from './labels';
 import { PDBeSIFTSMapping } from './sifts-mappings-behaviour';
-
-import { Loci } from 'Molstar/mol-model/loci';
-import { QueryParam, LigandQueryParam } from './helpers';
 
 
 export const DefaultPluginSpec = (): PluginSpec => ({
@@ -49,16 +44,6 @@ export const DefaultPluginUISpec = (): PluginUISpec => ({
         [CreateVolumeStreamingBehavior, VolumeStreamingCustomControls]
     ],
 });
-
-export async function createPluginUI(target: HTMLElement, spec?: PluginUISpec, options?: { onBeforeUIRender?: (ctx: PluginUIContext) => (Promise<void> | void) }) {
-    const ctx = new PluginUIContext(spec || DefaultPluginUISpec());
-    await ctx.init();
-    if (options?.onBeforeUIRender) {
-        await options.onBeforeUIRender(ctx);
-    }
-    ReactDOM.render(React.createElement(Plugin, { plugin: ctx }), target);
-    return ctx;
-}
 
 
 /** RGB color (r, g, b values 0-255) */

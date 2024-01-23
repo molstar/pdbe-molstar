@@ -3,6 +3,7 @@ import { MAQualityAssessment } from 'Molstar/extensions/model-archive/quality-as
 import { Mp4Export } from 'Molstar/extensions/mp4-export';
 import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
 import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
+import { Canvas3DProps } from 'Molstar/mol-canvas3d/canvas3d';
 import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
 import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
 import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/camera-rock';
@@ -16,6 +17,7 @@ import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/struct
 import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
 import { StructureComponentManager } from 'Molstar/mol-plugin-state/manager/structure/component';
 import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
 import { SelectLoci } from 'Molstar/mol-plugin/behavior/dynamic/representation';
@@ -25,20 +27,19 @@ import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { PluginContext } from 'Molstar/mol-plugin/context';
 import { PluginSpec } from 'Molstar/mol-plugin/spec';
+import { Representation } from 'Molstar/mol-repr/representation';
 import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
 import { ParamDefinition } from 'Molstar/mol-util/param-definition';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
-import { Representation } from 'molstar/lib/mol-repr/representation';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
-import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, createPluginUI } from './spec';
+import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
@@ -50,6 +51,7 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
+
 
 export class PDBeMolstarPlugin {
 
@@ -82,14 +84,8 @@ export class PDBeMolstarPlugin {
         if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
 
         // Set PDBe Plugin Spec
-        const defaultPDBeSpec = DefaultPluginUISpec();
-        const pdbePluginSpec: PluginUISpec = {
-            actions: [...defaultPDBeSpec.actions || []],
-            behaviors: [...defaultPDBeSpec.behaviors],
-            animations: [...defaultPDBeSpec.animations || []],
-            customParamEditors: defaultPDBeSpec.customParamEditors ?? [],
-            config: defaultPDBeSpec.config ?? [],
-        };
+        const pdbePluginSpec: PluginUISpec = DefaultPluginUISpec();
+        pdbePluginSpec.config ??= [];
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
@@ -108,7 +104,7 @@ export class PDBeMolstarPlugin {
         }
         if (this.initParams.symmetryAnnotation) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
-            pdbePluginSpec.config!.push(
+            pdbePluginSpec.config.push(
                 [RCSBAssemblySymmetryConfig.DefaultServerType, 'pdbe'],
                 [RCSBAssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
                 [RCSBAssemblySymmetryConfig.ApplyColors, false],
@@ -147,7 +143,7 @@ export class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
         }
 
-        pdbePluginSpec.config!.push([PluginConfig.Structure.DefaultRepresentationPresetParams, {
+        pdbePluginSpec.config.push([PluginConfig.Structure.DefaultRepresentationPresetParams, {
             theme: {
                 globalName: (this.initParams.alphafoldView) ? 'plddt-confidence' : undefined,
                 carbonColor: { name: 'element-symbol', params: {} },
@@ -162,21 +158,21 @@ export class PDBeMolstarPlugin {
 
         // Add animation props
         if (!this.initParams.ligandView && !this.initParams.superposition) {
-            pdbePluginSpec['animations'] = [AnimateModelIndex, AnimateCameraSpin, AnimateCameraRock, AnimateStateSnapshots, AnimateAssemblyUnwind, AnimateStructureSpin, AnimateStateInterpolation];
+            pdbePluginSpec.animations = [AnimateModelIndex, AnimateCameraSpin, AnimateCameraRock, AnimateStateSnapshots, AnimateAssemblyUnwind, AnimateStructureSpin, AnimateStateInterpolation];
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(Mp4Export));
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(GeometryExport));
         }
 
         if (this.initParams.hideCanvasControls) {
-            if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowExpand, false]);
-            if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-            if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowAnimation, false]);
-            if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowControls, false]);
-            if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config!.push([PluginConfig.Viewport.ShowSettings, false]);
+            if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
+            if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+            if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+            if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
+            if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
         };
 
-        if (this.initParams.landscape && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'landscape';
-        if (this.initParams.reactive && pdbePluginSpec.layout && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial['controlsDisplay'] = 'reactive';
+        if (this.initParams.landscape && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'landscape';
+        if (this.initParams.reactive && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'reactive';
 
         // override default event bindings
         if (this.initParams.selectBindings) {
@@ -205,10 +201,7 @@ export class PDBeMolstarPlugin {
 
         // Set background colour
         if (this.initParams.bgColor || this.initParams.lighting) {
-            const settings: any = {};
-            if (this.initParams.bgColor) settings.color = this.initParams.bgColor;
-            if (this.initParams.lighting) settings.lighting = this.initParams.lighting;
-            this.canvas.applySettings(settings);
+            this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
         }
 
         // Set selection granularity
@@ -351,7 +344,7 @@ export class PDBeMolstarPlugin {
                 let isBranchedView = false;
                 if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
                     isBranchedView = true;
-                    downloadOptions = { body: JSON.stringify(this.initParams.ligandView!.label_comp_id_list), headers: [['Content-type', 'application/json']] };
+                    downloadOptions = { body: JSON.stringify(this.initParams.ligandView.label_comp_id_list), headers: [['Content-type', 'application/json']] };
                 }
 
                 const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
@@ -438,18 +431,22 @@ export class PDBeMolstarPlugin {
             PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
         },
 
-        setBgColor: (color?: { r: number, g: number, b: number }) => {
+        setBgColor: async (color?: { r: number, g: number, b: number }) => {
             if (!color) return;
-            this.canvas.applySettings({ color });
+            await this.canvas.applySettings({ color });
         },
 
-        applySettings: (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
+        applySettings: async (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
             if (!settings) return;
-            const rendererParams: any = {};
-            if (settings.color) rendererParams['backgroundColor'] = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
-            if (settings.lighting) rendererParams['style'] = { name: settings.lighting };
-            const renderer = this.plugin.canvas3d!.props.renderer;
-            PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer: { ...renderer, ...rendererParams } } });
+            if (!this.plugin.canvas3d) return;
+            const renderer = { ...this.plugin.canvas3d.props.renderer };
+            if (settings.color) {
+                renderer.backgroundColor = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
+            }
+            if (settings.lighting) {
+                (renderer as any).style = { name: settings.lighting }; // I don't think this does anything and I don't see how it could ever have worked
+            }
+            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer } });
         },
 
     };
@@ -625,10 +622,7 @@ export class PDBeMolstarPlugin {
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
-                const settings: any = {};
-                if (this.initParams.bgColor) settings.color = this.initParams.bgColor;
-                if (this.initParams.lighting) settings.lighting = this.initParams.lighting;
-                this.canvas.applySettings(settings);
+                await this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
             }
 
             // Load Molecule CIF or coordQuery and Parse

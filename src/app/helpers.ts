@@ -1,5 +1,6 @@
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
+import { AtomsQueryParams } from 'Molstar/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
@@ -12,7 +13,6 @@ import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { DefaultParams, InitParams } from './spec';
-import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
