@@ -12,7 +12,7 @@ import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
-import { DefaultParams, InitParams } from './spec';
+import { InitParams } from './spec';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -359,7 +359,7 @@ export interface ModelServerRequest {
 /** Return URL for a ModelServer request.
  * If `queryType` is 'full' and `lowPrecisionCoords` is false, return URL of the static file instead (updated mmCIF or bCIF). */
 export function getStructureUrl(initParams: InitParams, request: ModelServerRequest) {
-    const pdbeUrl = (initParams.pdbeUrl ?? DefaultParams.pdbeUrl!).replace(/\/$/, ''); // without trailing slash
+    const pdbeUrl = initParams.pdbeUrl.replace(/\/$/, ''); // without trailing slash
     const useStaticFile = request.queryType === 'full' && !initParams.lowPrecisionCoords;
     if (useStaticFile) {
         const suffix = initParams.encoding === 'bcif' ? '.bcif' : '_updated.cif';

@@ -39,7 +39,7 @@ import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
-import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams } from './spec';
+import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
@@ -76,12 +76,19 @@ export class PDBeMolstarPlugin {
         return initParamsFromHtmlAttributes(element);
     }
 
-    async render(target: string | HTMLElement, options: InitParams) {
-        if (!options) return;
+    async render(target: string | HTMLElement, options: Partial<InitParams>) {
+        console.debug('Rendering PDBeMolstarPlugin instance with options:', options);
+        // Validate options
+        if (!options) {
+            console.error('Missing `options` argument to `PDBeMolstarPlugin.render');
+            return;
+        }
+        const validationIssues = validateInitParams(options);
+        if (validationIssues) {
+            console.error('Invalid PDBeMolstarPlugin options:', options);
+            return;
+        }
         this.initParams = addDefaults(options, DefaultParams);
-
-        if (!this.initParams.moleculeId && !this.initParams.customData) return false;
-        if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
 
         // Set PDBe Plugin Spec
         const pdbePluginSpec: PluginUISpec = DefaultPluginUISpec();
@@ -163,13 +170,11 @@ export class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(GeometryExport));
         }
 
-        if (this.initParams.hideCanvasControls) {
-            if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
-            if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-            if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
-            if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
-            if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
-        };
+        if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
+        if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+        if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+        if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
+        if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
 
         if (this.initParams.landscape && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'landscape';
         if (this.initParams.reactive && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'reactive';
@@ -358,7 +363,7 @@ export class PDBeMolstarPlugin {
                         representationPreset: 'auto'
                     });
 
-                    if (this.initParams.hideStructure || this.initParams.visualStyle) {
+                    if (this.initParams.hideStructure.length > 0 || this.initParams.visualStyle) {
                         this.applyVisualParams();
                     }
 
@@ -405,7 +410,7 @@ export class PDBeMolstarPlugin {
         for (const compGroup of componentGroups) {
             const compRef = compGroup[compGroup.length - 1];
             const tag = compRef.key ?? '';
-            const remove = this.initParams.hideStructure?.some(type => StructureComponentTags[type]?.includes(tag));
+            const remove = this.initParams.hideStructure.some(type => StructureComponentTags[type]?.includes(tag));
             if (remove) {
                 this.plugin.managers.structure.hierarchy.remove([compRef]);
             }
@@ -604,8 +609,18 @@ export class PDBeMolstarPlugin {
             }
             this.selectedParams = undefined;
         },
-        update: async (options: InitParams, fullLoad?: boolean) => {
-            if (!options) return;
+        update: async (options: Partial<InitParams>, fullLoad?: boolean) => {
+            console.debug('Updating PDBeMolstarPlugin instance with options:', options);
+            // Validate options
+            if (!options) {
+                console.error('Missing `options` argument to `PDBeMolstarPlugin.visual.update');
+                return;
+            }
+            const validationIssues = validateInitParams(options);
+            if (validationIssues) {
+                console.error('Invalid PDBeMolstarPlugin options:', options);
+                return;
+            }
 
             this.initParams = addDefaults(options, DefaultParams);
 
@@ -614,11 +629,11 @@ export class PDBeMolstarPlugin {
             PluginCustomState(this.plugin).initParams = this.initParams;
 
             // Show/hide buttons in the viewport control panel
-            this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls?.includes('expand'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls?.includes('selection'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls?.includes('animation'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls?.includes('controlToggle'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls?.includes('controlInfo'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
