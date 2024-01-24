@@ -9,3 +9,7 @@ tsconfig.tsbuildinfo
 *.sublime-workspace
 .idea
 .DS_Store
+
+# NPM built package
+/package/
+/pdbe-molstar-*.tgz

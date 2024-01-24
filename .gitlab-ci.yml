@@ -1,0 +1,27 @@
+
+stages:
+  - publish
+
+npm_publish:
+  stage: publish
+  # only:
+  #   - tags
+  image: node:20
+  script:
+    - echo Branch $CI_COMMIT_BRANCH Tag $CI_COMMIT_TAG Matches $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
+    # - sed -nr 's/^ *"version": "(.*)",$/\1/p' package.json
+    # - npm ci
+    # - npm run lint
+    # - npm run build
+    # - npm pack
+    # - npm publish
+  # tags:
+  #   - pdbekb-shell
+  # rules:
+  #   - if: $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
+
+
+
+
+
+
