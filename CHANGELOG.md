@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+- Mol* core dependency updated to 3.44.0
+- Removed Assembly Symmetry hack (now will hide assembly symmetry section for non-biological assemblies)
+- Manual testing via `portfolio.html`
+- Fixed hideStructure.nonStandard option
+- hideStructure.het option also hides ions
+- Removed loadCartoonsOnly option
+- Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
+- Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
+
 ## [v3.1.3]
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
 - Keep sequence panel in settings even when initially hidden

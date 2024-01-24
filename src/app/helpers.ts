@@ -1,5 +1,6 @@
 import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
 import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
+import { AtomsQueryParams } from 'Molstar/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
@@ -10,36 +11,38 @@ import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
-import { SIFTSMapping } from './sifts-mapping';
-import { DefaultParams, InitParams } from './spec';
+import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
+import { InitParams } from './spec';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
 
+export type MapParams = {
+    'em'?: MapStyle,
+    '2fo-fc'?: MapStyle,
+    'fo-fc(+ve)'?: MapStyle,
+    'fo-fc(-ve)'?: MapStyle,
+}
+interface MapStyle {
+    opacity?: number,
+    wireframe?: boolean,
+}
+
+
 export namespace PDBeVolumes {
 
-    export function mapParams(defaultParams: any, mapParams: any, ref?: string | number) {
+    export function mapParams(defaultParams: any, mapParams?: MapParams, ref?: string | number) {
         const pdbeParams = { ...defaultParams };
         pdbeParams.options.behaviorRef = 'volume-streaming' + '' + Math.floor(Math.random() * Math.floor(100));
         pdbeParams.options.emContourProvider = 'pdbe';
         pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/volume-server';
-        pdbeParams.options.channelParams['em'] = {
-            opacity: (mapParams && mapParams.em && mapParams.em.opacity) ? mapParams.em.opacity : 0.49,
-            wireframe: (mapParams && mapParams.em && mapParams.em.wireframe) ? mapParams.em.wireframe : false
-        };
-        pdbeParams.options.channelParams['2fo-fc'] = {
-            opacity: (mapParams && mapParams['2fo-fc'] && mapParams['2fo-fc'].opacity) ? mapParams['2fo-fc'].opacity : 0.49,
-            wireframe: (mapParams && mapParams['2fo-fc'] && mapParams['2fo-fc'].wireframe) ? mapParams['2fo-fc'].wireframe : false
-        };
-        pdbeParams.options.channelParams['fo-fc(+ve)'] = {
-            opacity: (mapParams && mapParams['fo-fc(+ve)'] && mapParams['fo-fc(+ve)'].opacity) ? mapParams['fo-fc(+ve)'].opacity : 0.3,
-            wireframe: (mapParams && mapParams['fo-fc(+ve)'] && mapParams['fo-fc(+ve)'].wireframe) ? mapParams['fo-fc(+ve)'].wireframe : true
-        };
-        pdbeParams.options.channelParams['fo-fc(-ve)'] = {
-            opacity: (mapParams && mapParams['fo-fc(-ve)'] && mapParams['fo-fc(-ve)'].opacity) ? mapParams['fo-fc(-ve)'].opacity : 0.3,
-            wireframe: (mapParams && mapParams['fo-fc(-ve)'] && mapParams['fo-fc(-ve)'].wireframe) ? mapParams['fo-fc(-ve)'].wireframe : true
-        };
+        const MAIN_MAP_DEFAULTS: MapStyle = { opacity: 0.49, wireframe: false };
+        const DIFF_MAP_DEFAULTS: MapStyle = { opacity: 0.3, wireframe: true };
+        pdbeParams.options.channelParams['em'] = addDefaults(mapParams?.['em'], MAIN_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['2fo-fc'] = addDefaults(mapParams?.['2fo-fc'], MAIN_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['fo-fc(+ve)'] = addDefaults(mapParams?.['fo-fc(+ve)'], DIFF_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['fo-fc(-ve)'] = addDefaults(mapParams?.['fo-fc(-ve)'], DIFF_MAP_DEFAULTS);
         return pdbeParams;
     }
 
@@ -63,6 +66,7 @@ export namespace PDBeVolumes {
     }
 }
 
+
 export namespace AlphafoldView {
     export function getLociByPLDDT(score: number, contextData: Structure) {
         const queryExp = MS.struct.modifier.union([
@@ -83,6 +87,7 @@ export namespace AlphafoldView {
     }
 }
 
+
 export type LigandQueryParam = {
     label_comp_id_list?: any,
     auth_asym_id?: string,
@@ -91,6 +96,7 @@ export type LigandQueryParam = {
     auth_seq_id?: number,
     show_all?: boolean
 };
+
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): { core: Expression.Expression, surroundings: Expression.Expression } {
@@ -166,6 +172,7 @@ export namespace LigandView {
     }
 }
 
+
 export type QueryParam = {
     auth_seq_id?: number,
     entity_id?: string,
@@ -197,87 +204,87 @@ export type QueryParam = {
     end_uniprot_residue_number?: number
 };
 
+
 export namespace QueryHelper {
 
     export function getQueryObject(params: QueryParam[], contextData: any): Expression.Expression {
-
-        const selections: any[] = [];
-        let siftMappings: any;
+        const selections: Partial<AtomsQueryParams>[] = [];
+        let siftMappings: SIFTSMappingMapping | undefined;
         let currentAccession: string;
 
         params.forEach(param => {
-            const selection: any = {};
+            const selection: Partial<AtomsQueryParams> = {};
 
             // entity
-            if (param.entity_id) selection['entityTest'] = (l: any) => StructureProperties.entity.id(l.element) === param.entity_id;
+            if (param.entity_id) selection['entityTest'] = l => StructureProperties.entity.id(l.element) === param.entity_id;
 
             // chain
             if (param.struct_asym_id) {
-                selection['chainTest'] = (l: any) => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
+                selection['chainTest'] = l => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
             } else if (param.auth_asym_id) {
-                selection['chainTest'] = (l: any) => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
+                selection['chainTest'] = l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
             }
 
             // residues
             if (param.label_comp_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
+                selection['residueTest'] = l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
             } else if (param.uniprot_accession && param.uniprot_residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
-                    return param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
+                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
                 };
             } else if (param.uniprot_accession && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
-                    return param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
+                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
                 };
             } else if (param.residue_number !== undefined) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
             } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
                     return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
                 };
 
             } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
             } else if (param.auth_seq_id !== undefined) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
             } else if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             } else if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
-                selection['residueTest'] = (l: any) => {
+                selection['residueTest'] = l => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
                     return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
                 };
             } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
-                selection['residueTest'] = (l: any) => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
+                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
             }
 
             // atoms
             if (param.atoms) {
-                selection['atomTest'] = (l: any) => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
+                selection['atomTest'] = l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
             }
 
             if (param.atom_id) {
-                selection['atomTest'] = (l: any) => param.atom_id!.includes(StructureProperties.atom.id(l.element));
+                selection['atomTest'] = l => param.atom_id!.includes(StructureProperties.atom.id(l.element));
             }
 
             selections.push(selection);
         });
 
-        const atmGroupsQueries: any[] = [];
-        selections.forEach((selection: any) => {
+        const atmGroupsQueries: StructureQuery[] = [];
+        selections.forEach(selection => {
             atmGroupsQueries.push(Queries.generators.atoms(selection));
         });
 
@@ -296,10 +303,12 @@ export namespace QueryHelper {
     }
 }
 
+
 export interface ModelInfo {
     hetNames: string[],
     carbEntityCount: number,
 }
+
 
 export namespace ModelInfo {
     export async function get(model: Model, structures: any): Promise<ModelInfo> {
@@ -333,6 +342,7 @@ export namespace ModelInfo {
     }
 }
 
+
 /** Run `action` with showing a message in the bottom-left corner of the plugin UI */
 export async function runWithProgressMessage(plugin: PluginContext, progressMessage: string | undefined, action: () => any) {
     const task = Task.create(progressMessage ?? 'Task', async ctx => {
@@ -359,7 +369,7 @@ export interface ModelServerRequest {
 /** Return URL for a ModelServer request.
  * If `queryType` is 'full' and `lowPrecisionCoords` is false, return URL of the static file instead (updated mmCIF or bCIF). */
 export function getStructureUrl(initParams: InitParams, request: ModelServerRequest) {
-    const pdbeUrl = (initParams.pdbeUrl ?? DefaultParams.pdbeUrl!).replace(/\/$/, ''); // without trailing slash
+    const pdbeUrl = initParams.pdbeUrl.replace(/\/$/, ''); // without trailing slash
     const useStaticFile = request.queryType === 'full' && !initParams.lowPrecisionCoords;
     if (useStaticFile) {
         const suffix = initParams.encoding === 'bcif' ? '.bcif' : '_updated.cif';

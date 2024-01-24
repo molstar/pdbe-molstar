@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>PDBe Molstar</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: sans-serif;
+    }
+
+    .example-button {
+      margin-right: 6px;
+      margin-bottom: 6px;
+      padding: 6px;
+      border: none;
+      background-color: #e8e8e8;
+      font-weight: bold;
+    }
+
+    .example-button[selected] {
+      background-color: #a0a0a0;
+    }
+  </style>
+
+</head>
+
+<body style="position: fixed; top: 5px; bottom: 5px; left: 5px; right: 5px;">
+  <div style="height: 120px; padding: 6px;">
+    <div style="position: relative; height: 100%;">
+      <div id="examples"></div>
+      <div
+        style="position: absolute; bottom: 0px; left: 0px; right: 0px; white-space: nowrap; overflow-x: hidden; font-size: small;">
+        <p id="reference-link" style="margin-bottom: 6px;"></p>
+        <p>
+          Frame URL:
+          <a id="viewer-frame-url" target="_blank" href=""></a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <iframe id="viewer-frame" src="./index.html"
+    style="height: calc(100% - 120px); width: 100%; border: solid black 1px; background-color: white;"></iframe>
+
+  <script>
+    /** Load specified `url` in the iframe element #viewer-frame */
+    function loadUrl(url) {
+      document.getElementById('viewer-frame-url').setAttribute('href', url);
+      document.getElementById('viewer-frame-url').setAttribute('title', url);
+      document.getElementById('viewer-frame-url').innerHTML = url;
+      document.getElementById('viewer-frame').setAttribute('src', url);
+    }
+    /** Show a div with link to the reference page with original visualization */
+    function showReferenceLink(url) {
+      const p = document.getElementById('reference-link');
+      if (url) {
+        p.innerHTML = `Reference: <a target="_blank" href="${url}" title="${url}">${url}</a>`;
+      } else {
+        p.innerHTML = '';
+      }
+    }
+    /** Return a URL with `params` JSON-encoded in URL parameters (e.g. 'options', 'select', 'skin'...) */
+    function linkWithParams(params) {
+      const url = new URL('./index.html', window.location);
+      for (const key in params) {
+        if (params[key]) {
+          url.searchParams.set(key, JSON.stringify(params[key]));
+        }
+      }
+      return url.href
+        .replace(/%7B/g, '{').replace(/%7D/g, '}')
+        .replace(/%5B/g, '[').replace(/%5D/g, ']')
+        .replace(/%3A/g, ':')
+        .replace(/%2C/g, ',')
+        .replace(/%2F/g, '/')
+        .replace(/%22/g, '"');
+    }
+    /** Create a button for each example*/
+    function createButtons() {
+      for (const key in EXAMPLES) {
+        const node = document.createElement('button');
+        node.className = 'example-button';
+        node.id = `example-button-${key}`;
+        node.innerText = key;
+        node.setAttribute('onclick', `loadExample('${key}');`);
+        document.getElementById('examples').appendChild(node);
+      }
+    }
+    /** Highlight button with the active example */
+    function setSelectedButton(key) {
+      const buttons = document.getElementsByClassName('example-button');
+      for (const button of buttons) {
+        button.removeAttribute('selected');
+      }
+      document.getElementById(`example-button-${key}`)?.setAttribute('selected', 'selected');
+      window.location.hash = key;
+    }
+    /** Load example in the iframe, update highlighted button and URL fragment */
+    function loadExample(key) {
+      const targetUrl = linkWithParams(EXAMPLES[key]);
+      setSelectedButton(key);
+      loadUrl(targetUrl);
+      showReferenceLink(EXAMPLES[key].reference);
+    }
+
+    const urlEnv = 'www'; // www | wwwdev
+
+    const EXAMPLES = {
+      'Basic': {
+        options: {
+          moleculeId: '1hda',
+          // expanded: true,
+          // loadMaps: true,
+          // bgColor: {r:255, g:255, b:255},
+          // hideControls: true,
+          // domainAnnotation: true,
+          // validationAnnotation: true,
+          // symmetryAnnotation: true,
+          // subscribeEvents: true,
+          // loadingOverlay: true,
+        },
+      },
+
+      'Ligand view': {
+        options: {
+          moleculeId: '1cbs',
+          ligandView: { label_comp_id: 'REA' },
+          loadMaps: true,
+          expanded: false,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+        },
+      },
+
+      'Superposition': {
+        options: {
+          moleculeId: 'P08684', // P08684, P08083, Q14676, Q5VSL9, P54646
+          superposition: true,
+          superpositionParams: { matrixAccession: 'P08684', segment: 1, ligandView: false },
+          expanded: true,
+          // hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          loadingOverlay: true,
+        },
+      },
+
+      'AlphaFold': {
+        options: {
+          customData: {
+            url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v1.cif',
+            format: 'cif'
+          },
+          bgColor: { r: 255, g: 255, b: 255 },
+          // hideControls: true,
+          alphafoldView: true,
+          hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo']
+        },
+      },
+
+      // Settings on real PDBe pages (last updated 2024/01/10 based on karakoram):
+      'PDBe Home': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/1hda', // "3D Visualisation" button
+        options: {
+          moleculeId: '1hda',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          expanded: true,
+          subscribeEvents: false,
+          sequencePanel: true,
+          assemblyId: '1', // the real page retrieves preferred assembly ID and uses it here
+          loadingOverlay: true,
+        },
+      },
+
+      'PDBe Protein': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/7xv8/protein/1',
+        size: [473, 403],
+        options: {
+          moleculeId: '7xv8',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: true,
+          loadingOverlay: true,
+        },
+        select: {
+          data: [{ struct_asym_id: 'A', color: { r: 114, g: 0, b: 0 } }],
+          nonSelectedColor: { r: 231, g: 200, b: 200 },
+        },
+      },
+
+      'PDBe Nucleotide': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/7xv8/DNA/2',
+        size: [986, 365],
+        options: {
+          moleculeId: '7xv8',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          symmetryAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: true,
+          loadingOverlay: true,
+        },
+        select: {
+          data: [{ struct_asym_id: 'C', color: { r: 114, g: 0, b: 0 } }],
+          nonSelectedColor: { r: 231, g: 200, b: 200 },
+        },
+      },
+
+      'PDBe Ligand': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/1cbs/bound/REA',
+        skin: 'light',
+        size: [468, 400],
+        options: {
+          moleculeId: '1cbs',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          pdbeLink: false,
+          ligandView: { label_comp_id: 'REA', auth_asym_id: 'A', auth_seq_id: 200, hydrogens: true },
+          mapSettings: {
+            '2fo-fc': { opacity: 0.15 }
+          },
+        },
+      },
+
+      'PDBe Branched': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/3d11/branched/2',
+        skin: 'light',
+        size: [468, 400],
+        options: {
+          moleculeId: '3d11',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          hideControls: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          pdbeLink: false,
+          ligandView: { label_comp_id_list: { atom_site: [{ auth_asym_id: 'B', auth_seq_id: 1 }, { auth_asym_id: 'B', auth_seq_id: 2 }], radius: 5 } },
+          mapSettings: {
+            '2fo-fc': { opacity: 0.15 }
+          },
+        },
+      },
+
+      'PDBe Modres': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/pdb/3uot/modified/MSE',
+        size: [468, 400],
+        options: {
+          moleculeId: '3uot',
+          customData: {
+            url: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/model-server/v1/3uot/atoms?label_entity_id=1',
+            format: 'cif'
+          },
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          validationAnnotation: true,
+          domainAnnotation: true,
+          hideControls: true,
+          pdbeLink: false,
+          sequencePanel: true,
+          subscribeEvents: false,
+        },
+      },
+
+      'PDBe Search': {
+        reference: 'https://www.ebi.ac.uk/pdbe/entry/search/index?text:1cbs', // "3D Visualisation" button
+        options: {
+          moleculeId: '1cbs',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          domainAnnotation: true,
+          symmetryAnnotation: true,
+          expanded: true,
+          landscape: false,
+          sequencePanel: true,
+          hideQuickControls: ['expand'],
+          loadingOverlay: true,
+          assemblyId: '1', // the real page retrieves preferred assembly ID and uses it here
+        },
+      },
+
+      // Settings on real PDBe-KB pages (last updated 2024/01/12 based on pdbe-kb-protein-pages):
+      'PDBe-KB Home': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646',
+        skin: 'light',
+        size: [417, 315],
+        options: {
+          moleculeId: '4cfe',
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          hideExpandIcon: true,
+          subscribeEvents: false,
+          bgColor: { r: 255, g: 255, b: 255 },
+          selectInteraction: false,
+          hideCanvasControls: ['selection', 'animation', 'controlToggle', 'controlInfo'],
+          hideControls: true,
+          pdbeLink: false,
+          selection: {
+            data: [{ struct_asym_id: 'C', color: { r: 50, g: 130, b: 255 } }],
+            nonSelectedColor: { r: 231, g: 200, b: 200 },
+          },
+        },
+      },
+
+      'PDBe-KB Superposed': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646', // "3D view of superposed structures" button
+        skin: 'light',
+        options: {
+          moleculeId: 'P54646',
+          superposition: true,
+          superpositionParams: { segment: 1 },
+
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          domainAnnotation: true,
+          expanded: true,
+          landscape: false,
+          hideExpandIcon: true,
+          subscribeEvents: false,
+          bgColor: { r: 255, g: 255, b: 255 },
+        },
+      },
+
+      'PDBe-KB Superposed Ligands': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/proteins/P54646', // "3D view of superposed ligands" button
+        skin: 'light',
+        options: {
+          moleculeId: 'P54646',
+          superposition: true,
+          superpositionParams: { segment: 1, ligandView: true, superposeAll: true },
+
+          pdbeUrl: 'https://' + urlEnv + '.ebi.ac.uk/pdbe/',
+          loadMaps: true,
+          validationAnnotation: true,
+          domainAnnotation: true,
+          expanded: true,
+          landscape: false,
+          hideExpandIcon: true,
+          subscribeEvents: false,
+          bgColor: { r: 255, g: 255, b: 255 },
+        },
+      },
+
+      // Settings on real AlphaFold pages (last updated 2024/01/15 based on https://www.alphafold.ebi.ac.uk/entry/O15552)
+      'AlphaFold Home': {
+        reference: 'https://www.alphafold.ebi.ac.uk/entry/O15552',
+        skin: 'light',
+        size: [767, 446],
+        options: {
+          customData: {
+            url: 'https://alphafold.ebi.ac.uk/files/AF-O15552-F1-model_v4.cif',
+            format: 'cif',
+            binary: false,
+          },
+          subscribeEvents: false,
+          bgColor: { r: 255, g: 255, b: 255 },
+          selectInteraction: false,
+          alphafoldView: true,
+          reactive: true,
+          sequencePanel: true,
+          hideCanvasControls: ['animation'],
+          pdbeLink: false,
+        },
+      },
+
+      // Settings on real 3D-Beacons pages (last updated 2024/01/17 based on https://github.com/3D-Beacons/3d-beacons-front-end)
+      '3D-Beacons': {
+        reference: 'https://www.ebi.ac.uk/pdbe/pdbe-kb/3dbeacons/search/P38398',
+        skin: 'light',
+        size: [802, 377],
+        options: {
+          moleculeId: null,
+          customData: {
+            url: 'https://www.ebi.ac.uk/pdbe/static/entry/4igk_updated.cif',
+            format: 'mmcif'
+          },
+          hideControls: true,
+          subscribeEvents: true,
+          bgColor: { r: 255, g: 255, b: 255 },
+          hideCanvasControls: ['selection', 'animation'],
+          hideStructure: ['water'],
+          lighting: 'plastic',
+          landscape: true,
+        },
+      },
+
+    };
+
+
+    createButtons();
+    const fragment = decodeURI(window.location.hash.replace(/^#/, ''));
+    loadExample(EXAMPLES[fragment] ? fragment : 'Basic');
+
+  </script>
+</body>
+
+</html>
