@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file, following t
 - hideStructure.het option also hides ions
 - Removed loadCartoonsOnly option
 - Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
+- Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
 
 ## [v3.1.3]
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
