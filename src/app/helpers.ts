@@ -18,29 +18,31 @@ import { InitParams } from './spec';
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
 export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
 
+export type MapParams = {
+    'em'?: MapStyle,
+    '2fo-fc'?: MapStyle,
+    'fo-fc(+ve)'?: MapStyle,
+    'fo-fc(-ve)'?: MapStyle,
+}
+interface MapStyle {
+    opacity?: number,
+    wireframe?: boolean,
+}
+
+
 export namespace PDBeVolumes {
 
-    export function mapParams(defaultParams: any, mapParams: any, ref?: string | number) {
+    export function mapParams(defaultParams: any, mapParams?: MapParams, ref?: string | number) {
         const pdbeParams = { ...defaultParams };
         pdbeParams.options.behaviorRef = 'volume-streaming' + '' + Math.floor(Math.random() * Math.floor(100));
         pdbeParams.options.emContourProvider = 'pdbe';
         pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/volume-server';
-        pdbeParams.options.channelParams['em'] = {
-            opacity: (mapParams && mapParams.em && mapParams.em.opacity) ? mapParams.em.opacity : 0.49,
-            wireframe: (mapParams && mapParams.em && mapParams.em.wireframe) ? mapParams.em.wireframe : false
-        };
-        pdbeParams.options.channelParams['2fo-fc'] = {
-            opacity: (mapParams && mapParams['2fo-fc'] && mapParams['2fo-fc'].opacity) ? mapParams['2fo-fc'].opacity : 0.49,
-            wireframe: (mapParams && mapParams['2fo-fc'] && mapParams['2fo-fc'].wireframe) ? mapParams['2fo-fc'].wireframe : false
-        };
-        pdbeParams.options.channelParams['fo-fc(+ve)'] = {
-            opacity: (mapParams && mapParams['fo-fc(+ve)'] && mapParams['fo-fc(+ve)'].opacity) ? mapParams['fo-fc(+ve)'].opacity : 0.3,
-            wireframe: (mapParams && mapParams['fo-fc(+ve)'] && mapParams['fo-fc(+ve)'].wireframe) ? mapParams['fo-fc(+ve)'].wireframe : true
-        };
-        pdbeParams.options.channelParams['fo-fc(-ve)'] = {
-            opacity: (mapParams && mapParams['fo-fc(-ve)'] && mapParams['fo-fc(-ve)'].opacity) ? mapParams['fo-fc(-ve)'].opacity : 0.3,
-            wireframe: (mapParams && mapParams['fo-fc(-ve)'] && mapParams['fo-fc(-ve)'].wireframe) ? mapParams['fo-fc(-ve)'].wireframe : true
-        };
+        const MAIN_MAP_DEFAULTS: MapStyle = { opacity: 0.49, wireframe: false };
+        const DIFF_MAP_DEFAULTS: MapStyle = { opacity: 0.3, wireframe: true };
+        pdbeParams.options.channelParams['em'] = addDefaults(mapParams?.['em'], MAIN_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['2fo-fc'] = addDefaults(mapParams?.['2fo-fc'], MAIN_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['fo-fc(+ve)'] = addDefaults(mapParams?.['fo-fc(+ve)'], DIFF_MAP_DEFAULTS);
+        pdbeParams.options.channelParams['fo-fc(-ve)'] = addDefaults(mapParams?.['fo-fc(-ve)'], DIFF_MAP_DEFAULTS);
         return pdbeParams;
     }
 
@@ -64,6 +66,7 @@ export namespace PDBeVolumes {
     }
 }
 
+
 export namespace AlphafoldView {
     export function getLociByPLDDT(score: number, contextData: Structure) {
         const queryExp = MS.struct.modifier.union([
@@ -84,6 +87,7 @@ export namespace AlphafoldView {
     }
 }
 
+
 export type LigandQueryParam = {
     label_comp_id_list?: any,
     auth_asym_id?: string,
@@ -92,6 +96,7 @@ export type LigandQueryParam = {
     auth_seq_id?: number,
     show_all?: boolean
 };
+
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): { core: Expression.Expression, surroundings: Expression.Expression } {
@@ -167,6 +172,7 @@ export namespace LigandView {
     }
 }
 
+
 export type QueryParam = {
     auth_seq_id?: number,
     entity_id?: string,
@@ -197,6 +203,7 @@ export type QueryParam = {
     start_uniprot_residue_number?: number,
     end_uniprot_residue_number?: number
 };
+
 
 export namespace QueryHelper {
 
@@ -296,10 +303,12 @@ export namespace QueryHelper {
     }
 }
 
+
 export interface ModelInfo {
     hetNames: string[],
     carbEntityCount: number,
 }
+
 
 export namespace ModelInfo {
     export async function get(model: Model, structures: any): Promise<ModelInfo> {
@@ -332,6 +341,7 @@ export namespace ModelInfo {
         };
     }
 }
+
 
 /** Run `action` with showing a message in the bottom-left corner of the plugin UI */
 export async function runWithProgressMessage(plugin: PluginContext, progressMessage: string | undefined, action: () => any) {

@@ -26,6 +26,7 @@ import { InitVolumeStreaming } from 'Molstar/mol-plugin/behavior/dynamic/volume-
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { PluginConfig } from 'Molstar/mol-plugin/config';
 import { PluginContext } from 'Molstar/mol-plugin/context';
+import { PluginLayoutStateParams } from 'Molstar/mol-plugin/layout';
 import { PluginSpec } from 'Molstar/mol-plugin/spec';
 import { Representation } from 'Molstar/mol-repr/representation';
 import { StateSelection, StateTransform } from 'Molstar/mol-state';
@@ -120,7 +121,7 @@ export class PDBeMolstarPlugin {
 
         pdbePluginSpec.layout = {
             initial: {
-                isExpanded: this.initParams.landscape ? false : this.initParams.expanded,
+                isExpanded: this.initParams.expanded,
                 showControls: !this.initParams.hideControls,
                 regionState: {
                     left: 'full',
@@ -128,6 +129,7 @@ export class PDBeMolstarPlugin {
                     top: this.initParams.sequencePanel ? 'full' : 'hidden',
                     bottom: 'full',
                 },
+                controlsDisplay: this.initParams.reactive ? 'reactive' : this.initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
             }
         };
 
@@ -175,9 +177,6 @@ export class PDBeMolstarPlugin {
         if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
-
-        if (this.initParams.landscape && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'landscape';
-        if (this.initParams.reactive && pdbePluginSpec.layout.initial) pdbePluginSpec.layout.initial.controlsDisplay = 'reactive';
 
         // override default event bindings
         if (this.initParams.selectBindings) {
@@ -690,12 +689,12 @@ export class PDBeMolstarPlugin {
             const marking = { ...this.plugin.canvas3d.props.marking };
             if (param.highlight) {
                 renderer.highlightColor = this.normalizeColor(param.highlight);
-                marking.highlightEdgeColor = this.normalizeColor(param.highlight);
+                marking.highlightEdgeColor = Color.darken(this.normalizeColor(param.highlight), 1);
                 this.isHighlightColorUpdated = true;
             }
             if (param.select) {
                 renderer.selectColor = this.normalizeColor(param.select);
-                marking.selectEdgeColor = this.normalizeColor(param.select);
+                marking.selectEdgeColor = Color.darken(this.normalizeColor(param.select), 1);
                 this.isSelectedColorUpdated = true;
             }
             await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
