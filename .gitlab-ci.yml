@@ -4,15 +4,15 @@ stages:
 
 npm_publish:
   stage: publish
-  only:
-    - tags
+  # only:
+  #   - tags
   image: node:20
   script:
     - echo Branch $CI_COMMIT_BRANCH
     - echo Tag $CI_COMMIT_TAG
     # - echo Matches $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
-    - node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).version)'
-    - PKG_VERSION = $(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).version)')
+    - node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)'
+    - PKG_VERSION = $(node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)')
     - echo Version $PKG_VERSION
     # - 'sed -nr "s/^ *\"version\": \"(.*)\",$/\1/p" package.json' # escaping needed
     # - npm ci
@@ -26,7 +26,7 @@ npm_publish:
   #   - if: $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
 
 
-
+# TODO test this in a separate project :)
 
 
 
