@@ -192,23 +192,27 @@
             <div id="myViewer">
                 <pdbe-molstar id="pdbeMolstarComponent"
                     molecule-id="1hda" assembly-id="1"
-                    pdbe-url="https://www.ebi.ac.uk/pdbe/" 
-                    bg-color-b="20" bg-color-r="15" bg-color-g="0"
+                    default-preset="default"
+                    alphafold-view="false"
+
+                    hide-water="true" hide-het="false" hide-non-standard="false"
                     load-maps="true"
-                    domain-annotation validation-annotation symmetry-annotation
-                    low-precision
-                    expanded="false"
-                    hide-controls="false"
-                    subscribe-events="false"
-                    pdbe-link
-                    landscape="false"
+                    bg-color-b="20" bg-color-r="15" bg-color-g="0"
                     highlight-color-g="255" highlight-color-b="0"
                     select-color-g="255" select-color-b="0"
-                    alphafold-view="false"
                     lighting="glossy"
-                    default-preset="default"
-                    hide-water="true" hide-het="false" hide-non-standard="false"
-                    sequence-panel="false">
+
+                    domain-annotation validation-annotation symmetry-annotation
+                    pdbe-url="https://www.ebi.ac.uk/pdbe/" 
+                    encoding="bcif"
+                    low-precision
+                    subscribe-events="false"
+
+                    hide-controls="false"
+                    sequence-panel="false"
+                    pdbe-link
+                    loading-overlay
+                    expanded="false" landscape="false" reactive="false">
                 </pdbe-molstar>
             </div>
 
