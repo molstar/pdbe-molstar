@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "lint": "eslint src",
-    "build": "npm run build-tsc && npm run build-extra && node scripts.js light-skin && npm run build-webpack && node scripts.js clean-rubbish && npm run bundle-webcomponent",
+    "build": "npm run build-tsc && npm run build-extra && node scripts.js light-skin && npm run build-webpack && node scripts.js clean-rubbish && npm run bundle-webcomponent && node scripts.js add-banners",
     "rebuild": "npm run clean && npm run build",
     "clean": "node scripts.js clean-all",
     "build-tsc": "tsc --incremental",

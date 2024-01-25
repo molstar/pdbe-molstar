@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file, following t
 - Removed loadCartoonsOnly option
 - Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
 - Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
+- Built files don't contain package version in the filename
 
 ## [v3.1.3]
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
