@@ -1,32 +1,22 @@
-
 stages:
   - publish
 
 npm_publish:
   stage: publish
-  # only:
-  #   - tags
+  only:
+    - tags
   image: node:20
   script:
-    - echo Branch $CI_COMMIT_BRANCH
-    - echo Tag $CI_COMMIT_TAG
-    # - echo Matches $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
-    - node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)'
-    - PKG_VERSION = $(node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)')
-    - echo Version $PKG_VERSION
-    # - 'sed -nr "s/^ *\"version\": \"(.*)\",$/\1/p" package.json' # escaping needed
-    # - npm ci
-    # - npm run lint
-    # - npm run build
-    # - npm pack
-    # - npm publish
-  # tags:
-  #   - pdbekb-shell
-  # rules:
-  #   - if: $CI_COMMIT_TAG =~ /v\d+\.\d+\.\d+(-.+)?/
-
-
-# TODO test this in a separate project :)
-
-
-
+    - PKG_VERSION=$(node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)')
+    - echo 'Package version:' $PKG_VERSION
+    - echo 'Tag:' $CI_COMMIT_TAG
+    - test "$CI_COMMIT_TAG" = "v$PKG_VERSION"  # Ensure the git tag matches the npm package version (e.g. tag v1.0.0 for version 1.0.0)
+    - echo $NODE_ENV
+    - npm ci --omit optional
+    - npm list
+    - npm list gl || echo Nope
+    - npm list buffer || echo Nope
+    - npm run lint
+    - npm run rebuild
+    - npm pack
+    - npm publish
