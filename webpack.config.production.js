@@ -6,15 +6,15 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const PACKAGE_ROOT_PATH = process.cwd();
 const PACKAGE = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
 
-/** Webpack configuration for building the plugin bundle (pdbe-molstar-plugin-*.js, pdbe-molstar-*.css).
- * Also builds the light-skin version (pdbe-molstar-light-plugin-*.js, pdbe-molstar-light-*.css). */
+/** Webpack configuration for building the plugin bundle (pdbe-molstar-plugin.js, pdbe-molstar.css).
+ * Also builds the light-skin version (pdbe-molstar-light-plugin.js, pdbe-molstar-light.css). */
 const molstarConfig = {
     entry: {
         [PACKAGE.name]: path.resolve(__dirname, 'lib/index.js'),
         [PACKAGE.name + '-light']: path.resolve(__dirname, 'lib/index(light).js'),
     },
     output: {
-        filename: `[name]-plugin-${PACKAGE.version}.js`,
+        filename: `[name]-plugin.js`,
         path: path.resolve(__dirname, 'build/'),
     },
     target: 'web',
@@ -48,7 +48,7 @@ const molstarConfig = {
             __MOLSTAR_DEBUG_TIMESTAMP__: webpack.DefinePlugin.runtimeValue(() => `${new Date().valueOf()}`, true),
         }),
         new MiniCssExtractPlugin({
-            filename: `[name]-${PACKAGE.version}.css`,
+            filename: `[name].css`,
         }),
     ],
     resolve: {
@@ -70,11 +70,11 @@ const molstarConfig = {
 
 /** Webpack configuration for building a part of the web-component bundle,
  * which will be concatenated with the plugin bundle to build the full
- * web-component bundle (pdbe-molstar-component-*.js) */
+ * web-component bundle (pdbe-molstar-component.js) */
 const componentConfig = {
     entry: path.resolve(__dirname, `src/web-component/index.js`),
     output: {
-        filename: `${PACKAGE.name}-component-build-${PACKAGE.version}.js`,
+        filename: `${PACKAGE.name}-component-build.js`,
         path: path.resolve(__dirname, 'lib/'),
     },
     target: 'web',
