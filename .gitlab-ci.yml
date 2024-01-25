@@ -11,12 +11,8 @@ npm_publish:
     - echo 'Package version:' $PKG_VERSION
     - echo 'Tag:' $CI_COMMIT_TAG
     - test "$CI_COMMIT_TAG" = "v$PKG_VERSION"  # Ensure the git tag matches the npm package version (e.g. tag v1.0.0 for version 1.0.0)
-    - echo $NODE_ENV
     - npm ci --omit optional
-    - npm list
-    - npm list gl || echo Nope
-    - npm list buffer || echo Nope
     - npm run lint
     - npm run rebuild
-    - npm pack
-    - npm publish
+    - npm config set -- '//registry.npmjs.org/:_authToken'="${NPM_AUTH_TOKEN}"
+    - npm publish --verbose
