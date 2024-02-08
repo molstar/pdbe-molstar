@@ -69,11 +69,11 @@ export class PDBeMolstarPlugin {
     initParams: InitParams;
     targetElement: HTMLElement;
     assemblyRef = '';
-    private readonly selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
     defaultRendererProps: Canvas3DProps['renderer'];
     defaultMarkingProps: Canvas3DProps['marking'];
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
+    private readonly selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
 
     /** Extract InitParams from attributes of an HTML element */
     static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
@@ -458,35 +458,11 @@ export class PDBeMolstarPlugin {
 
     };
 
-    private getLociAndBundles(params: QueryParam[], structNumber: number) {
-        const result: { param: QueryParam, loci: StructureElement.Loci, bundle: StructureElement.Bundle }[] = [];
-        for (const param of params) {
-            const loci = this.getLociForParams([param], structNumber); // TODO refactor to avoid calling this?
-            if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) {
-                console.log('empty loci, continue', loci)
-                continue;
-            }
-            const bundle = StructureElement.Bundle.fromLoci(loci);
-            result.push({ param, loci, bundle });
-        }
-        return result;
-    }
-    private getBundle(params: QueryParam[], structNumber: number): StructureElement.Bundle | undefined {
-        const loci = this.getLociForParams(params, structNumber); // TODO refactor to avoid calling this?
-        // and bundle could be created without getting loci first
-        if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) {
-            console.log('empty loci, continue', loci)
-            return undefined;
-        }
-        return StructureElement.Bundle.fromLoci(loci);
-    }
-
     getLociForParams(params: QueryParam[], structureNumber?: number) {
         let assemblyRef = this.assemblyRef;
         if (structureNumber) {
             assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
         }
-
         if (assemblyRef === '') return EmptyLoci;
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
         if (!data) return EmptyLoci;
@@ -505,26 +481,37 @@ export class PDBeMolstarPlugin {
         return AlphafoldView.getLociByPLDDT(score, data);
     }
 
-
+    /** For each item in params, get loci and bundle */
+    private getSelections(params: QueryParam[], structNumber: number) {
+        const result: { param: QueryParam, loci: StructureElement.Loci, bundle: StructureElement.Bundle }[] = [];
+        for (const param of params) {
+            const loci = this.getLociForParams([param], structNumber);
+            if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) continue;
+            const bundle = StructureElement.Bundle.fromLoci(loci);
+            result.push({ param, loci, bundle });
+        }
+        return result;
+    }
+    private getBundle(params: QueryParam[], structNumber: number): StructureElement.Bundle | undefined {
+        const loci = this.getLociForParams(params, structNumber);
+        if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) return undefined;
+        return StructureElement.Bundle.fromLoci(loci);
+    }
 
     normalizeColor(colorVal: any, defaultColor?: Color) {
-        let color = Color.fromRgb(170, 170, 170);
+        defaultColor ??= Color.fromRgb(170, 170, 170);
         try {
-            if (typeof colorVal.r !== 'undefined') {
-                color = Color.fromRgb(colorVal.r, colorVal.g, colorVal.b);
-            } else if (colorVal[0] === '#') {
-                color = Color(Number(`0x${colorVal.substr(1)}`));
-            } else {
-                color = Color(colorVal);
-            }
-        } catch (e) {
-            if (defaultColor) color = defaultColor;
+            if (colorVal === undefined || colorVal === null) return defaultColor;
+            if (typeof colorVal === 'number') return Color(colorVal);
+            if (typeof colorVal === 'string' && colorVal[0] === '#') return Color(Number(`0x${colorVal.substring(1)}`));
+            if (typeof colorVal === 'object') return Color.fromRgb(colorVal.r ?? 0, colorVal.g ?? 0, colorVal.b ?? 0);
+        } catch {
+            // do nothing
         }
-        return color;
+        return defaultColor;
     }
 
     visual = {
-        // TODO move this to a separate object in a separate file
         highlight: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
             if (Loci.isEmpty(loci)) return;
@@ -550,6 +537,7 @@ export class PDBeMolstarPlugin {
                 structures = [structures[params.structureNumber - 1]];
             }
 
+            // Filter selection items that apply added representations
             const addedReprParams: { [repr: string]: QueryParam[] } = {};
             for (const param of params.data) {
                 const repr = param.representation ?? (param.sideChain ? 'ball-and-stick' : undefined);
@@ -558,15 +546,16 @@ export class PDBeMolstarPlugin {
                 }
             }
 
-            console.time('select-loop-2')
-            const OverpaintManagerTag = 'overpaint-controls'; // tag needed for clearStructureOverpaint; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private
+            const DefaultSelectColor = Color.fromRgb(255, 112, 3);
             const focusLoci: StructureElement.Loci[] = [];
+
             for (const struct of structures) {
+                // Apply nonSelectedColor as background color
                 if (params.nonSelectedColor) {
                     await this.plugin.managers.structure.component.updateRepresentationsTheme(struct.structureRef.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
                 }
 
-                const selections = this.getLociAndBundles(params.data, struct.number);
+                const selections = this.getSelections(params.data, struct.number);
                 for (const selection of selections) {
                     if (selection.param.focus) {
                         focusLoci.push(selection.loci);
@@ -576,17 +565,16 @@ export class PDBeMolstarPlugin {
                 // Apply color to the main representation
                 const overpaintLayers: Overpaint.BundleLayer[] = selections.map(s => ({
                     bundle: s.bundle,
-                    color: s.param.color ? this.normalizeColor(s.param.color) : Color.fromRgb(255, 112, 3), // TODO factor out constant
-                    clear: false, // TODO what is clear?
+                    color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
+                    clear: false,
                 }));
                 const update = this.plugin.build();
                 for (const component of struct.structureRef.components) {
                     for (const repr of component.representations) {
-                        console.log('repr', repr);
                         update.to(repr.cell.transform.ref).apply(
                             StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
                             { layers: overpaintLayers },
-                            { tags: OverpaintManagerTag },
+                            { tags: Tags.Overpaint },
                         );
                     }
                 }
@@ -601,24 +589,25 @@ export class PDBeMolstarPlugin {
                     const overpaintLayers: Overpaint.BundleLayer[] = selections.filter(s => s.param.representationColor).map(s => ({
                         bundle: s.bundle,
                         color: this.normalizeColor(s.param.representationColor!),
-                        clear: false, // TODO what is clear?
+                        clear: false,
                     }));
                     await this.plugin.build()
                         .to(struct.structureRef.cell)
-                        .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: 'pdbe-molstar.added-component' }) // TODO save tag to constant
+                        .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: Tags.Overpaint })
                         .apply(StructureRepresentation3D, createStructureRepresentationParams(this.plugin, struct.structureRef.cell.obj?.data, { type: repr as any }))
                         .apply(
                             StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
                             { layers: overpaintLayers },
-                            { tags: OverpaintManagerTag },
+                            { tags: Tags.Overpaint },
                         )
                         .commit();
                 }
 
+                // Save selection params for later clearSelection
                 this.selectionParams[struct.number] = { ...params, addedRepr };
             }
-            console.timeEnd('select-loop-2')
 
+            // Apply focus
             if (focusLoci.length > 0) {
                 this.plugin.managers.camera.focusLoci(focusLoci);
             }
@@ -642,7 +631,7 @@ export class PDBeMolstarPlugin {
                 await clearStructureOverpaint(this.plugin, struct.structureRef.components);
                 // Remove added reprs
                 if (currentParams.addedRepr) {
-                    const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes('pdbe-molstar.added-component'));
+                    const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes(Tags.AddedComponent));
                     const update = this.plugin.build();
                     for (const comp of componentsToDelete) {
                         update.delete(comp.cell.transform.ref);
@@ -787,7 +776,12 @@ export class PDBeMolstarPlugin {
     }
 }
 
-
+const Tags = {
+    /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
+    Overpaint: 'overpaint-controls',
+    /** Marks structure components added by `select` */
+    AddedComponent: 'pdbe-molstar.added-component',
+};
 const StructureComponentTags = {
     polymer: ['structure-component-static-polymer'],
     het: ['structure-component-static-ligand', 'structure-component-static-ion'],
