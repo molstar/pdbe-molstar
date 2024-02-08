@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>PDBe Molstar</title>
+    <title>EMDB Molstar</title>
 
     <!-- Molstar CSS & JS -->
     <link rel="stylesheet" type="text/css" href="build/pdbe-molstar-3.1.3.css">
@@ -60,7 +60,7 @@
             height: 450px;
             position: relative;
         }
-        
+
         button {
             margin-right: 8px;
             margin-bottom: 8px;
@@ -74,10 +74,45 @@
 </head>
 
 <body>
-    <h2>PDBe Molstar</h2>
+    <h2>EMDB Molstar</h2>
 
     <div class="content">
         <div class="controlsSection">
+
+            <h3>EMDB control buttons</h3>
+            <div class="controlBox">
+                <h4>Load Molecule</h4>
+                <button onclick="viewerInstance.loadEmdb('EMD-8117')">1cbs</button>
+                <button onclick="viewerInstance.loadMolecule('1hda')">1hda</button>
+                <button onclick="viewerInstance.loadMolecule('1hda', true)">1hda (replace)</button>
+                <button onclick="viewerInstance.loadMolecule('1cbs', true)">1cbs (replace)</button>
+
+                <h4>Load Map</h4>
+                <button onclick="viewerInstance.loadMap('1cbs')">1cbs</button>
+                <button onclick="viewerInstance.loadMap('1hda')">1hda</button>
+                <button onclick="viewerInstance.loadMap('1hda', true)">1hda (replace)</button>
+                <button onclick="viewerInstance.loadMap('1cbs', true)">1cbs (replace)</button>
+
+                <h4>Load Molecule & Map</h4>
+                <button onclick="viewerInstance.loadMoleculeAndMap('1cbs')">1cbs</button>
+                <button onclick="viewerInstance.loadMoleculeAndMap('1hda')">1hda</button>
+                <button onclick="viewerInstance.loadMoleculeAndMap('1hda', true)">1hda (replace)</button>
+                <button onclick="viewerInstance.loadMoleculeAndMap('1cbs', true)">1cbs (replace)</button>
+
+                <h4>Load Molecule & Map (with options)</h4>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true })">1cbs</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true })">1hda</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, true)">1hda (replace)</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, true)">1cbs (replace)</button>
+
+                <h4>Load Molecule & Map (with options & select)</h4>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, false, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1cbs</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, false, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1hda</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, true, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1hda (replace)</button>
+                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, true, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1cbs (replace)</button>
+
+            </div>
+
             <h3>Canvas/ layout methods</h3>
             <div class="controlBox">
                 <h4>Set Background</h4>
@@ -186,7 +221,7 @@
         </div>
 
         <div class="viewerSection">
-            <h3>PDBe Mol* JS Plugin Demo</h3>
+            <h3>EMDB Mol* JS Plugin Demo</h3>
             <!-- Molstar container -->
             <div id="myViewer"></div>
         </div>
@@ -211,28 +246,27 @@
         }
 
         // Create plugin instance
-        const viewerInstance = new PDBeMolstarPlugin();
+        const viewerInstance = new EMDBMolstarPlugin();
 
         // Set default options (Checkout available options list in the documentation)
         const defaultOptions = {
-            moleculeId: '1hda',
-            // expanded: true,
-            // loadMaps: true,
-            // bgColor: {r:255, g:255, b:255},
-            // hideControls: true,
-            // domainAnnotation: true,
-            // validationAnnotation: true,
-            // symmetryAnnotation: true,
-            // subscribeEvents: true,
-            // loadingOverlay: true,
-            // hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
+            moleculeId: '5irx',
+            pdbeLink: false,
+            expanded: false,
+            loadMaps: true,
+            hideControls: true,
+            domainAnnotation: false,
+            validationAnnotation: false,
+            symmetryAnnotation: false,
+            subscribeEvents: false,
+            loadingOverlay: false,
         };
         const options = { ...defaultOptions, ...getJsonParam('options') };
 
         const optionsDiv = document.getElementById('options');
         optionsDiv.innerHTML = JSON.stringify(options, undefined, 2).replace(/"(\w+)":/g, '$1:');
 
-        // Get element from HTML/Template to place the viewer 
+        // Get element from HTML/Template to place the viewer
         const viewerContainer = document.getElementById('myViewer');
 
         // Call render method to display the 3D view
@@ -247,11 +281,6 @@
 
         const size = getJsonParam('size');
         if (size) viewerContainer.setAttribute('style', `width: ${size[0]}px; height: ${size[1]}px;`);
-
-        // document.addEventListener('PDB.molstar.mouseover', (e) => { 
-        //   //do something on event
-        //   console.log(e)
-        // });
 
     </script>
 </body>
