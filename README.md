@@ -1,8 +1,9 @@
-# PDBe Molstar
+# EMDB Molstar
 
-PDBe implementation of [Mol\* (/'mol-star/)](https://github.com/molstar/molstar)
+EMDB implementation of [Mol\* (/'mol-star/)](https://github.com/molstar/molstar)
 
-**Refer [PDBe Molstar Wiki](https://github.com/PDBeurope/pdbe-molstar/wiki) for detailed documentation and examples**
+This plugin was based on the [PDBe Molstar](
+**Refer [PDBe Molstar Wiki](https://github.com/PDBeurope/pdbe-molstar/wiki) for detailed documentation and examples**)
 
 ## Building & Running locally
 

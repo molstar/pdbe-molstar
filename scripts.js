@@ -9,14 +9,14 @@ const banner = [
     '/**',
     ` * ${PACKAGE.name}`,
     ` * @version ${PACKAGE.version}`,
-    ' * @link https://github.com/PDBeurope/pdbe-molstar',
+    ' * @link https://github.com/emdb-empiar/emdb-molstar.git',
     ' * @license Apache 2.0',
     ' */',
 ].join('\n');
 
 const license = [
     '/**',
-    ' * Copyright 2019-2023 Mandar Deshpande <mandar@ebi.ac.uk>, Adam Midlik <midlik@ebi.ac.uk>',
+    ' * Copyright 2019-2024 Mandar Deshpande <mandar@ebi.ac.uk>, Adam Midlik <midlik@ebi.ac.uk>, Neli Fonseca <neli@ebi.ac.uk>',
     ' * European Bioinformatics Institute (EBI, http://www.ebi.ac.uk/)',
     ' * European Molecular Biology Laboratory (EMBL, http://www.embl.de/)',
     ' * Licensed under the Apache License, Version 2.0 (the "License");',

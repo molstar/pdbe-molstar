@@ -1,7 +1,7 @@
 {
-  "name": "pdbe-molstar",
-  "version": "3.1.3",
-  "description": "Molstar implementation for PDBe",
+  "name": "emdb-molstar",
+  "version": "0.9.0",
+  "description": "Molstar implementation for EMDB",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\"",
@@ -25,20 +25,21 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PDBeurope/pdbe-molstar.git"
+    "url": "git+https://github.com/emdb-empiar/emdb-molstar.git"
   },
   "keywords": [
     "Molstar",
     "3D viewer",
     "PDBe",
+    "EMDB",
     "biojs"
   ],
   "author": "Mandar Deshpande <mandar@ebi.ac.uk>",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/PDBeurope/pdbe-molstar/issues"
+    "url": "https://github.com/emdb-empiar/emdb-molstar/issues"
   },
-  "homepage": "https://github.com/PDBeurope/pdbe-molstar#readme",
+  "homepage": "https://github.com/emdb-empiar/emdb-molstar#readme",
   "devDependencies": {
     "@babel/core": "^7.17.10",
     "@babel/plugin-transform-runtime": "^7.17.10",

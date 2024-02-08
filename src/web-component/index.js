@@ -1,11 +1,10 @@
 import { LitElement } from 'lit-element';
 
-class PdbeMolstar extends LitElement {
+class EMDBMolstar extends LitElement {
     connectedCallback() {
         super.connectedCallback();
-        this.viewerInstance = new PDBeMolstarPlugin();
-        this.initParams = PDBeMolstarPlugin.initParamsFromHtmlAttributes(this);
-        console.log('PdbeMolstar initParams:', this.initParams);
+        this.viewerInstance = new EMDBMolstarPlugin();
+        this.initParams = EMDBMolstarPlugin.initParamsFromHtmlAttributes(this);
         this.viewerInstance.render(this, this.initParams);
     }
 
@@ -14,6 +13,6 @@ class PdbeMolstar extends LitElement {
     }
 }
 
-export default PdbeMolstar;
+export default EMDBMolstar;
 
-customElements.define('pdbe-molstar', PdbeMolstar);
+customElements.define('emdb-molstar', EMDBMolstar);
