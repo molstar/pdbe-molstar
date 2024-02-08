@@ -26,6 +26,7 @@ npm_publish:
     
     # Publish to npm registry (with 'latest' and 'dev' tag for proper releases, with only 'dev' tag for beta versions)
     - test -n "${NPM_AUTH_TOKEN}" && echo 'NPM_AUTH_TOKEN OK' || echo 'NPM_AUTH_TOKEN missing'
+    - env
     - npm config set -- '//registry.npmjs.org/:_authToken'="${NPM_AUTH_TOKEN}"
     - npm publish --verbose --tag "$STATUS"
     - npm dist-tags add "$PKG_NAME@PKG_VERSION" dev
