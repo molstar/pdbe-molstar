@@ -1,5 +1,6 @@
 build/
 lib/
+tmp/
 
 node_modules/
 debug.log

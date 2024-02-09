@@ -15,8 +15,9 @@ import { AnimateStateSnapshots } from 'Molstar/mol-plugin-state/animation/built-
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
 import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
-import { StructureComponentManager } from 'Molstar/mol-plugin-state/manager/structure/component';
 import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
+import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
 import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
@@ -33,8 +34,10 @@ import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
 import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
-import { ParamDefinition } from 'Molstar/mol-util/param-definition';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
+import { StructureElement } from 'Molstar/mol-model/structure';
+import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
+import { Overpaint } from 'Molstar/mol-theme/overpaint';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
@@ -66,11 +69,11 @@ export class PDBeMolstarPlugin {
     initParams: InitParams;
     targetElement: HTMLElement;
     assemblyRef = '';
-    selectedParams: any;
     defaultRendererProps: Canvas3DProps['renderer'];
     defaultMarkingProps: Canvas3DProps['marking'];
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
+    private readonly selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
 
     /** Extract InitParams from attributes of an HTML element */
     static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
@@ -460,7 +463,6 @@ export class PDBeMolstarPlugin {
         if (structureNumber) {
             assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
         }
-
         if (assemblyRef === '') return EmptyLoci;
         const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
         if (!data) return EmptyLoci;
@@ -479,22 +481,34 @@ export class PDBeMolstarPlugin {
         return AlphafoldView.getLociByPLDDT(score, data);
     }
 
-
+    /** For each item in params, get loci and bundle */
+    private getSelections(params: QueryParam[], structNumber: number) {
+        const result: { param: QueryParam, loci: StructureElement.Loci, bundle: StructureElement.Bundle }[] = [];
+        for (const param of params) {
+            const loci = this.getLociForParams([param], structNumber);
+            if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) continue;
+            const bundle = StructureElement.Bundle.fromLoci(loci);
+            result.push({ param, loci, bundle });
+        }
+        return result;
+    }
+    private getBundle(params: QueryParam[], structNumber: number): StructureElement.Bundle | undefined {
+        const loci = this.getLociForParams(params, structNumber);
+        if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) return undefined;
+        return StructureElement.Bundle.fromLoci(loci);
+    }
 
     normalizeColor(colorVal: any, defaultColor?: Color) {
-        let color = Color.fromRgb(170, 170, 170);
+        defaultColor ??= Color.fromRgb(170, 170, 170);
         try {
-            if (typeof colorVal.r !== 'undefined') {
-                color = Color.fromRgb(colorVal.r, colorVal.g, colorVal.b);
-            } else if (colorVal[0] === '#') {
-                color = Color(Number(`0x${colorVal.substr(1)}`));
-            } else {
-                color = Color(colorVal);
-            }
-        } catch (e) {
-            if (defaultColor) color = defaultColor;
+            if (colorVal === undefined || colorVal === null) return defaultColor;
+            if (typeof colorVal === 'number') return Color(colorVal);
+            if (typeof colorVal === 'string' && colorVal[0] === '#') return Color(Number(`0x${colorVal.substring(1)}`));
+            if (typeof colorVal === 'object') return Color.fromRgb(colorVal.r ?? 0, colorVal.g ?? 0, colorVal.b ?? 0);
+        } catch {
+            // do nothing
         }
-        return color;
+        return defaultColor;
     }
 
     visual = {
@@ -508,106 +522,126 @@ export class PDBeMolstarPlugin {
             if (params.focus) this.plugin.managers.camera.focusLoci(loci);
 
         },
+
         clearHighlight: async () => {
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
             if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
         },
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
 
-            // clear prvious selection
-            if (this.selectedParams) {
-                await this.visual.clearSelection(params.structureNumber);
-            }
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
+            await this.visual.clearSelection(params.structureNumber);
 
             // Structure list to apply selection
-            let structureData = this.plugin.managers.structure.hierarchy.current.structures;
-            if (params.structureNumber) {
-                structureData = [this.plugin.managers.structure.hierarchy.current.structures[params.structureNumber - 1]];
+            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
+            if (params.structureNumber !== undefined) {
+                structures = [structures[params.structureNumber - 1]];
             }
 
-            // set non selected theme color
-            if (params.nonSelectedColor) {
-                for await (const s of structureData) {
-                    await this.plugin.managers.structure.component.updateRepresentationsTheme(s.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+            // Filter selection items that apply added representations
+            const addedReprParams: { [repr: string]: QueryParam[] } = {};
+            for (const param of params.data) {
+                const repr = param.representation ?? (param.sideChain ? 'ball-and-stick' : undefined);
+                if (repr) {
+                    (addedReprParams[repr] ??= []).push(param);
                 }
             }
 
-            // apply individual selections
-            for await (const param of params.data) {
-                // get loci from param
-                const loci = this.getLociForParams([param], params.structureNumber);
-                if (Loci.isEmpty(loci)) return;
-                // set default selection color to minimise change display
-                this.visual.setColor({ select: param.color ? param.color : { r: 255, g: 112, b: 3 } });
-                // apply selection
-                this.plugin.managers.interactivity.lociSelects.selectOnly({ loci });
-                // create theme param values and apply them to create overpaint
-                const themeParams = StructureComponentManager.getThemeParams(this.plugin, this.plugin.managers.structure.component.pivotStructure);
-                const colorValue = ParamDefinition.getDefaultValues(themeParams);
-                colorValue.action.params = { color: param.color ? this.normalizeColor(param.color) : Color.fromRgb(255, 112, 3), opacity: 1 };
-                await this.plugin.managers.structure.component.applyTheme(colorValue, structureData);
-                // add new representations
-                if (param.sideChain || param.representation) {
-                    let repr = 'ball-and-stick';
-                    if (param.representation) repr = param.representation;
-                    const defaultParams = StructureComponentManager.getAddParams(this.plugin, { allowNone: false, hideSelection: true, checkExisting: true });
-                    const defaultValues = ParamDefinition.getDefaultValues(defaultParams);
-                    defaultValues.options = { label: 'selection-by-script', checkExisting: params.structureNumber ? false : true };
-                    const values = { ...defaultValues, ...{ representation: repr } };
-                    const structures = this.plugin.managers.structure.hierarchy.getStructuresWithSelection();
-                    await this.plugin.managers.structure.component.add(values, structures);
+            const DefaultSelectColor = Color.fromRgb(255, 112, 3);
+            const focusLoci: StructureElement.Loci[] = [];
 
-                    // Apply uniform theme
-                    if (param.representationColor) {
-                        let updatedStructureData = this.plugin.managers.structure.hierarchy.current.structures;
-                        if (params.structureNumber) {
-                            updatedStructureData = [this.plugin.managers.structure.hierarchy.current.structures[params.structureNumber - 1]];
-                        }
-                        const comps = updatedStructureData[0].components;
-                        const lastCompsIndex = comps.length - 1;
-                        const recentRepComp = [comps[lastCompsIndex]];
-                        const uniformColor = param.representationColor ? this.normalizeColor(param.representationColor) : Color.fromRgb(255, 112, 3);
-                        this.plugin.managers.structure.component.updateRepresentationsTheme(recentRepComp, { color: 'uniform', colorParams: { value: uniformColor } });
+            for (const struct of structures) {
+                // Apply nonSelectedColor as background color
+                if (params.nonSelectedColor) {
+                    await this.plugin.managers.structure.component.updateRepresentationsTheme(struct.structureRef.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
+                }
+
+                const selections = this.getSelections(params.data, struct.number);
+                for (const selection of selections) {
+                    if (selection.param.focus) {
+                        focusLoci.push(selection.loci);
                     }
-
-                    params.addedRepr = true;
                 }
-                // focus loci
-                if (param.focus) this.plugin.managers.camera.focusLoci(loci);
-                // remove selection
-                this.plugin.managers.interactivity.lociSelects.deselect({ loci });
+
+                // Apply color to the main representation
+                const overpaintLayers: Overpaint.BundleLayer[] = selections.map(s => ({
+                    bundle: s.bundle,
+                    color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
+                    clear: false,
+                }));
+                const update = this.plugin.build();
+                for (const component of struct.structureRef.components) {
+                    for (const repr of component.representations) {
+                        update.to(repr.cell.transform.ref).apply(
+                            StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
+                            { layers: overpaintLayers },
+                            { tags: Tags.Overpaint },
+                        );
+                    }
+                }
+                await update.commit();
+
+                // Add extra representations
+                let addedRepr = false;
+                for (const repr in addedReprParams) {
+                    addedRepr = true;
+                    const bundle = this.getBundle(addedReprParams[repr], struct.number);
+                    if (!bundle) continue;
+                    const overpaintLayers: Overpaint.BundleLayer[] = selections.filter(s => s.param.representationColor).map(s => ({
+                        bundle: s.bundle,
+                        color: this.normalizeColor(s.param.representationColor!),
+                        clear: false,
+                    }));
+                    await this.plugin.build()
+                        .to(struct.structureRef.cell)
+                        .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: Tags.AddedComponent })
+                        .apply(StructureRepresentation3D, createStructureRepresentationParams(this.plugin, struct.structureRef.cell.obj?.data, { type: repr as any }))
+                        .apply(
+                            StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
+                            { layers: overpaintLayers },
+                            { tags: Tags.Overpaint },
+                        )
+                        .commit();
+                }
+
+                // Save selection params for later clearSelection
+                this.selectionParams[struct.number] = { ...params, addedRepr };
             }
 
-            // reset selection color
-            this.visual.reset({ selectColor: true });
-            // save selection params to optimise clear
-            this.selectedParams = params;
-
+            // Apply focus
+            if (focusLoci.length > 0) {
+                this.plugin.managers.camera.focusLoci(focusLoci);
+            }
         },
+
         clearSelection: async (structureNumber?: number) => {
-            const structIndex = structureNumber ? structureNumber - 1 : 0;
-            this.plugin.managers.interactivity.lociSelects.deselectAll();
-            // reset theme to default
-            if (this.selectedParams && this.selectedParams.nonSelectedColor) {
-                this.visual.reset({ theme: true });
+            // Structure list to apply to
+            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
+            if (structureNumber !== undefined) {
+                structures = [structures[structureNumber - 1]];
             }
-            // remove overpaints
-            await clearStructureOverpaint(this.plugin, this.plugin.managers.structure.hierarchy.current.structures[structIndex].components);
-            // remove selection representations
-            if (this.selectedParams && this.selectedParams.addedRepr) {
-                const selReprCells = [];
-                for (const c of this.plugin.managers.structure.hierarchy.current.structures[structIndex].components) {
-                    if (c.cell && c.cell.params && c.cell.params.values && c.cell.params.values.label === 'selection-by-script') selReprCells.push(c.cell);
+            for (const struct of structures) {
+                const currentParams = this.selectionParams[struct.number];
+                if (!currentParams) continue;
+                // Remove nonSelectedColor
+                if (currentParams.nonSelectedColor) {
+                    const defaultTheme = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
+                    await this.plugin.managers.structure.component.updateRepresentationsTheme(struct.structureRef.components, defaultTheme as any);
                 }
-                if (selReprCells.length > 0) {
-                    for await (const selReprCell of selReprCells) {
-                        await PluginCommands.State.RemoveObject(this.plugin, { state: selReprCell.parent!, ref: selReprCell.transform.ref });
-                    };
+                // Remove overpaint
+                await clearStructureOverpaint(this.plugin, struct.structureRef.components);
+                // Remove added reprs
+                if (currentParams.addedRepr) {
+                    const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes(Tags.AddedComponent));
+                    const update = this.plugin.build();
+                    for (const comp of componentsToDelete) {
+                        update.delete(comp.cell.transform.ref);
+                    }
+                    await update.commit();
                 }
-
+                delete this.selectionParams[struct.number];
             }
-            this.selectedParams = undefined;
         },
+
         update: async (options: Partial<InitParams>, fullLoad?: boolean) => {
             console.debug('Updating PDBeMolstarPlugin instance with options:', options);
             // Validate options
@@ -645,6 +679,7 @@ export class PDBeMolstarPlugin {
                 await this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary }, fullLoad);
             }
         },
+
         visibility: async (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, nonStandard?: boolean, maps?: boolean, [key: string]: any }) => {
             if (!data) return;
 
@@ -665,6 +700,7 @@ export class PDBeMolstarPlugin {
             }
 
         },
+
         toggleSpin: async (isSpinning?: boolean, resetCamera?: boolean) => {
             if (!this.plugin.canvas3d) return;
             const trackball = this.plugin.canvas3d.props.trackball;
@@ -678,10 +714,12 @@ export class PDBeMolstarPlugin {
             await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: toggleSpinParam } } });
             if (resetCamera) await PluginCommands.Camera.Reset(this.plugin, {});
         },
+
         focus: async (params: QueryParam[], structureNumber?: number) => {
             const loci = this.getLociForParams(params, structureNumber);
             this.plugin.managers.camera.focusLoci(loci);
         },
+
         setColor: async (param: { highlight?: ColorParams, select?: ColorParams }) => {
             if (!this.plugin.canvas3d) return;
             if (!param.highlight && !param.select) return;
@@ -699,6 +737,7 @@ export class PDBeMolstarPlugin {
             }
             await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
         },
+
         reset: async (params: { camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean }) => {
             if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
 
@@ -732,13 +771,17 @@ export class PDBeMolstarPlugin {
     async clear() {
         await this.plugin.clear();
         this.assemblyRef = '';
-        this.selectedParams = void 0;
         this.isHighlightColorUpdated = false;
         this.isSelectedColorUpdated = false;
     }
 }
 
-
+const Tags = {
+    /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
+    Overpaint: 'overpaint-controls',
+    /** Marks structure components added by `select` */
+    AddedComponent: 'pdbe-molstar.added-component',
+};
 const StructureComponentTags = {
     polymer: ['structure-component-static-polymer'],
     het: ['structure-component-static-ligand', 'structure-component-static-ion'],
