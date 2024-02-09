@@ -73,7 +73,7 @@ export class PDBeMolstarPlugin {
     defaultMarkingProps: Canvas3DProps['marking'];
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
-    private readonly selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
+    private selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
 
     /** Extract InitParams from attributes of an HTML element */
     static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
@@ -771,6 +771,7 @@ export class PDBeMolstarPlugin {
     async clear() {
         await this.plugin.clear();
         this.assemblyRef = '';
+        this.selectionParams = {};
         this.isHighlightColorUpdated = false;
         this.isSelectedColorUpdated = false;
     }
