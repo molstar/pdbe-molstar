@@ -8,10 +8,25 @@ npm_publish:
   image: node:20
   script:
     # Ensure the git tag matches the npm package version (e.g. tag v1.0.0 for version 1.0.0)
-    - test -n "${NPM_AUTH_TOKEN}" && echo 'NPM_AUTH_TOKEN is available' || echo 'NPM_AUTH_TOKEN is not available (not set or this branch/tag has insufficient permissions)'
     - PKG_NAME=$(node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).name)')
     - PKG_VERSION=$(node -e 'console.log(JSON.parse(fs.readFileSync("package.json")).version)')
     - echo 'Package name:' $PKG_NAME
     - echo 'Package version:' $PKG_VERSION
     - echo 'Tag:' $CI_COMMIT_TAG
     - test "$CI_COMMIT_TAG" = "v$PKG_VERSION"
+
+    # Determine release status ('latest' for proper releases, 'dev' for beta versions)
+    - STATUS=$([[ "$PKG_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo latest || echo dev)
+    - echo 'Release status (latest|dev):' $STATUS
+    
+    # Build
+    - npm ci --omit optional
+    - npm run lint
+    - npm run rebuild
+    
+    # Publish to npm registry (with 'latest' and 'dev' tag for proper releases, with only 'dev' tag for beta versions)
+    - test -n "${NPM_AUTH_TOKEN}" && echo 'NPM_AUTH_TOKEN is available' || echo 'NPM_AUTH_TOKEN is not available (not set or this branch/tag has insufficient permissions)'
+    - npm config set -- '//registry.npmjs.org/:_authToken'="${NPM_AUTH_TOKEN}"
+    - npm publish --verbose --tag "$STATUS"
+    - npm dist-tags add "$PKG_NAME@PKG_VERSION" dev
+    - npm view "$PKG_NAME"

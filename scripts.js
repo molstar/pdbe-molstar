@@ -44,6 +44,15 @@ function replaceSkin(srcFile, skin, destFile) {
     fs.writeFileSync(destFile, text, { encoding: 'utf8' });
 }
 
+function addBanner(file) {
+    if (!fs.existsSync(file)) return;
+    const contents = [
+        banner,
+        fs.readFileSync(file, { encoding: 'utf8' }),
+    ];
+    fs.writeFileSync(file, contents.join('\n\n'), { encoding: 'utf8' });
+}
+
 const scripts = {
     /** Remove any files produced by the build process */
     'clean-all': () => {
@@ -52,15 +61,23 @@ const scripts = {
 
     /** Build web component */
     'bundle-webcomponent': () => {
-        const outputFile = `build/${PACKAGE.name}-component-${PACKAGE.version}.js`;
+        const outputFile = `build/${PACKAGE.name}-component.js`;
         removeFiles(outputFile);
         const contents = [
             banner,
             license,
-            fs.readFileSync(`build/${PACKAGE.name}-plugin-${PACKAGE.version}.js`),
-            fs.readFileSync(`lib/${PACKAGE.name}-component-build-${PACKAGE.version}.js`),
+            fs.readFileSync(`build/${PACKAGE.name}-plugin.js`, { encoding: 'utf8' }),
+            fs.readFileSync(`lib/${PACKAGE.name}-component-build.js`, { encoding: 'utf8' }),
         ];
         fs.writeFileSync(outputFile, contents.join('\n\n'), { encoding: 'utf8' });
+    },
+
+    /** Add a banner with version info to the built files */
+    'add-banners': () => {
+        addBanner(`build/${PACKAGE.name}-plugin.js`);
+        addBanner(`build/${PACKAGE.name}-plugin.js.LICENSE.txt`);
+        addBanner(`build/${PACKAGE.name}.css`);
+        addBanner(`build/${PACKAGE.name}-light.css`);
     },
 
     /** Prepare module files for light skin */
@@ -72,15 +89,12 @@ const scripts = {
     /** Remove unnecessary files produced by the build process */
     'clean-rubbish': () => {
         removeFiles(
-            `build/${PACKAGE.name}-light-plugin-${PACKAGE.version}.js`,
-            `build/${PACKAGE.name}-light-plugin-${PACKAGE.version}.js.LICENSE.txt`
+            `build/${PACKAGE.name}-light-plugin.js`,
+            `build/${PACKAGE.name}-light-plugin.js.LICENSE.txt`
         );
     },
 };
 
-// scripts['clean-rubbish']();
-
-// console.log(process.argv)
 
 const parser = new argparse.ArgumentParser({ description: '' });
 parser.add_argument('script_name', { choices: Object.keys(scripts) });
