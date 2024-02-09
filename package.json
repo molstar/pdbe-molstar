@@ -33,7 +33,11 @@
     "PDBe",
     "biojs"
   ],
-  "author": "Mandar Deshpande <mandar@ebi.ac.uk>",
+  "author": "Protein Data Bank in Europe (PDBe), European Bioinformatics Institute (EMBL-EBI)",
+  "contributors": [
+    "Mandar Deshpande <mandar@ebi.ac.uk>",
+    "Adam Midlik <midlik@gmail.com>"
+  ],
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/PDBeurope/pdbe-molstar/issues"
@@ -68,14 +72,14 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "buffer": "^5.7.1",
+    "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
     "d3-axis": "^3.0.0",
     "d3-brush": "^3.0.0",
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "lit": "^3.1.1",
-    "molstar": "3.44.0",
+    "molstar": "3.45.0",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0"
   }

@@ -207,7 +207,7 @@ export type QueryParam = {
 
 export namespace QueryHelper {
 
-    export function getQueryObject(params: QueryParam[], contextData: any): Expression.Expression {
+    export function getQueryObject(params: QueryParam[], contextData: Structure): Expression.Expression {
         const selections: Partial<AtomsQueryParams>[] = [];
         let siftMappings: SIFTSMappingMapping | undefined;
         let currentAccession: string;
@@ -291,12 +291,12 @@ export namespace QueryHelper {
         return Queries.combinators.merge(atmGroupsQueries);
     }
 
-    export function getInteractivityLoci(params: any, contextData: any) {
+    export function getInteractivityLoci(params: QueryParam[], contextData: Structure) {
         const sel = StructureQuery.run(QueryHelper.getQueryObject(params, contextData) as any, contextData);
         return StructureSelection.toLociWithSourceUnits(sel);
     }
 
-    export function getHetLoci(queryExp: Expression.Expression, contextData: any) {
+    export function getHetLoci(queryExp: Expression.Expression, contextData: Structure) {
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
         return StructureSelection.toLociWithSourceUnits(sel);

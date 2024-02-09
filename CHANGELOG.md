@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
-- Mol* core dependency updated to 3.44.0
+- Mol* core dependency updated to 3.45.0
 - Removed Assembly Symmetry hack (now will hide assembly symmetry section for non-biological assemblies)
 - Manual testing via `portfolio.html`
 - Fixed hideStructure.nonStandard option
@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file, following t
 - Removed loadCartoonsOnly option
 - Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
 - Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
+- Improved performance of `.visual.select()`
 - Built files don't contain package version in the filename
 
 ## [v3.1.3]

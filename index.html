@@ -28,13 +28,16 @@
         h2 {
             margin-bottom: 20px;
         }
+
         h3 {
             margin-bottom: 2px;
         }
+
         h4 {
             margin-top: 6px;
             margin-bottom: 2px;
         }
+
         h4:first-child {
             margin-top: 0px;
         }
@@ -60,13 +63,14 @@
             height: 450px;
             position: relative;
         }
-        
+
         button {
             margin-right: 8px;
             margin-bottom: 8px;
             padding: 1px;
             padding-inline: 4px;
         }
+
         button:last-child {
             margin-bottom: 0px;
         }
@@ -105,12 +109,14 @@
                 <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button>
 
                 <h4>Focus</h4>
-                <button onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
+                <button
+                    onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
                     Focus on Chain A:14-18
                 </button>
 
                 <h4>Highlight</h4>
-                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
+                <button
+                    onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
                     Highlight Chain A:14-18
                 </button>
                 <button onclick="viewerInstance.visual.clearHighlight()">
@@ -118,23 +124,37 @@
                 </button>
 
                 <h4>Selection</h4>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
+                <button
+                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
                     Select & Focus on Chain A
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
+                <button
+                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
                     Select & Focus on Chain B
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
+                <button
+                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
                     Select Chain B:1-6
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
-                    Select Chain B:1-6 & Chain B:15-20
+                <button
+                    onclick="viewerInstance.visual.select({ data: [
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
+                    Select Chain B:1-6, B:15-20
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
+                <button
+                    onclick="viewerInstance.visual.select({ data: [
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 }, sideChain: true }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 }, representation: 'spacefill', representationColor: '#ff00ff' }]})">
+                    Select Chain B:1-6, B:15-20 (extra reprs)
+                </button>
+                <br>
+                <button
+                    onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
                     Select Uniprot
                 </button>
                 <br>
