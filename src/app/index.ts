@@ -593,7 +593,7 @@ export class PDBeMolstarPlugin {
                     }));
                     await this.plugin.build()
                         .to(struct.structureRef.cell)
-                        .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: Tags.Overpaint })
+                        .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: Tags.AddedComponent })
                         .apply(StructureRepresentation3D, createStructureRepresentationParams(this.plugin, struct.structureRef.cell.obj?.data, { type: repr as any }))
                         .apply(
                             StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,

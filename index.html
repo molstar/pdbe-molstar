@@ -99,14 +99,6 @@
 
             <h3>Visual Methods</h3>
             <div class="controlBox">
-                <h4>Complex select</h4>
-                <button onclick="runComplexSelect()">
-                    Complex select
-                </button>
-                <button onclick="viewerInstance.visual.clearSelection()">
-                    Clear
-                </button>
-
                 <h4>Change representation visibility</h4>
                 <button onclick="viewerInstance.visual.visibility({ water: false })">Hide Water Visual</button>
                 <button onclick="viewerInstance.visual.visibility({ water: true })">Show Water Visual</button>
@@ -148,8 +140,17 @@
                 </button>
                 <br>
                 <button
-                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
-                    Select Chain B:1-6 & Chain B:15-20
+                    onclick="viewerInstance.visual.select({ data: [
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
+                    Select Chain B:1-6, B:15-20
+                </button>
+                <br>
+                <button
+                    onclick="viewerInstance.visual.select({ data: [
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 }, sideChain: true }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 }, representation: 'spacefill', representationColor: '#ff00ff' }]})">
+                    Select Chain B:1-6, B:15-20 (extra reprs)
                 </button>
                 <br>
                 <button
@@ -271,32 +272,6 @@
         //   //do something on event
         //   console.log(e)
         // });
-
-        function runComplexSelect() {
-            const accession = options.customData.url.match(/AF-(\w+)-F/)[1];
-            // const accession = 'A0A0A0MRZ7'; //debug
-            fetch(`./tmp/selection-object-${accession}.json`)
-                .then(response => response.json())
-                .then(selectionObj => {
-                    selectionObj.data.slice(1).forEach(x => {
-                        // if (x.residue_number % 4 === 0) x.sideChain = true;
-                        // if (x.residue_number % 4 === 2) x.representation = 'gaussian-surface';
-                        // if (x.residue_number % 3 === 0) x.representationColor = { r: 255, g: 0, b: 255 };
-                        // if (x.residue_number % 5 === 0) x.representationColor = { r: 255, g: 255, b: 0 };
-                        // x.sideChain = true;
-                        // x.representation = 'putty';
-                        // x.representationColor = x.residue_number % 2 ? { r: 255, g: 0, b: 0 } : undefined;
-                    }); // debug 
-                    selectionObj.data.push({ struct_asym_id: 'G', representation: 'molecular-surface', color: { r: 0, g: 255, b: 255 }, representationColor: { r: 125, g: 0, b: 255 } });
-                    selectionObj.nonSelectedColor = { r: 255, g: 255, b: 255 } // debug
-                    console.log('nSelections:', selectionObj.data.length);
-                    console.time('SELECT');
-                    return viewerInstance.visual.select(selectionObj);
-                })
-                .then(() => console.timeEnd('SELECT'));
-        }
-        // Test at http://127.0.0.1:1338/index.html?skin=%22light%22&size=[767,446]&options={%22customData%22:{%22url%22:%22https://alphafold.ebi.ac.uk/files/AF-A0A0A0MRZ7-F1-model_v4.cif%22,%22format%22:%22cif%22,%22binary%22:false},%22subscribeEvents%22:false,%22bgColor%22:{%22r%22:255,%22g%22:255,%22b%22:255},%22selectInteraction%22:false,%22alphafoldView%22:true,%22reactive%22:true,%22sequencePanel%22:true,%22hideCanvasControls%22:[%22animation%22],%22pdbeLink%22:false}
-        // Test at http://127.0.0.1:1338/index.html?skin=%22light%22&size=[767,446]&options={%22customData%22:{%22url%22:%22https://alphafold.ebi.ac.uk/files/AF-A6BM72-F1-model_v4.cif%22,%22format%22:%22cif%22,%22binary%22:false},%22subscribeEvents%22:false,%22bgColor%22:{%22r%22:255,%22g%22:255,%22b%22:255},%22selectInteraction%22:false,%22alphafoldView%22:true,%22reactive%22:true,%22sequencePanel%22:true,%22hideCanvasControls%22:[%22animation%22],%22pdbeLink%22:false}
 
     </script>
 </body>
