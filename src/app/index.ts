@@ -528,6 +528,7 @@ export class PDBeMolstarPlugin {
             if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
         },
 
+        /** `structureNumber` counts from 1; if not provided, select will be applied to all load structures */
         select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
             await this.visual.clearSelection(params.structureNumber);
 
@@ -613,6 +614,7 @@ export class PDBeMolstarPlugin {
             }
         },
 
+        /** `structureNumber` counts from 1; if not provided, clearSelection will be applied to all load structures */
         clearSelection: async (structureNumber?: number) => {
             // Structure list to apply to
             let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
