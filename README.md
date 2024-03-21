@@ -31,6 +31,7 @@ npm run watch
   - Use a version number like "1.2.3-beta.1" for development versions (to be used in development environment wwwdev.ebi.ac.uk)
   - Use a version number like "1.2.3" for proper releases
 - Ensure install, lint, and rebuild works locally
+- Update `CHANGELOG.md`
 - Git commit and push
 - Create a git tag matching the version with prepended "v" (e.g. "v1.2.3")
 - The GitHub repo will automatically be mirrored to EBI GitLab (might take up to 1 hour)
