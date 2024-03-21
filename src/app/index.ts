@@ -5,6 +5,7 @@ import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
 import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
 import { Canvas3DProps } from 'Molstar/mol-canvas3d/canvas3d';
 import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
+import { StructureElement } from 'Molstar/mol-model/structure';
 import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
 import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/camera-rock';
 import { AnimateCameraSpin } from 'Molstar/mol-plugin-state/animation/built-in/camera-spin';
@@ -16,6 +17,7 @@ import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajec
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
 import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
 import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
+import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
 import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
@@ -32,12 +34,11 @@ import { PluginSpec } from 'Molstar/mol-plugin/spec';
 import { Representation } from 'Molstar/mol-repr/representation';
 import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
+import { Overpaint } from 'Molstar/mol-theme/overpaint';
 import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
+import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { StructureElement } from 'Molstar/mol-model/structure';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { Overpaint } from 'Molstar/mol-theme/overpaint';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
@@ -73,7 +74,8 @@ export class PDBeMolstarPlugin {
     defaultMarkingProps: Canvas3DProps['marking'];
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
-    private selectionParams: { [structureNumber: number]: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean } } = {};
+    /** Keeps track of representations added by `.visual.select` for each structure. */
+    private addedReprs: { [structureNumber: number]: boolean } = {};
 
     /** Extract InitParams from attributes of an HTML element */
     static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
@@ -504,6 +506,7 @@ export class PDBeMolstarPlugin {
             if (colorVal === undefined || colorVal === null) return defaultColor;
             if (typeof colorVal === 'number') return Color(colorVal);
             if (typeof colorVal === 'string' && colorVal[0] === '#') return Color(Number(`0x${colorVal.substring(1)}`));
+            if (typeof colorVal === 'string' && colorVal in ColorNames) return ColorNames[colorVal as ColorName];
             if (typeof colorVal === 'object') return Color.fromRgb(colorVal.r ?? 0, colorVal.g ?? 0, colorVal.b ?? 0);
         } catch {
             // do nothing
@@ -529,7 +532,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** `structureNumber` counts from 1; if not provided, select will be applied to all load structures */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, addedRepr?: boolean, structureNumber?: number }) => {
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number }) => {
             await this.visual.clearSelection(params.structureNumber);
 
             // Structure list to apply selection
@@ -551,11 +554,6 @@ export class PDBeMolstarPlugin {
             const focusLoci: StructureElement.Loci[] = [];
 
             for (const struct of structures) {
-                // Apply nonSelectedColor as background color
-                if (params.nonSelectedColor) {
-                    await this.plugin.managers.structure.component.updateRepresentationsTheme(struct.structureRef.components, { color: 'uniform', colorParams: { value: this.normalizeColor(params.nonSelectedColor) } });
-                }
-
                 const selections = this.getSelections(params.data, struct.number);
                 for (const selection of selections) {
                     if (selection.param.focus) {
@@ -571,6 +569,16 @@ export class PDBeMolstarPlugin {
                         color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
                         clear: false,
                     }));
+                if (params.nonSelectedColor) {
+                    const wholeStructBundle = this.getBundle([{}], struct.number);
+                    if (wholeStructBundle) {
+                        overpaintLayers.unshift({
+                            bundle: wholeStructBundle,
+                            color: this.normalizeColor(params.nonSelectedColor),
+                            clear: false,
+                        });
+                    }
+                }
                 if (overpaintLayers.length > 0) {
                     const update = this.plugin.build();
                     for (const component of struct.structureRef.components) {
@@ -586,9 +594,7 @@ export class PDBeMolstarPlugin {
                 }
 
                 // Add extra representations
-                let addedRepr = false;
                 for (const repr in addedReprParams) {
-                    addedRepr = true;
                     const bundle = this.getBundle(addedReprParams[repr], struct.number);
                     if (!bundle) continue;
                     const overpaintLayers: Overpaint.BundleLayer[] = selections.filter(s => s.param.representationColor).map(s => ({
@@ -606,10 +612,9 @@ export class PDBeMolstarPlugin {
                             { tags: Tags.Overpaint },
                         )
                         .commit();
+                    // Track that reprs have been added (for later clearSelection)
+                    this.addedReprs[struct.number] = true;
                 }
-
-                // Save selection params for later clearSelection
-                this.selectionParams[struct.number] = { ...params, addedRepr };
             }
 
             // Apply focus
@@ -626,25 +631,18 @@ export class PDBeMolstarPlugin {
                 structures = [structures[structureNumber - 1]];
             }
             for (const struct of structures) {
-                const currentParams = this.selectionParams[struct.number];
-                if (!currentParams) continue;
-                // Remove nonSelectedColor
-                if (currentParams.nonSelectedColor) {
-                    const defaultTheme = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
-                    await this.plugin.managers.structure.component.updateRepresentationsTheme(struct.structureRef.components, defaultTheme as any);
-                }
                 // Remove overpaint
                 await clearStructureOverpaint(this.plugin, struct.structureRef.components);
                 // Remove added reprs
-                if (currentParams.addedRepr) {
+                if (this.addedReprs[struct.number]) {
                     const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes(Tags.AddedComponent));
                     const update = this.plugin.build();
                     for (const comp of componentsToDelete) {
                         update.delete(comp.cell.transform.ref);
                     }
                     await update.commit();
+                    delete this.addedReprs[struct.number];
                 }
-                delete this.selectionParams[struct.number];
             }
         },
 
@@ -777,7 +775,7 @@ export class PDBeMolstarPlugin {
     async clear() {
         await this.plugin.clear();
         this.assemblyRef = '';
-        this.selectionParams = {};
+        this.addedReprs = {};
         this.isHighlightColorUpdated = false;
         this.isSelectedColorUpdated = false;
     }
