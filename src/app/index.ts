@@ -531,9 +531,11 @@ export class PDBeMolstarPlugin {
             if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
         },
 
-        /** `structureNumber` counts from 1; if not provided, select will be applied to all load structures */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number }) => {
-            await this.visual.clearSelection(params.structureNumber);
+        /** `structureNumber` counts from 1; if not provided, select will be applied to all load structures.
+         * Use `keepColors` and/or `keepRepresentations` to preserve currently active selection.
+         */
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
+            await this.visual.clearSelection(params.structureNumber, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
             // Structure list to apply selection
             let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
@@ -579,15 +581,26 @@ export class PDBeMolstarPlugin {
                         });
                     }
                 }
+
                 if (overpaintLayers.length > 0) {
                     const update = this.plugin.build();
                     for (const component of struct.structureRef.components) {
+                        if (component.cell.transform.tags?.includes(Tags.AddedComponent)) continue;
                         for (const repr of component.representations) {
-                            update.to(repr.cell.transform.ref).apply(
-                                StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
-                                { layers: overpaintLayers },
-                                { tags: Tags.Overpaint },
-                            );
+                            const currentOverpaint = this.plugin.state.data.select(StateSelection.Generators
+                                .ofTransformer(StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle, repr.cell.transform.ref)
+                                .withTag(Tags.Overpaint));
+                            if (currentOverpaint.length === 0) {
+                                // Create a new overpaint
+                                update.to(repr.cell.transform.ref).apply(
+                                    StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
+                                    { layers: overpaintLayers },
+                                    { tags: Tags.Overpaint },
+                                );
+                            } else {
+                                // Add layers to existing overpaint
+                                update.to(currentOverpaint[0]).update(old => ({ layers: old.layers.concat(overpaintLayers) }));
+                            }
                         }
                     }
                     await update.commit();
@@ -623,8 +636,10 @@ export class PDBeMolstarPlugin {
             }
         },
 
-        /** `structureNumber` counts from 1; if not provided, clearSelection will be applied to all load structures */
-        clearSelection: async (structureNumber?: number) => {
+        /** Clear any currently active "selection" (i.e. colored residues and added representations via `select`).
+         * `structureNumber` counts from 1; if not provided, clearSelection will be applied to all loaded structures.
+         * If `keepColors`, curent residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
+        clearSelection: async (structureNumber?: number, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
             let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
             if (structureNumber !== undefined) {
@@ -632,16 +647,21 @@ export class PDBeMolstarPlugin {
             }
             for (const struct of structures) {
                 // Remove overpaint
-                await clearStructureOverpaint(this.plugin, struct.structureRef.components);
+                if (!options?.keepColors) {
+                    const componentsToClear = struct.structureRef.components.filter(c => !c.cell.transform.tags?.includes(Tags.AddedComponent));
+                    await clearStructureOverpaint(this.plugin, componentsToClear);
+                }
                 // Remove added reprs
-                if (this.addedReprs[struct.number]) {
-                    const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes(Tags.AddedComponent));
-                    const update = this.plugin.build();
-                    for (const comp of componentsToDelete) {
-                        update.delete(comp.cell.transform.ref);
+                if (!options?.keepRepresentations) {
+                    if (this.addedReprs[struct.number]) {
+                        const componentsToDelete = struct.structureRef.components.filter(comp => comp.cell.transform.tags?.includes(Tags.AddedComponent));
+                        const update = this.plugin.build();
+                        for (const comp of componentsToDelete) {
+                            update.delete(comp.cell.transform.ref);
+                        }
+                        await update.commit();
+                        delete this.addedReprs[struct.number];
                     }
-                    await update.commit();
-                    delete this.addedReprs[struct.number];
                 }
             }
         },
@@ -786,7 +806,7 @@ const Tags = {
     Overpaint: 'overpaint-controls',
     /** Marks structure components added by `select` */
     AddedComponent: 'pdbe-molstar.added-component',
-};
+} as const;
 const StructureComponentTags = {
     polymer: ['structure-component-static-polymer'],
     het: ['structure-component-static-ligand', 'structure-component-static-ion'],

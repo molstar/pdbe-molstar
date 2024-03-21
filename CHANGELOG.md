@@ -11,8 +11,10 @@ All notable changes to this project will be documented in this file, following t
 - Removed loadCartoonsOnly option
 - Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
 - Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
-- Improved performance of `.visual.select()`
-- `.visual.select()` allows `color: null` (do not apply color)
+- `.visual.select()` function:
+  - Improved performance
+  - Allows `color: null` (do not apply color)
+  - `keepColors` and `keepRepresentations` parameters to avoid clearing previous selections
 - Built files don't contain package version in the filename
 
 ## [v3.1.3]
