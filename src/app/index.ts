@@ -563,23 +563,27 @@ export class PDBeMolstarPlugin {
                     }
                 }
 
-                // Apply color to the main representation
-                const overpaintLayers: Overpaint.BundleLayer[] = selections.map(s => ({
-                    bundle: s.bundle,
-                    color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
-                    clear: false,
-                }));
-                const update = this.plugin.build();
-                for (const component of struct.structureRef.components) {
-                    for (const repr of component.representations) {
-                        update.to(repr.cell.transform.ref).apply(
-                            StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
-                            { layers: overpaintLayers },
-                            { tags: Tags.Overpaint },
-                        );
+                // Apply color to the main representation (color:undefined (or omitted) means apply default color, color:null means do not apply color)
+                const overpaintLayers: Overpaint.BundleLayer[] = selections
+                    .filter(s => s.param.color !== null)
+                    .map(s => ({
+                        bundle: s.bundle,
+                        color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
+                        clear: false,
+                    }));
+                if (overpaintLayers.length > 0) {
+                    const update = this.plugin.build();
+                    for (const component of struct.structureRef.components) {
+                        for (const repr of component.representations) {
+                            update.to(repr.cell.transform.ref).apply(
+                                StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
+                                { layers: overpaintLayers },
+                                { tags: Tags.Overpaint },
+                            );
+                        }
                     }
+                    await update.commit();
                 }
-                await update.commit();
 
                 // Add extra representations
                 let addedRepr = false;
