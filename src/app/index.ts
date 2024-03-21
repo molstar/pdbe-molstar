@@ -41,7 +41,7 @@ import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
@@ -581,30 +581,7 @@ export class PDBeMolstarPlugin {
                         });
                     }
                 }
-
-                if (overpaintLayers.length > 0) {
-                    const update = this.plugin.build();
-                    for (const component of struct.structureRef.components) {
-                        if (component.cell.transform.tags?.includes(Tags.AddedComponent)) continue;
-                        for (const repr of component.representations) {
-                            const currentOverpaint = this.plugin.state.data.select(StateSelection.Generators
-                                .ofTransformer(StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle, repr.cell.transform.ref)
-                                .withTag(Tags.Overpaint));
-                            if (currentOverpaint.length === 0) {
-                                // Create a new overpaint
-                                update.to(repr.cell.transform.ref).apply(
-                                    StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
-                                    { layers: overpaintLayers },
-                                    { tags: Tags.Overpaint },
-                                );
-                            } else {
-                                // Add layers to existing overpaint
-                                update.to(currentOverpaint[0]).update(old => ({ layers: old.layers.concat(overpaintLayers) }));
-                            }
-                        }
-                    }
-                    await update.commit();
-                }
+                await applyOverpaint(this.plugin, struct.structureRef, overpaintLayers);
 
                 // Add extra representations
                 for (const repr in addedReprParams) {
@@ -801,12 +778,14 @@ export class PDBeMolstarPlugin {
     }
 }
 
-const Tags = {
+
+export const Tags = {
     /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
     Overpaint: 'overpaint-controls',
     /** Marks structure components added by `select` */
     AddedComponent: 'pdbe-molstar.added-component',
 } as const;
+
 const StructureComponentTags = {
     polymer: ['structure-component-static-polymer'],
     het: ['structure-component-static-ligand', 'structure-component-static-ion'],

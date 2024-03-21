@@ -3,6 +3,8 @@ import { Model, Queries, QueryContext, ResidueIndex, Structure, StructurePropert
 import { AtomsQueryParams } from 'Molstar/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
+import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
+import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { PluginContext } from 'Molstar/mol-plugin/context';
@@ -11,6 +13,8 @@ import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
+import { Overpaint } from 'Molstar/mol-theme/overpaint';
+import { Tags } from './index';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { InitParams } from './spec';
 
@@ -393,4 +397,32 @@ export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaul
         result[key] ??= defaults[key];
     }
     return result as T;
+}
+
+
+/** Apply overpaint to every representation of every component in a structure.
+ * Excludes representations created as "added representations" by `PDBeMolstarPlugin.visual.select`. */
+export async function applyOverpaint(plugin: PluginContext, structRef: StructureRef, overpaintLayers: Overpaint.BundleLayer[]) {
+    if (overpaintLayers.length === 0) return;
+    const update = plugin.build();
+    for (const component of structRef.components) {
+        if (component.cell.transform.tags?.includes(Tags.AddedComponent)) continue;
+        for (const repr of component.representations) {
+            const currentOverpaint = plugin.state.data.select(StateSelection.Generators
+                .ofTransformer(StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle, repr.cell.transform.ref)
+                .withTag(Tags.Overpaint));
+            if (currentOverpaint.length === 0) {
+                // Create a new overpaint
+                update.to(repr.cell.transform.ref).apply(
+                    StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
+                    { layers: overpaintLayers },
+                    { tags: Tags.Overpaint },
+                );
+            } else {
+                // Add layers to existing overpaint
+                update.to(currentOverpaint[0]).update(old => ({ layers: old.layers.concat(overpaintLayers) }));
+            }
+        }
+    }
+    await update.commit();
 }
