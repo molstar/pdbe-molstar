@@ -28,5 +28,6 @@ npm_publish:
     - test -n "${NPM_AUTH_TOKEN}" && echo 'NPM_AUTH_TOKEN is available' || echo 'NPM_AUTH_TOKEN is not available (not set or this branch/tag has insufficient permissions)'
     - npm config set -- '//registry.npmjs.org/:_authToken'="${NPM_AUTH_TOKEN}"
     - npm publish --verbose --tag "$STATUS"
+    - sleep 60
     - npm dist-tags add "$PKG_NAME@PKG_VERSION" dev
     - npm view "$PKG_NAME"
