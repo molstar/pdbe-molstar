@@ -8,7 +8,7 @@
 
     <!-- Molstar CSS & JS -->
     <link rel="stylesheet" type="text/css" href="build/emdb-molstar-0.9.0.css">
-    <script type="text/javascript" src="build/emdb-molstar-plugin-0.9.0.js"></script>
+
 
     <style>
         * {
@@ -41,7 +41,6 @@
 
         .content {
             display: flex;
-            flex-wrap: wrap-reverse;
             gap: 30px;
         }
 
@@ -55,20 +54,31 @@
             margin-bottom: 20px;
         }
 
+        .viewerSection {
+            width: 100%;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+        }
+
         #myViewer {
-            width: 450px;
-            height: 450px;
+            width: 100%;
+            height: 600px;
             position: relative;
+        }
+
+        input {
+            margin-right: 8px;
+            padding: 1px;
+            padding-inline: 4px;
         }
 
         button {
             margin-right: 8px;
-            margin-bottom: 8px;
             padding: 1px;
             padding-inline: 4px;
-        }
-        button:last-child {
-            margin-bottom: 0px;
         }
     </style>
 </head>
@@ -81,143 +91,25 @@
 
             <h3>EMDB control buttons</h3>
             <div class="controlBox">
-                <h4>Load Molecule</h4>
-                <button onclick="viewerInstance.loadEmdb('EMD-8117')">1cbs</button>
-                <button onclick="viewerInstance.loadMolecule('1hda')">1hda</button>
-                <button onclick="viewerInstance.loadMolecule('1hda', true)">1hda (replace)</button>
-                <button onclick="viewerInstance.loadMolecule('1cbs', true)">1cbs (replace)</button>
-
-                <h4>Load Map</h4>
-                <button onclick="viewerInstance.loadMap('1cbs')">1cbs</button>
-                <button onclick="viewerInstance.loadMap('1hda')">1hda</button>
-                <button onclick="viewerInstance.loadMap('1hda', true)">1hda (replace)</button>
-                <button onclick="viewerInstance.loadMap('1cbs', true)">1cbs (replace)</button>
-
-                <h4>Load Molecule & Map</h4>
-                <button onclick="viewerInstance.loadMoleculeAndMap('1cbs')">1cbs</button>
-                <button onclick="viewerInstance.loadMoleculeAndMap('1hda')">1hda</button>
-                <button onclick="viewerInstance.loadMoleculeAndMap('1hda', true)">1hda (replace)</button>
-                <button onclick="viewerInstance.loadMoleculeAndMap('1cbs', true)">1cbs (replace)</button>
-
-                <h4>Load Molecule & Map (with options)</h4>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true })">1cbs</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true })">1hda</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, true)">1hda (replace)</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, true)">1cbs (replace)</button>
-
-                <h4>Load Molecule & Map (with options & select)</h4>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, false, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1cbs</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, false, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1hda</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1hda', { moleculeId: '1hda', loadMaps: true, expanded: true }, true, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1hda (replace)</button>
-                <button onclick="viewerInstance.loadMoleculeAndMapWithOptions('1cbs', { moleculeId: '1cbs', loadMaps: true, expanded: true }, true, { data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18, color: { r: 255, g: 255, b: 0 } }] })">1cbs (replace)</button>
-
-            </div>
-
-            <h3>Canvas/ layout methods</h3>
-            <div class="controlBox">
-                <h4>Set Background</h4>
-                <button onclick="viewerInstance.canvas.setBgColor({ r: 255, g: 255, b: 255 })">White</button>
-                <button onclick="viewerInstance.canvas.setBgColor({ r: 0, g: 0, b: 0 })">Black</button>
-
-                <h4>Toggle controls menu</h4>
-                <button onclick="viewerInstance.canvas.toggleControls(false)">Hide</button>
-                <button onclick="viewerInstance.canvas.toggleControls(true)">Show</button>
-                <button onclick="viewerInstance.canvas.toggleControls()">Toggle</button>
-
-                <h4>Toggle Fullscreen</h4>
-                <button onclick="viewerInstance.canvas.toggleExpanded(true)">Show Fullscreen</button>
-            </div>
-
-            <h3>Visual Methods</h3>
-            <div class="controlBox">
-                <h4>Change representation visibility</h4>
-                <button onclick="viewerInstance.visual.visibility({ water: false })">Hide Water Visual</button>
-                <button onclick="viewerInstance.visual.visibility({ water: true })">Show Water Visual</button>
-
-                <h4>Toggle Spin</h4>
-                <button onclick="viewerInstance.visual.toggleSpin(true)">Rotate</button>
-                <button onclick="viewerInstance.visual.toggleSpin(false)">Stop</button>
-                <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button>
-
-                <h4>Focus</h4>
-                <button onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
-                    Focus on Chain A:14-18
-                </button>
-
-                <h4>Highlight</h4>
-                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
-                    Highlight Chain A:14-18
-                </button>
-                <button onclick="viewerInstance.visual.clearHighlight()">
-                    Clear Highlight
-                </button>
-
-                <h4>Selection</h4>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
-                    Select & Focus on Chain A
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
-                    Select & Focus on Chain B
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
-                    Select Chain B:1-6
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
-                    Select Chain B:1-6 & Chain B:15-20
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
-                    Select Uniprot
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.clearSelection()">
-                    Clear Selection
-                </button>
-
-                <h4>Set highlight / selection colour</h4>
-                <button onclick="viewerInstance.visual.setColor({ highlight: { r: 255, g: 255, b: 0 } })">
-                    Yellow highlight
-                </button>
-                <button onclick="viewerInstance.visual.reset({ highlightColor: true })">
-                    Reset
-                </button>
-                <br>
-                <button onclick="viewerInstance.visual.setColor({ select: { r: 255, g: 0, b: 0} })">
-                    Red selection
-                </button>
-                <button onclick="viewerInstance.visual.reset({ selectColor: true })">
-                    Reset
-                </button>
-
-                <h4>Reset Visual</h4>
-                <button onclick="viewerInstance.visual.reset({ camera: true })">
-                    Camera
-                </button>
-                <button onclick="viewerInstance.visual.reset({ theme: true })">
-                    Theme
-                </button>
-                <button onclick="viewerInstance.visual.reset({ camera: true, theme: true })">
-                    Camera & Theme
-                </button>
-
-                <h4>Update data</h4>
-                <button onclick="viewerInstance.visual.update({ moleculeId: '1cbs' }, false)">
-                    Update (add)
-                </button>
-                <button onclick="viewerInstance.visual.update({ moleculeId: '1cbs' }, true)">
-                    Update (replace)
-                </button>
-            </div>
-
-            <div>
-                <h3>Options</h3>
-                <div class="controlBox">
-                    <pre id="options"></pre>
+                <h4>Load model by ID</h4>
+                <div class="row">
+                    <input type="text" id="moleculeId" placeholder="Enter molecule ID" />
+                    <button onclick="viewerInstance.loadPdb(document.getElementById('moleculeId').value)">Load</button>
+                    <button onclick="viewerInstance.toogleStructureVisibility(document.getElementById('moleculeId').value)">Show/Hide</button>
                 </div>
+
+                <h4>Load EM primary map by ID</h4>
+                <div class="row">
+                    <input type="text" id="mapId" placeholder="Enter map ID" />
+                    <button onclick="viewerInstance.loadEmdb(document.getElementById('mapId').value, 3.5, 0.3)">Load</button>
+                    <button onclick="viewerInstance.toggleVolumeVisibility(document.getElementById('mapId').value)">Show/Hide</button>
+                </div>
+
+                <h4>Controls</h4>
+                <button onclick="viewerInstance.clear()">Clear</button>
+
             </div>
+
         </div>
 
         <div class="viewerSection">
@@ -227,60 +119,68 @@
         </div>
     </div>
 
-
+    <script type="text/javascript" src="build/emdb-molstar-plugin-0.9.0.js"></script>
     <script>
-        function getJsonParam(paramName) {
-            const optionsString = new URL(window.location).searchParams.get(paramName);
-            const options = JSON.parse(optionsString);
-            return options ?? undefined;
-        }
-        /** Load CSS with a different skin (theme) */
-        function loadSkin(skin) {
-            if (skin) {
-                const link = document.createElement('link');
-                link.rel = 'stylesheet';
-                link.type = 'text/css';
-                link.href = `build/pdbe-molstar-${skin}-3.1.3.css`;
-                document.getElementsByTagName('head')[0].appendChild(link);
+        viewerInstance = null;
+        function getParam(name, regex) {
+                var r = new RegExp(name + '=' + '(' + regex + ')[&]?', 'i');
+                return decodeURIComponent(((window.location.search || '').match(r) || [])[1] || '');
             }
-        }
 
-        // Create plugin instance
-        const viewerInstance = new EMDBMolstarPlugin();
+            var debugMode = getParam('debug-mode', '[^&]+').trim() === '1';
+            if (debugMode) molstar.setDebugMode(debugMode);
 
-        // Set default options (Checkout available options list in the documentation)
-        const defaultOptions = {
-            moleculeId: '5irx',
-            pdbeLink: false,
-            expanded: false,
-            loadMaps: true,
-            hideControls: true,
-            domainAnnotation: false,
-            validationAnnotation: false,
-            symmetryAnnotation: false,
-            subscribeEvents: false,
-            loadingOverlay: false,
-        };
-        const options = { ...defaultOptions, ...getJsonParam('options') };
+            var timingMode = getParam('timing-mode', '[^&]+').trim() === '1';
+            if (timingMode) molstar.setTimingMode(timingMode);
 
-        const optionsDiv = document.getElementById('options');
-        optionsDiv.innerHTML = JSON.stringify(options, undefined, 2).replace(/"(\w+)":/g, '$1:');
+            var hideControls = getParam('hide-controls', '[^&]+').trim() === '1';
+            var collapseLeftPanel = getParam('collapse-left-panel', '[^&]+').trim() === '1';
+            var pdbProvider = getParam('pdb-provider', '[^&]+').trim().toLowerCase();
+            var emdbProvider = getParam('emdb-provider', '[^&]+').trim().toLowerCase();
+            var mapProvider = getParam('map-provider', '[^&]+').trim().toLowerCase();
+            var pixelScale = getParam('pixel-scale', '[^&]+').trim();
+            var pickScale = getParam('pick-scale', '[^&]+').trim();
+            var pickPadding = getParam('pick-padding', '[^&]+').trim();
+            var disableWboit = getParam('disable-wboit', '[^&]+').trim() === '1';
+            var enableDpoit = getParam('enable-dpoit', '[^&]+').trim() === '1';
+            var preferWebgl1 = getParam('prefer-webgl1', '[^&]+').trim() === '1' || void 0;
+            var allowMajorPerformanceCaveat = getParam('allow-major-performance-caveat', '[^&]+').trim() === '1';
+            var powerPreference = getParam('power-preference', '[^&]+').trim().toLowerCase();
 
-        // Get element from HTML/Template to place the viewer
-        const viewerContainer = document.getElementById('myViewer');
+            // console.log('Available extensions: ', Object.keys(molstar.ExtensionMap));
 
-        // Call render method to display the 3D view
-        viewerInstance.render(viewerContainer, options);
+            Viewer.create('myViewer', {
+                disabledExtensions: [], // anything from Object.keys(molstar.ExtensionMap)
+                layoutShowControls: !hideControls,
+                viewportShowExpand: true,
+                collapseLeftPanel: true,
+                pdbProvider: pdbProvider || 'pdbe',
+                emdbProvider: emdbProvider || 'pdbe',
+                // volumeStreamingServer: (mapProvider || 'pdbe') === 'rcsb'
+                //     ? 'https://maps.rcsb.org'
+                //     : 'https://www.ebi.ac.uk/pdbe/densities',
+                volumeStreamingServer: 'https://wwwdev.ebi.ac.uk/emdb/VolumeServer',
+                pixelScale: parseFloat(pixelScale) || 1,
+                pickScale: parseFloat(pickScale) || 0.25,
+                pickPadding: isNaN(parseFloat(pickPadding)) ? 1 : parseFloat(pickPadding),
+                enableWboit: (disableWboit || enableDpoit) ? false : void 0, // use default value if disable-wboit is not set
+                enableDpoit: enableDpoit ? true : void 0,
+                preferWebgl1: preferWebgl1,
+                allowMajorPerformanceCaveat: allowMajorPerformanceCaveat,
+                powerPreference: powerPreference || 'high-performance',
+            }).then(viewer => {
+                viewerInstance = viewer;
 
-        const selectData = getJsonParam('select');
-        if (selectData) {
-            viewerInstance.events.loadComplete.subscribe(() => viewerInstance.visual.select(selectData));
-        }
+                // Load a model
+                viewer.loadPdb('5irx');
 
-        loadSkin(getJsonParam('skin'));
+                viewer.loadEmdb('EMD-8117', 3.5, 0.3);
 
-        const size = getJsonParam('size');
-        if (size) viewerContainer.setAttribute('style', `width: ${size[0]}px; height: ${size[1]}px;`);
+                window.addEventListener('unload', () => {
+                    // to aid GC
+                    viewer.dispose();
+                });
+            });
 
     </script>
 </body>
