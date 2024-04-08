@@ -82,8 +82,8 @@ const DefaultViewerOptions = {
     layoutControlsDisplay: 'reactive' as PluginLayoutControlsDisplay,
     layoutShowSequence: true,
     layoutShowLog: false,
-    layoutShowLeftPanel: false,
-    collapseLeftPanel: false,
+    layoutShowLeftPanel: true,
+    collapseLeftPanel: true,
     collapseRightPanel: false,
     disableAntialiasing: PluginConfig.General.DisableAntialiasing.defaultValue,
     pixelScale: PluginConfig.General.PixelScale.defaultValue,
@@ -232,7 +232,7 @@ export class Viewer {
         }));
     }
 
-    async loadEmdb(emdb: string, contourLevel: number, alpha: number) {
+    async loadEmdb(emdb: string, contourLevel: number, alpha: number, kind: 'relative' | 'absolute' = 'absolute') {
         const plugin = this.plugin;
         const provider = this.plugin.config.get(PluginConfig.VolumeStreaming.DefaultServer)!;
         const numId = emdb.substring(4);
@@ -259,7 +259,7 @@ export class Viewer {
                 .to(volume)
                 .apply(StateTransforms.Representation.VolumeRepresentation3D, createVolumeRepresentationParams(this.plugin, firstVolume.data!, {
                     type: 'isosurface',
-                    typeParams: { alpha: alpha ?? 1, isoValue: Volume.adjustedIsoValue(volumeData, contourLevel, 'relative') },
+                    typeParams: { alpha: alpha ?? 1, isoValue: Volume.adjustedIsoValue(volumeData, contourLevel, kind) },
                     color: 'uniform',
                     colorParams: { value: this.mapColours.getNextColor() }
                 }));
@@ -297,6 +297,7 @@ export class Viewer {
     }
 
     async loadMvsData(data: string, format: 'mvsj') {
+        // FIXME for multiple models
         if (format === 'mvsj') {
             const mvsData = MVSData.fromMVSJ(data);
             await loadMVS(this.plugin, mvsData, { sanityChecks: true, sourceUrl: undefined });
@@ -304,6 +305,23 @@ export class Viewer {
             throw new Error(`Unknown MolViewSpec format: ${format}`);
         }
         // We might add more formats in the future
+    }
+
+    async loadEmdbMvs(pdbId: string, colorSchema: ColorAnnotation[]) {
+        const modelUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+        const builder = MVSData.createBuilder();
+        const structure = builder.download({ url: modelUrl }).parse({ format: 'mmcif' }).modelStructure();
+
+        // Map colorSchema
+        for (const item of colorSchema) {
+            structure.component({ selector: [{ auth_asym_id: item.chain, auth_seq_id: item.number }] }).representation({ type: 'cartoon' }).color({ color: item.color });
+        }
+
+        structure.component({ selector: 'polymer' }).representation({ type: 'cartoon' });
+        structure.component({ selector: 'ligand' }).representation({ type: 'ball_and_stick' }).color({ color: '#aa55ff' });
+
+        const mvsData2: MVSData = builder.getState();
+        await loadMVS(this.plugin, mvsData2, { replaceExisting: false });
     }
 
     async clear() {
@@ -352,6 +370,13 @@ export class Viewer {
 
 export interface LoadStructureOptions {
     representationParams?: StructureRepresentationPresetProvider.CommonParams
+}
+
+export interface ColorAnnotation {
+    chain: string
+    number: number
+    color: `#${string}`
+    score: number
 }
 
 export const ViewerAutoPreset = StructureRepresentationPresetProvider({

@@ -122,6 +122,114 @@
     <script type="text/javascript" src="build/emdb-molstar-plugin-0.9.0.js"></script>
     <script>
         viewerInstance = null;
+
+        // function mapQscores(emdbId, pdbId) {
+        //     let annotations = [];
+        //     // FIXME for multiple models
+        //     fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`)
+        //         .then(response => response.json())
+        //         .then(data => {
+        //             const numericId = parseInt(emdbId.split('-')[1]);
+        //             data = data[numericId];
+        //             const allQscores = data['qscore'];
+        //
+        //             for (const key in allQscores) {
+        //                 if (!isNaN(key)) {
+        //                     const modelQscores = allQscores[key];
+        //                     if (modelQscores['name'] === `${pdbId}.cif`) {
+        //                         const modelData = modelQscores['data'];
+        //                         let i = 0;
+        //                         while (i < modelData["residue"].length) {
+        //                             const residue = modelData["residue"][i];
+        //                             const residueSplit = residue.split(' ');
+        //                             const chain = residueSplit[0].split(':')[0];
+        //                             const residueNumber = residueSplit[0].split(':')[1];
+        //                             const score = modelData["qscore"][i];
+        //                             const color = modelData["color"][i];
+        //                             const annotation = {
+        //                                 chain: chain,
+        //                                 number: residueNumber,
+        //                                 color: color,
+        //                                 score: score
+        //                             };
+        //                             annotations.push(annotation);
+        //                             i++;
+        //                         }
+        //                         break;
+        //                     }
+        //                 }
+        //             }
+        //         }).then(() => {
+        //             return annotations;
+        //         });
+        // }
+
+        async function mapScores(emdbId, pdbId, metric, contourLevel) {
+            let annotations = [];
+            contourLevel = contourLevel.toString();
+            try {
+                const response = await fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`);
+                const data = await response.json();
+                const numericId = parseInt(emdbId.split('-')[1]);
+                const selectedData = data[numericId];
+                let allScores;
+                let dataKey;
+                let scoreKey;
+                if (metric === 'qscore') {
+                    allScores = selectedData['qscore'];
+                    dataKey = 'data';
+                    scoreKey = 'qscore';
+                } else if (metric === 'ai') {
+                    allScores = selectedData['residue_inclusion'];
+                    dataKey = contourLevel;
+                    scoreKey = 'inclusion';
+                }
+
+                for (const key in allScores) {
+                    if (!isNaN(key)) {
+                        let modelScores = allScores[key];
+
+                        if (modelScores['name'] === `${pdbId}.cif`) {
+                            const modelData = modelScores[dataKey];
+                            let i = 0;
+                            while (i < modelData["residue"].length) {
+                                const regex = /([A-Z]):(\d+)\s*([A-Z0-9]{3})/;
+                                const residue = modelData["residue"][i];
+                                const match = residue.match(regex);
+                                let chain, residueNumber, aminoAcid;
+                                if (match) {
+                                    [, chain, residueNumber, aminoAcid] = match;
+                                }
+                                if (chain === undefined) {
+                                    console.log(residue);
+                                }
+                                // const residueSplit = residue.split(' ');
+                                // const chain = residueSplit[0].split(':')[0];
+                                // const residueNumber = residueSplit[0].split(':')[1];
+                                const score = modelData[scoreKey][i];
+                                const color = modelData["color"][i];
+                                const annotation = {
+                                    chain: chain,
+                                    number: parseInt(residueNumber),
+                                    color: color,
+                                    score: score
+                                };
+                                annotations.push(annotation);
+                                i++;
+                            }
+                            break;
+                        }
+                    }
+                }
+                return annotations;
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                // You might want to handle errors appropriately here
+                return [];
+            }
+        }
+
+
         function getParam(name, regex) {
                 var r = new RegExp(name + '=' + '(' + regex + ')[&]?', 'i');
                 return decodeURIComponent(((window.location.search || '').match(r) || [])[1] || '');
@@ -170,11 +278,25 @@
                 powerPreference: powerPreference || 'high-performance',
             }).then(viewer => {
                 viewerInstance = viewer;
+                const emdbId = 'EMD-8117';
+                const pdbId = '5irx';
 
                 // Load a model
-                viewer.loadPdb('5irx');
+                // viewer.loadPdb(pdbId);
 
-                viewer.loadEmdb('EMD-8117', 3.5, 0.3);
+                // viewer.loadEmdbMvs(pdbId, annotations);
+
+                (async () => {
+                    try {
+                        const annotations = await mapScores(emdbId, pdbId, "ai", 3.5);
+                        // console.log(annotations);
+                        // const annotations = [];
+                        viewer.loadEmdbMvs(pdbId, annotations);
+                        viewer.loadEmdb(emdbId, 3, 0.3, "relative");
+                    } catch (error) {
+                        console.error("Error:", error);
+                    }
+                })();
 
                 window.addEventListener('unload', () => {
                     // to aid GC
