@@ -177,6 +177,19 @@
                     Reset
                 </button>
 
+                <h4>Custom tooltips</h4>
+                <button onclick="viewerInstance.visual.tooltips({ data: [
+                        { struct_asym_id: 'A', tooltip: 'Custom tooltip for chain A' }, 
+                        { struct_asym_id: 'B', tooltip: 'Custom tooltip for chain B' }, 
+                        { struct_asym_id: 'C', tooltip: 'Custom tooltip for chain C' }, 
+                        { struct_asym_id: 'D', tooltip: 'Custom tooltip for chain D' }, 
+                    ] });">
+                    Add tooltips
+                </button>
+                <button onclick="viewerInstance.visual.clearTooltips();">
+                    Clear
+                </button>
+
                 <h4>Reset Visual</h4>
                 <button onclick="viewerInstance.visual.reset({ camera: true })">
                     Camera

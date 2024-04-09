@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file, following t
   - Improved performance
   - Allows `color: null` (do not apply color)
   - `keepColors` and `keepRepresentations` parameters to avoid clearing previous selections
+- Added `.visual.tooltips` and `.visual.clearTooltips`
 - Built files don't contain package version in the filename
 
 ## [v3.1.3]

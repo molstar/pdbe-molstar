@@ -1,6 +1,8 @@
 import { GeometryExport } from 'Molstar/extensions/geo-export';
 import { MAQualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/behavior';
 import { Mp4Export } from 'Molstar/extensions/mp4-export';
+import { MolViewSpec } from 'Molstar/extensions/mvs/behavior';
+import { CustomTooltipsProps, CustomTooltipsProvider } from 'Molstar/extensions/mvs/components/custom-tooltips-prop';
 import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
 import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
 import { Canvas3DProps } from 'Molstar/mol-canvas3d/canvas3d';
@@ -18,7 +20,7 @@ import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/struct
 import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
 import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
+import { CustomStructureProperties, StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
 import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
@@ -99,6 +101,8 @@ export class PDBeMolstarPlugin {
         // Set PDBe Plugin Spec
         const pdbePluginSpec: PluginUISpec = DefaultPluginUISpec();
         pdbePluginSpec.config ??= [];
+
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MolViewSpec));
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
@@ -531,7 +535,7 @@ export class PDBeMolstarPlugin {
             if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
         },
 
-        /** `structureNumber` counts from 1; if not provided, select will be applied to all load structures.
+        /** `structureNumber` counts from 1; if not provided, select will be applied to all loaded structures.
          * Use `keepColors` and/or `keepRepresentations` to preserve currently active selection.
          */
         select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
@@ -766,6 +770,48 @@ export class PDBeMolstarPlugin {
                 }
                 await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
             }
+        },
+
+        /** Add interactive tooltips to parts of the structure. The added tooltips will be shown on a separate line in the tooltip box.
+         * Repeated call to this function removes any previously added tooltips.
+         * `structureNumber` counts from 1; if not provided, tooltips will be applied to all loaded structures.
+         * Example: `await this.visual.tooltips({ data: [{ struct_asym_id: 'A', tooltip: 'Chain A' }, { struct_asym_id: 'B', tooltip: 'Chain B' }] });`. */
+        tooltips: async (params: { data: QueryParam[], structureNumber?: number }) => {
+            // Structure list to apply tooltips
+            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
+            if (params.structureNumber !== undefined) {
+                structures = [structures[params.structureNumber - 1]];
+            }
+
+            for (const struct of structures) {
+                const selections = this.getSelections(params.data, struct.number);
+                const customTooltipProps: CustomTooltipsProps = {
+                    tooltips: selections.map(s => ({ text: s.param.tooltip ?? '', selector: { name: 'bundle', params: s.bundle } })),
+                };
+
+                const structRef = struct.structureRef.cell.transform.ref;
+                let customPropsCells = this.plugin.state.data.select(StateSelection.Generators.ofTransformer(CustomStructureProperties, structRef));
+                if (customPropsCells.length === 0) {
+                    await this.plugin.build().to(structRef).apply(CustomStructureProperties).commit();
+                    customPropsCells = this.plugin.state.data.select(StateSelection.Generators.ofTransformer(CustomStructureProperties, structRef));
+                }
+
+                await this.plugin.build().to(customPropsCells[0]).update(old => ({
+                    properties: {
+                        ...old.properties,
+                        [CustomTooltipsProvider.descriptor.name]: customTooltipProps,
+                    },
+                    autoAttach: old.autoAttach.includes(CustomTooltipsProvider.descriptor.name) ?
+                        old.autoAttach
+                        : [...old.autoAttach, CustomTooltipsProvider.descriptor.name],
+                })).commit();
+            }
+
+        },
+
+        /** Remove any tooltips added by `this.visual.tooltips`. */
+        clearTooltips: async (structureNumber?: number) => {
+            await this.visual.tooltips({ data: [], structureNumber });
         },
     };
 
