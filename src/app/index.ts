@@ -806,7 +806,6 @@ export class PDBeMolstarPlugin {
                         : [...old.autoAttach, CustomTooltipsProvider.descriptor.name],
                 })).commit();
             }
-
         },
 
         /** Remove any tooltips added by `this.visual.tooltips`. */
