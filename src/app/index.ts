@@ -41,7 +41,7 @@ import { PluginSpec } from 'Molstar/mol-plugin/spec';
 import { StateObjectRef, StateObjectSelector } from 'Molstar/mol-state';
 import 'Molstar/mol-util/polyfill';
 import { ObjectKeys } from 'Molstar/mol-util/type-helpers';
-import {Colours} from './colours';
+import { Colours } from './colours';
 
 import 'Molstar/mol-plugin-ui/skin/light.scss';
 
@@ -54,7 +54,7 @@ const CustomFormats = [
 
 export const ExtensionMap = {
     'volseg': PluginSpec.Behavior(Volseg),
-    //'backgrounds': PluginSpec.Behavior(Backgrounds),
+    // 'backgrounds': PluginSpec.Behavior(Backgrounds),
     'cellpack': PluginSpec.Behavior(CellPack),
     'dnatco-ntcs': PluginSpec.Behavior(DnatcoNtCs),
     'pdbe-structure-quality-report': PluginSpec.Behavior(PDBeStructureQualityReport),
@@ -307,18 +307,26 @@ export class Viewer {
         // We might add more formats in the future
     }
 
-    async loadEmdbMvs(pdbId: string, colorSchema: ColorAnnotation[]) {
-        const modelUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+    async loadEmdbMvs(modelAnnotations: ModelAnnotations[]) {
         const builder = MVSData.createBuilder();
-        const structure = builder.download({ url: modelUrl }).parse({ format: 'mmcif' }).modelStructure();
 
-        // Map colorSchema
-        for (const item of colorSchema) {
-            structure.component({ selector: [{ auth_asym_id: item.chain, auth_seq_id: item.number }] }).representation({ type: 'cartoon' }).color({ color: item.color });
+        for (const modelAnnotation of modelAnnotations) {
+            const pdbId = modelAnnotation.pdbId;
+            const annotations = modelAnnotation.residues;
+            const metric = modelAnnotation.metric;
+            const modelUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+            const structure = builder.download({ url: modelUrl }).parse({ format: 'mmcif' }).modelStructure();
+            const cartoon = structure.component({ selector: 'polymer' }).representation({ type: 'cartoon' });
+
+            for (const residue of annotations) {
+                cartoon.color({ selector: [{ auth_asym_id: residue.chain, auth_seq_id: residue.number }], color: residue.color });
+                structure.component({ selector: { auth_asym_id: residue.chain, auth_seq_id: residue.number } }).tooltip({ text: `${metric}: ${residue.score}` });
+            }
+
+            // Apply default patterns
+            // structure.component({ selector: 'polymer' }).representation({ type: 'cartoon' });
+            structure.component({ selector: 'ligand' }).representation({ type: 'ball_and_stick' }).color({ color: '#aa55ff' });
         }
-
-        structure.component({ selector: 'polymer' }).representation({ type: 'cartoon' });
-        structure.component({ selector: 'ligand' }).representation({ type: 'ball_and_stick' }).color({ color: '#aa55ff' });
 
         const mvsData2: MVSData = builder.getState();
         await loadMVS(this.plugin, mvsData2, { replaceExisting: false });
@@ -372,12 +380,27 @@ export interface LoadStructureOptions {
     representationParams?: StructureRepresentationPresetProvider.CommonParams
 }
 
-export interface ColorAnnotation {
+export interface ModelAnnotations {
+    pdbId: string
+    metric: string
+    residues: ResidueAnnotation[]
+}
+
+export interface ResidueAnnotation {
     chain: string
     number: number
+    aminoAcid: string
     color: `#${string}`
     score: number
 }
+
+
+// export interface ResidueAnnotation {
+//     chain: string
+//     number: number
+//     color: `#${string}`
+//     score: number
+// }
 
 export const ViewerAutoPreset = StructureRepresentationPresetProvider({
     id: 'preset-structure-representation-viewer-auto',

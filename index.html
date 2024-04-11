@@ -123,48 +123,8 @@
     <script>
         viewerInstance = null;
 
-        // function mapQscores(emdbId, pdbId) {
-        //     let annotations = [];
-        //     // FIXME for multiple models
-        //     fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`)
-        //         .then(response => response.json())
-        //         .then(data => {
-        //             const numericId = parseInt(emdbId.split('-')[1]);
-        //             data = data[numericId];
-        //             const allQscores = data['qscore'];
-        //
-        //             for (const key in allQscores) {
-        //                 if (!isNaN(key)) {
-        //                     const modelQscores = allQscores[key];
-        //                     if (modelQscores['name'] === `${pdbId}.cif`) {
-        //                         const modelData = modelQscores['data'];
-        //                         let i = 0;
-        //                         while (i < modelData["residue"].length) {
-        //                             const residue = modelData["residue"][i];
-        //                             const residueSplit = residue.split(' ');
-        //                             const chain = residueSplit[0].split(':')[0];
-        //                             const residueNumber = residueSplit[0].split(':')[1];
-        //                             const score = modelData["qscore"][i];
-        //                             const color = modelData["color"][i];
-        //                             const annotation = {
-        //                                 chain: chain,
-        //                                 number: residueNumber,
-        //                                 color: color,
-        //                                 score: score
-        //                             };
-        //                             annotations.push(annotation);
-        //                             i++;
-        //                         }
-        //                         break;
-        //                     }
-        //                 }
-        //             }
-        //         }).then(() => {
-        //             return annotations;
-        //         });
-        // }
-
         async function mapScores(emdbId, pdbId, metric, contourLevel) {
+            // FIXME: for multiple models
             let annotations = [];
             contourLevel = contourLevel.toString();
             try {
@@ -203,14 +163,12 @@
                                 if (chain === undefined) {
                                     console.log(residue);
                                 }
-                                // const residueSplit = residue.split(' ');
-                                // const chain = residueSplit[0].split(':')[0];
-                                // const residueNumber = residueSplit[0].split(':')[1];
                                 const score = modelData[scoreKey][i];
                                 const color = modelData["color"][i];
                                 const annotation = {
                                     chain: chain,
                                     number: parseInt(residueNumber),
+                                    aminoAcid: aminoAcid,
                                     color: color,
                                     score: score
                                 };
@@ -278,24 +236,36 @@
                 powerPreference: powerPreference || 'high-performance',
             }).then(viewer => {
                 viewerInstance = viewer;
-                const emdbId = 'EMD-8117';
-                const pdbId = '5irx';
+                const opacity = 0.3;
 
-                // Load a model
-                // viewer.loadPdb(pdbId);
+                // Single model
+                // const emdbId = 'EMD-8117';
+                // const pdbIds = ['5irx'];
+                // const contourLevel = 3.5;
 
-                // viewer.loadEmdbMvs(pdbId, annotations);
+                // Multiple models
+                const emdbId = 'EMD-10162';
+                const pdbIds = ['6sfw', '6sfx'];
+                const contourLevel = 0.02;
+
 
                 (async () => {
-                    try {
-                        const annotations = await mapScores(emdbId, pdbId, "ai", 3.5);
-                        // console.log(annotations);
-                        // const annotations = [];
-                        viewer.loadEmdbMvs(pdbId, annotations);
-                        viewer.loadEmdb(emdbId, 3, 0.3, "relative");
-                    } catch (error) {
-                        console.error("Error:", error);
+                    let viewerAnnotations = [];
+                    for (const pdbId of pdbIds) {
+                        try {
+                            const modelAnnotations = await mapScores(emdbId, pdbId, "ai", contourLevel);
+                            viewerAnnotations.push({
+                                'pdbId': pdbId,
+                                'metric': "Atom inclusion",
+                                'residues': modelAnnotations
+
+                            })
+                        } catch (error) {
+                            console.error("Error:", error);
+                        }
                     }
+                    viewer.loadEmdbMvs(viewerAnnotations);
+                    viewer.loadEmdb(emdbId, contourLevel, opacity, "absolute");
                 })();
 
                 window.addEventListener('unload', () => {
