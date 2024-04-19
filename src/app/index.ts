@@ -314,13 +314,13 @@ export class Viewer {
         for (const modelState of modelStates) {
             const builder = MVSData.createBuilder();
             const modelAnnotations = modelState.modelAnnotations;
-            const stateName = modelState.name;
+            const pdbId = modelState.pdbId;
+            const modelUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+
 
             // @ts-ignore
             for (const modelAnnotation of modelAnnotations) {
-                const pdbId = modelAnnotation.pdbId;
                 const annotations = modelAnnotation.residues;
-                const modelUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
                 const structure = builder.download({ url: modelUrl }).parse({ format: 'mmcif' }).modelStructure();
                 const cartoon = structure.component({ selector: 'polymer' }).representation({ type: 'cartoon' });
                 structure.component({ selector: 'ligand' }).representation({ type: 'ball_and_stick' }).color({ color: '#aa55ff' });
@@ -463,13 +463,12 @@ export interface LoadStructureOptions {
 }
 
 export interface ModelStates {
-    name: string,
+    pdbId: string,
     modelAnnotations: ModelAnnotations[]
 }
 
 export interface ModelAnnotations {
-    pdbId: string
-    metric?: string
+    metric: string
     residues?: ResidueAnnotation[]
     chains?: string[]
 }
@@ -481,6 +480,27 @@ export interface ResidueAnnotation {
     color: `#${string}`
     score: number
 }
+
+
+// export interface ModelStates {
+//     name: string,
+//     modelAnnotations: ModelAnnotations[]
+// }
+//
+// export interface ModelAnnotations {
+//     pdbId: string
+//     metric?: string
+//     residues?: ResidueAnnotation[]
+//     chains?: string[]
+// }
+//
+// export interface ResidueAnnotation {
+//     chain: string
+//     number: number
+//     aminoAcid: string
+//     color: `#${string}`
+//     score: number
+// }
 
 
 // export interface ResidueAnnotation {

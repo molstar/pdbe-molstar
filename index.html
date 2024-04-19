@@ -196,13 +196,10 @@
         }
 
         async function createMVSAnnotations(emdbId, pdbIds, contourLevel) {
-            let qScoreAnnotations = [];
-            let atomInclusionAnnotations = [];
-            let localResolutionAnnotations = [];
-            let chainAnnotations = [];
             let modelAnnotations = [];
             contourLevel = contourLevel.toString();
             for (const pdbId of pdbIds) {
+                let annotations = [];
                 try {
                     const response = await fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`);
                     const data = await response.json();
@@ -210,29 +207,29 @@
                     const selectedData = data[numericId];
 
                     // Models
-                    modelAnnotations.push({
-                        'pdbId': pdbId
+                    annotations.push({
+                        'metric': 'Model'
                     });
 
                     // Chains
-                    chainAnnotations.push({
-                        'pdbId': pdbId,
+                    annotations.push({
+                        'metric': 'Chains',
                         'chains': getChains(selectedData['atom_inclusion_by_level'], pdbId)
                     });
 
                     // Q-Score
                     let allQScores = selectedData['qscore'];
                     let qscores = extractScores(allQScores, pdbId, 'data', 'qscore');
-                    qScoreAnnotations.push({
-                        'pdbId': pdbId,
+                    annotations.push({
+                        'metric': 'Q-Score',
                         'residues': qscores
                     });
 
                     // Atom Inclusion
                     let allAtomInclusion = selectedData['residue_inclusion'];
                     let atomInclusion = extractScores(allAtomInclusion, pdbId, contourLevel, 'inclusion');
-                    atomInclusionAnnotations.push({
-                        'pdbId': pdbId,
+                    annotations.push({
+                        'metric': 'Atom Inclusion',
                         'residues': atomInclusion
                     });
 
@@ -240,10 +237,15 @@
                     if ("residue_local_resolution" in selectedData) {
                         let allLocalResolution = selectedData['residue_local_resolution'];
                         let localResolution = extractScores(allLocalResolution, pdbId, 'data', 'localResolution');
-                        localResolutionAnnotations.push({
-                            'pdbId': pdbId,
+                        annotations.push({
+                            'metric': 'Local Resolution',
                             'residues': localResolution
                         });
+
+                    modelAnnotations.push({
+                        'pdbId': pdbId,
+                        'modelAnnotations': annotations
+                    })
                     }else {
                         console.log("No local resolution data for", pdbId);
                     }
@@ -251,28 +253,7 @@
                     console.error("Error:", error);
                 }
             }
-            return [
-                {
-                    'name': 'Models',
-                    'modelAnnotations': modelAnnotations
-                },
-                {
-                    'name': 'Chains',
-                    'modelAnnotations': chainAnnotations
-                },
-                {
-                    'name': 'Q-Score',
-                    'modelAnnotations': qScoreAnnotations
-                },
-                {
-                    'name': 'Atom Inclusion',
-                    'modelAnnotations': atomInclusionAnnotations
-                },
-                {
-                    'name': 'Local Resolution',
-                    'modelAnnotations': localResolutionAnnotations
-                }
-            ];
+            return modelAnnotations;
         }
 
         function getParam(name, regex) {
@@ -344,9 +325,10 @@
 
                 (async () => {
                     const modelStates = await createMVSAnnotations(emdbId, pdbIds, contourLevel);
+                    console.log(modelStates);
                     viewer.loadEmdb(emdbId, contourLevel, opacity, "absolute");
                     viewer.createMvsStates(modelStates);
-                    viewer.renderMvsState(defaultState); // TODO: Default by models if multiple models, otherwise by chains
+                    //viewer.renderMvsState(defaultState); // TODO: Default by models if multiple models, otherwise by chains
                 })();
 
                 window.addEventListener('unload', () => {
