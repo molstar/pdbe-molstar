@@ -111,11 +111,11 @@
                 <button onclick="viewerInstance.clear()">Clear</button>
 
                 <h4>Colours</h4>
-                <button onclick="viewerInstance.renderMvsState('Models')">Models</button>
-                <button onclick="viewerInstance.renderMvsState('Chains')">Chains</button>
-                <button onclick="viewerInstance.renderMvsState('Atom Inclusion')">Atom Inclusion</button>
-                <button onclick="viewerInstance.renderMvsState('Q-Score')">Q-Score</button>
-                <button onclick="viewerInstance.renderMvsState('Local Resolution')">Local Resolution</button>
+                <button onclick="viewerInstance.showModelByComponentId(1)">Models</button>
+                <button onclick="viewerInstance.showModelByComponentId(2)">Chains</button>
+                <button onclick="viewerInstance.showModelByComponentId(3)">Q-Score</button>
+                <button onclick="viewerInstance.showModelByComponentId(4)">Atom Inclusion</button>
+                <button onclick="viewerInstance.showModelByComponentId(5)">Local Resolution</button>
             </div>
 
         </div>
@@ -208,7 +208,7 @@
 
                     // Models
                     annotations.push({
-                        'metric': 'Model'
+                        'metric': 'Models'
                     });
 
                     // Chains
@@ -330,6 +330,8 @@
                     viewer.createMvsStates(modelStates);
                     //viewer.renderMvsState(defaultState); // TODO: Default by models if multiple models, otherwise by chains
                 })();
+
+                viewer.showModelByComponentId(1);
 
                 window.addEventListener('unload', () => {
                     // to aid GC
