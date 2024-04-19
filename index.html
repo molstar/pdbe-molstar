@@ -95,19 +95,27 @@
                 <div class="row">
                     <input type="text" id="moleculeId" placeholder="Enter molecule ID" />
                     <button onclick="viewerInstance.loadPdb(document.getElementById('moleculeId').value)">Load</button>
-                    <button onclick="viewerInstance.toogleStructureVisibility(document.getElementById('moleculeId').value)">Show/Hide</button>
+                    <button onclick="viewerInstance.toogleStructureVisibility(document.getElementById('moleculeId').value, 'show')">Show</button>
+                    <button onclick="viewerInstance.toogleStructureVisibility(document.getElementById('moleculeId').value, 'hide')">Hide</button>
                 </div>
 
                 <h4>Load EM primary map by ID</h4>
                 <div class="row">
                     <input type="text" id="mapId" placeholder="Enter map ID" />
                     <button onclick="viewerInstance.loadEmdb(document.getElementById('mapId').value, 3.5, 0.3)">Load</button>
-                    <button onclick="viewerInstance.toggleVolumeVisibility(document.getElementById('mapId').value)">Show/Hide</button>
+                    <button onclick="viewerInstance.toggleVolumeVisibility(document.getElementById('mapId').value, 'show')">Show</button>
+                    <button onclick="viewerInstance.toggleVolumeVisibility(document.getElementById('mapId').value, 'hide')">Hide</button>
                 </div>
 
                 <h4>Controls</h4>
                 <button onclick="viewerInstance.clear()">Clear</button>
 
+                <h4>Colours</h4>
+                <button onclick="viewerInstance.renderMvsState('Models')">Models</button>
+                <button onclick="viewerInstance.renderMvsState('Chains')">Chains</button>
+                <button onclick="viewerInstance.renderMvsState('Atom Inclusion')">Atom Inclusion</button>
+                <button onclick="viewerInstance.renderMvsState('Q-Score')">Q-Score</button>
+                <button onclick="viewerInstance.renderMvsState('Local Resolution')">Local Resolution</button>
             </div>
 
         </div>
@@ -123,70 +131,149 @@
     <script>
         viewerInstance = null;
 
-        async function mapScores(emdbId, pdbId, metric, contourLevel) {
-            // FIXME: for multiple models
+        function extractScores(data, pdbId, dataKey, scoreKey) {
             let annotations = [];
-            contourLevel = contourLevel.toString();
-            try {
-                const response = await fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`);
-                const data = await response.json();
-                const numericId = parseInt(emdbId.split('-')[1]);
-                const selectedData = data[numericId];
-                let allScores;
-                let dataKey;
-                let scoreKey;
-                if (metric === 'qscore') {
-                    allScores = selectedData['qscore'];
-                    dataKey = 'data';
-                    scoreKey = 'qscore';
-                } else if (metric === 'ai') {
-                    allScores = selectedData['residue_inclusion'];
-                    dataKey = contourLevel;
-                    scoreKey = 'inclusion';
-                }
 
-                for (const key in allScores) {
-                    if (!isNaN(key)) {
-                        let modelScores = allScores[key];
+            for (const key in data) {
+                if (!isNaN(key)) {
+                    let modelScores = data[key];
 
-                        if (modelScores['name'] === `${pdbId}.cif`) {
-                            const modelData = modelScores[dataKey];
-                            let i = 0;
-                            while (i < modelData["residue"].length) {
-                                const regex = /([A-Z]):(\d+)\s*([A-Z0-9]{3})/;
-                                const residue = modelData["residue"][i];
-                                const match = residue.match(regex);
-                                let chain, residueNumber, aminoAcid;
-                                if (match) {
-                                    [, chain, residueNumber, aminoAcid] = match;
-                                }
-                                if (chain === undefined) {
-                                    console.log(residue);
-                                }
-                                const score = modelData[scoreKey][i];
-                                const color = modelData["color"][i];
-                                const annotation = {
-                                    chain: chain,
-                                    number: parseInt(residueNumber),
-                                    aminoAcid: aminoAcid,
-                                    color: color,
-                                    score: score
-                                };
-                                annotations.push(annotation);
-                                i++;
+                    if (modelScores['name'] === `${pdbId}.cif`) {
+                        const modelData = modelScores[dataKey];
+                        let i = 0;
+
+                        while (i < modelData["residue"].length) {
+                            const regex = /([A-Z]):(\d+)\s*([A-Z0-9]{3})/;
+                            const residue = modelData["residue"][i];
+                            const match = residue.match(regex);
+                            let chain, residueNumber, aminoAcid;
+                            if (match) {
+                                [, chain, residueNumber, aminoAcid] = match;
                             }
-                            break;
+                            if (chain === undefined) {
+                                console.log(residue);
+                            }
+                            const score = modelData[scoreKey][i];
+                            const color = modelData["color"][i];
+                            const annotation = {
+                                chain: chain,
+                                number: parseInt(residueNumber),
+                                aminoAcid: aminoAcid,
+                                color: color,
+                                score: score
+                            };
+                            annotations.push(annotation);
+                            i++;
                         }
+                        break;
                     }
                 }
-                return annotations;
-            } catch (error) {
-                console.error("Error fetching data:", error);
-                // You might want to handle errors appropriately here
-                return [];
             }
+
+            console.log(annotations);
+            return annotations;
         }
 
+        function getChains(data, pdbId) {
+            let chains = [];
+
+            for (const key in data) {
+                if (!isNaN(key)) {
+                    let modelChains = data[key];
+
+                    if (modelChains['name'] === `${pdbId}.cif`) {
+                        const modelData = modelChains['chainaiscore'];
+
+                        for (const chain in modelData) {
+                            chains.push(chain);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            return chains;
+        }
+
+        async function createMVSAnnotations(emdbId, pdbIds, contourLevel) {
+            let qScoreAnnotations = [];
+            let atomInclusionAnnotations = [];
+            let localResolutionAnnotations = [];
+            let chainAnnotations = [];
+            let modelAnnotations = [];
+            contourLevel = contourLevel.toString();
+            for (const pdbId of pdbIds) {
+                try {
+                    const response = await fetch(`https://www.ebi.ac.uk/emdb/api/analysis/${emdbId}?information=all`);
+                    const data = await response.json();
+                    const numericId = parseInt(emdbId.split('-')[1]);
+                    const selectedData = data[numericId];
+
+                    // Models
+                    modelAnnotations.push({
+                        'pdbId': pdbId
+                    });
+
+                    // Chains
+                    chainAnnotations.push({
+                        'pdbId': pdbId,
+                        'chains': getChains(selectedData['atom_inclusion_by_level'], pdbId)
+                    });
+
+                    // Q-Score
+                    let allQScores = selectedData['qscore'];
+                    let qscores = extractScores(allQScores, pdbId, 'data', 'qscore');
+                    qScoreAnnotations.push({
+                        'pdbId': pdbId,
+                        'residues': qscores
+                    });
+
+                    // Atom Inclusion
+                    let allAtomInclusion = selectedData['residue_inclusion'];
+                    let atomInclusion = extractScores(allAtomInclusion, pdbId, contourLevel, 'inclusion');
+                    atomInclusionAnnotations.push({
+                        'pdbId': pdbId,
+                        'residues': atomInclusion
+                    });
+
+                    // Local Resolution
+                    if ("residue_local_resolution" in selectedData) {
+                        let allLocalResolution = selectedData['residue_local_resolution'];
+                        let localResolution = extractScores(allLocalResolution, pdbId, 'data', 'localResolution');
+                        localResolutionAnnotations.push({
+                            'pdbId': pdbId,
+                            'residues': localResolution
+                        });
+                    }else {
+                        console.log("No local resolution data for", pdbId);
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                }
+            }
+            return [
+                {
+                    'name': 'Models',
+                    'modelAnnotations': modelAnnotations
+                },
+                {
+                    'name': 'Chains',
+                    'modelAnnotations': chainAnnotations
+                },
+                {
+                    'name': 'Q-Score',
+                    'modelAnnotations': qScoreAnnotations
+                },
+                {
+                    'name': 'Atom Inclusion',
+                    'modelAnnotations': atomInclusionAnnotations
+                },
+                {
+                    'name': 'Local Resolution',
+                    'modelAnnotations': localResolutionAnnotations
+                }
+            ];
+        }
 
         function getParam(name, regex) {
                 var r = new RegExp(name + '=' + '(' + regex + ')[&]?', 'i');
@@ -213,6 +300,10 @@
             var allowMajorPerformanceCaveat = getParam('allow-major-performance-caveat', '[^&]+').trim() === '1';
             var powerPreference = getParam('power-preference', '[^&]+').trim().toLowerCase();
 
+            console.log('Params:', {
+                debugMode, timingMode, hideControls, collapseLeftPanel, pdbProvider, emdbProvider, mapProvider, pixelScale, pickScale, pickPadding, disableWboit, enableDpoit, preferWebgl1, allowMajorPerformanceCaveat, powerPreference
+            })
+
             // console.log('Available extensions: ', Object.keys(molstar.ExtensionMap));
 
             Viewer.create('myViewer', {
@@ -236,36 +327,26 @@
                 powerPreference: powerPreference || 'high-performance',
             }).then(viewer => {
                 viewerInstance = viewer;
-                const opacity = 0.3;
+                const opacity = 0.6;
 
                 // Single model
-                // const emdbId = 'EMD-8117';
-                // const pdbIds = ['5irx'];
-                // const contourLevel = 3.5;
+                const emdbId = 'EMD-8117';
+                const pdbIds = ['5irx'];
+                const contourLevel = 3.5;
+                const defaultState = 'Local Resolution';
 
                 // Multiple models
-                const emdbId = 'EMD-10162';
-                const pdbIds = ['6sfw', '6sfx'];
-                const contourLevel = 0.02;
+                // const emdbId = 'EMD-10162';
+                // const pdbIds = ['6sfw', '6sfx'];
+                // const defaultState = 'Models';
+                // const contourLevel = 0.02;
 
 
                 (async () => {
-                    let viewerAnnotations = [];
-                    for (const pdbId of pdbIds) {
-                        try {
-                            const modelAnnotations = await mapScores(emdbId, pdbId, "ai", contourLevel);
-                            viewerAnnotations.push({
-                                'pdbId': pdbId,
-                                'metric': "Atom inclusion",
-                                'residues': modelAnnotations
-
-                            })
-                        } catch (error) {
-                            console.error("Error:", error);
-                        }
-                    }
-                    viewer.loadEmdbMvs(viewerAnnotations);
+                    const modelStates = await createMVSAnnotations(emdbId, pdbIds, contourLevel);
                     viewer.loadEmdb(emdbId, contourLevel, opacity, "absolute");
+                    viewer.createMvsStates(modelStates);
+                    viewer.renderMvsState(defaultState); // TODO: Default by models if multiple models, otherwise by chains
                 })();
 
                 window.addEventListener('unload', () => {
