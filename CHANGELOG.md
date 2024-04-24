@@ -3,22 +3,23 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+## [v3.2.0] - 2024-04-24
 - Mol* core dependency updated to 3.45.0
 - Removed Assembly Symmetry hack (now will hide assembly symmetry section for non-biological assemblies)
 - Manual testing via `portfolio.html`
-- Fixed hideStructure.nonStandard option
-- hideStructure.het option also hides ions
-- Removed loadCartoonsOnly option
+- Fixed `hideStructure.nonStandard` option
+- `hideStructure.het` option also hides ions
+- Removed `loadCartoonsOnly` option
 - Setting highlight and selection color (by `.visual.setColor()`) includes the outline color
 - Web-component attributes renamed to `ligand-auth-asym-id` and `ligand-struct-asym-id` (lowercase i)
 - `.visual.select()` function:
   - Improved performance
   - Allows `color: null` (do not apply color)
   - `keepColors` and `keepRepresentations` parameters to avoid clearing previous selections
-- Added `.visual.tooltips` and `.visual.clearTooltips`
+- Added `.visual.tooltips` and `.visual.clearTooltips` for setting custom tooltips
 - Built files don't contain package version in the filename
 
-## [v3.1.3]
+## [v3.1.3] - 2023-12-06
 - Added ``Assembly Symmetry`` to structure controls, requires setting ``symmetryAnnotation`` in initialization parameters
 - Keep sequence panel in settings even when initially hidden
 - Changed `tsconfig.json` to place `tsconfig.tsbuildinfo` correctly (for incremental build)
@@ -28,15 +29,15 @@ All notable changes to this project will be documented in this file, following t
 - Correctly handle numeric value 0 in selections
 - Fetch structures from static files when possible, instead of using ModelServer
 
-## [v3.1.2]
+## [v3.1.2] - 2023-08-01
 - Added PDBe Sifts Mappings module to solve UniPort mappings issue
 - Split Webpack config file into separate files for Production and Development
 
-## [v3.1.1]
+## [v3.1.1] - 2023-05-18
 - Controls menu visible for AlphaFold view
 - ``Reactive`` parameter addition for better responsive layout support
 
-## [v3.1.0]
+## [v3.1.0] - 2022-10-24
 - Mol* core dependency updated to V3.15.0
 - Superposition view - added option to superpose AlphaFold model
 - UniPort residue numbering param addition to higlight and selection helper methods
