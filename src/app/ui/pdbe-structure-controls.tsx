@@ -16,19 +16,19 @@ import { AssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/prop
 type PDBeStructureToolsState = { isCollapsed: boolean }
 
 export class PDBeStructureTools extends PluginUIComponent<{}, PDBeStructureToolsState>{
-    state = { isCollapsed: true };
-    toggleCollapse() {
-        console.log('toggleCollapse');
-        this.setState(old => ({ isCollapsed: !old.isCollapsed }));
-    }
+    // state = { isCollapsed: true };
+    // toggleCollapse() {
+    //     console.log('toggleCollapse');
+    //     this.setState(old => ({ isCollapsed: !old.isCollapsed }));
+    // }
     render() {
         const AssemblySymmetryKey = AssemblySymmetry.Tag.Representation;
-        if (this.state.isCollapsed) {
-            return <div style={{ position: 'absolute', right: 0, width: 20, height: '100%' }} onClick={()=>this.toggleCollapse()}>&lt;</div>;
-        }
-        else {
-            return <div style={{ position: 'absolute', left: 0, width: 20, height: '100%' }} onClick={()=>this.toggleCollapse()}>&gt;</div>;
-        }
+        // if (this.state.isCollapsed) {
+        //     return <div style={{ position: 'absolute', right: 0, width: 20, height: '100%' }} onClick={()=>this.toggleCollapse()}>&lt;</div>;
+        // }
+        // else {
+        //     return <div style={{ position: 'absolute', left: 0, width: 20, height: '100%' }} onClick={()=>this.toggleCollapse()}>&gt;</div>;
+        // }
         return <>
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
 

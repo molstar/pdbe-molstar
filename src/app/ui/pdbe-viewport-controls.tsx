@@ -1,5 +1,7 @@
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
 import { PluginCustomState } from '../plugin-custom-state';
+import { ArrowDropDownSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 
 
 export class PDBeViewportControls extends ViewportControls {
@@ -35,6 +37,36 @@ export class PDBeViewportControls extends ViewportControls {
             <div style={{ position: 'absolute', top: showPDBeLink ? (27 + 4) : 0, right: 0 }}>
                 {super.render()}
             </div>
+            <div className={'msp-viewport-controls'} style={{ top: 250 }}>
+                <div className='msp-viewport-controls-buttons'>
+                    <div>
+                        <div className='msp-semi-transparent-background' />
+                        {this.icon(ArrowDropDownSvg, () => this.togglePanel('top'), 'Toggle Top Panel', this.plugin.layout.state.showControls)}
+                        {this.icon(ArrowDropDownSvg, () => this.togglePanel('left'), 'Toggle Left Panel', this.plugin.layout.state.showControls)}
+                        {this.icon(ArrowDropDownSvg, () => this.togglePanel('right'), 'Toggle Right Panel', this.plugin.layout.state.showControls)}
+                        {this.icon(ArrowDropDownSvg, () => this.togglePanel('bottom'), 'Toggle Bottom Panel', this.plugin.layout.state.showControls)}
+                    </div>
+                </div>
+            </div>
         </>;
     }
+
+    async togglePanel(panel: LayoutOptions) {
+        const controls = this.plugin.spec.components?.controls ?? {};
+        const regionState = this.plugin.layout.state.regionState;
+        const available = controls[panel] !== 'none';
+        if (!available) return;
+        const visible = regionState[panel] !== 'hidden';
+        const newState = visible ? 'hidden' : 'full'; // TODO deal with left in a special way
+        console.log('controls', controls, 'regionState', regionState)
+        await PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...regionState, [panel]: newState } } });
+    }
 }
+
+const LayoutOptions = {
+    'top': 'Sequence',
+    'bottom': 'Log',
+    'left': 'Left Panel',
+    'right': 'Right Panel',
+};
+type LayoutOptions = keyof typeof LayoutOptions
