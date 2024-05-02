@@ -847,7 +847,7 @@ export class PDBeMolstarPlugin {
                     fullLoad,
                 );
             }
-            return true
+            return true;
         },
     };
 
