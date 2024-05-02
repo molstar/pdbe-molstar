@@ -12,6 +12,7 @@ export function initParamsFromHtmlAttributes(element: HTMLElement): Partial<Init
 
 /** Actions for loading individual HTML attributes into InitParams object */
 const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
+    // DATA
     'molecule-id': setString('moleculeId'),
     'custom-data-url': (value, params) => { (params.customData ??= defaultCustomData()).url = value; },
     'custom-data-format': (value, params) => { (params.customData ??= defaultCustomData()).format = value; },
@@ -25,6 +26,7 @@ const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
     'ligand-show-all': (value, params) => { (params.ligandView ??= {}).show_all = parseBool(value); },
     'alphafold-view': setBool('alphafoldView'),
 
+    // APPEARANCE
     'visual-style': setLiteral(VisualStyle, 'visualStyle'),
     'hide-polymer': pushItem('hideStructure', 'polymer'),
     'hide-water': pushItem('hideStructure', 'water'),
@@ -44,6 +46,7 @@ const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
     'select-color-b': setColorComponent('selectColor', 'b'),
     'lighting': setLiteral(Lighting, 'lighting'),
 
+    // BEHAVIOR
     'validation-annotation': setBool('validationAnnotation'),
     'domain-annotation': setBool('domainAnnotation'),
     'symmetry-annotation': setBool('symmetryAnnotation'),
@@ -53,6 +56,7 @@ const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
     'select-interaction': setBool('selectInteraction'),
     'subscribe-events': setBool('subscribeEvents'),
 
+    // INTERFACE
     'hide-controls': setBool('hideControls'),
     'hide-expand-icon': pushItem('hideCanvasControls', 'expand'),
     'hide-selection-icon': pushItem('hideCanvasControls', 'selection'),

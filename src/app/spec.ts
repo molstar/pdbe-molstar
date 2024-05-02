@@ -84,9 +84,17 @@ export interface InitParams {
     /** Display the superposed structures view like the one on the PDBe-KB pages. */
     superposition: boolean,
     /** Customize the superposed structures view. Example: `{ matrixAccession: 'P08684', segment: 1, ligandView: true, ligandColor: { r: 255, g: 255, b: 50} }`. */
-    superpositionParams?: { matrixAccession?: string, segment?: number, cluster?: number[], superposeCompleteCluster?: boolean, ligandView?: boolean, superposeAll?: boolean, ligandColor?: ColorParams },
+    superpositionParams?: {
+        matrixAccession?: string,
+        segment?: number,
+        cluster?: number[],
+        superposeCompleteCluster?: boolean,
+        ligandView?: boolean,
+        superposeAll?: boolean,
+        ligandColor?: ColorParams,
+    },
     /** Specify parts of the structure to highlight with different colors */
-    selection?: { data: QueryParam[], nonSelectedColor?: ColorParams, clearPrevious?: boolean },
+    selection?: { data: QueryParam[], nonSelectedColor?: ColorParams },
 
     // APPEARANCE
     /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */

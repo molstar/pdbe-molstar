@@ -433,38 +433,10 @@ export class PDBeMolstarPlugin {
         }
     };
 
-    canvas = {
-        toggleControls: (isVisible?: boolean) => {
-            if (typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
-            PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
-        },
-
-        toggleExpanded: (isExpanded?: boolean) => {
-            if (typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
-            PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
-        },
-
-        setBgColor: async (color?: { r: number, g: number, b: number }) => {
-            if (!color) return;
-            await this.canvas.applySettings({ color });
-        },
-
-        applySettings: async (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
-            if (!settings) return;
-            if (!this.plugin.canvas3d) return;
-            const renderer = { ...this.plugin.canvas3d.props.renderer };
-            if (settings.color) {
-                renderer.backgroundColor = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
-            }
-            if (settings.lighting) {
-                (renderer as any).style = { name: settings.lighting }; // I don't think this does anything and I don't see how it could ever have worked
-            }
-            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer } });
-        },
-
-    };
-
-    getLociForParams(params: QueryParam[], structureNumber?: number) {
+    /** Get loci corresponding to a selection within a structure.
+     * If `params` contains more items, return loci for the union of the selections.
+     * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+    getLociForParams(params: QueryParam[], structureNumber?: number): StructureElement.Loci | EmptyLoci {
         let assemblyRef = this.assemblyRef;
         if (structureNumber) {
             assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
@@ -504,8 +476,7 @@ export class PDBeMolstarPlugin {
         return StructureElement.Bundle.fromLoci(loci);
     }
 
-    normalizeColor(colorVal: any, defaultColor?: Color) {
-        defaultColor ??= Color.fromRgb(170, 170, 170);
+    normalizeColor(colorVal: AnyColor | null | undefined, defaultColor: Color = Color.fromRgb(170, 170, 170)): Color {
         try {
             if (colorVal === undefined || colorVal === null) return defaultColor;
             if (typeof colorVal === 'number') return Color(colorVal);
@@ -518,26 +489,117 @@ export class PDBeMolstarPlugin {
         return defaultColor;
     }
 
+    /** Helper methods related to canvas and layout */
+    canvas = {
+        /** Set canvas background color. */
+        setBgColor: async (color?: { r: number, g: number, b: number }) => {
+            if (!color) return;
+            await this.canvas.applySettings({ color });
+        },
+
+        /** Set controls panel visibility. Without `isVisible` parameter, toggle controls panel visibility. */
+        toggleControls: (isVisible?: boolean) => {
+            if (typeof isVisible === 'undefined') isVisible = !this.plugin.layout.state.showControls;
+            PluginCommands.Layout.Update(this.plugin, { state: { showControls: isVisible } });
+        },
+
+        /** Set full-screen mode on or off. Without `isExpanded` parameter, toggle full-screen mode. */
+        toggleExpanded: (isExpanded?: boolean) => {
+            if (typeof isExpanded === 'undefined') isExpanded = !this.plugin.layout.state.isExpanded;
+            PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
+        },
+
+        applySettings: async (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
+            if (!settings) return;
+            if (!this.plugin.canvas3d) return;
+            const renderer = { ...this.plugin.canvas3d.props.renderer };
+            if (settings.color) {
+                renderer.backgroundColor = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
+            }
+            if (settings.lighting) {
+                (renderer as any).style = { name: settings.lighting }; // I don't think this does anything and I don't see how it could ever have worked
+            }
+            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer } });
+        },
+
+    };
+
+    /** Helper methods related to 3D visuals */
     visual = {
-        highlight: (params: { data: QueryParam[], color?: any, focus?: boolean, structureNumber?: number }) => {
+        /** Change the visibility of individual entity visuals */
+        visibility: async (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, nonStandard?: boolean, maps?: boolean }) => {
+            if (!data) return;
+
+            for (const visual in data) {
+                const requiredVisibility = data[visual as keyof typeof data];
+                if (requiredVisibility === undefined) continue;
+                const tags = StructureComponentTags[visual as keyof typeof StructureComponentTags] ?? [];
+                for (const tag of tags) {
+                    const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tag);
+                    if (componentRef) {
+                        const compVisual = this.plugin.state.data.select(componentRef)[0];
+                        if (compVisual && compVisual.obj) {
+                            const currentlyVisible = !(compVisual.state && compVisual.state.isHidden);
+                            if (currentlyVisible !== requiredVisibility) {
+                                await PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
+                            }
+                        }
+                    }
+                }
+            }
+
+        },
+
+        /** With `isSpinning` parameter, switch visual rotation on or off. Without `isSpinning` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */
+        toggleSpin: async (isSpinning?: boolean, resetCamera?: boolean) => {
+            if (!this.plugin.canvas3d) return;
+            const trackball = this.plugin.canvas3d.props.trackball;
+
+            let toggleSpinParam: any = trackball.animate.name === 'spin' ? { name: 'off', params: {} } : { name: 'spin', params: { speed: 1 } };
+
+            if (typeof isSpinning !== 'undefined') {
+                toggleSpinParam = { name: 'off', params: {} };
+                if (isSpinning) toggleSpinParam = { name: 'spin', params: { speed: 1 } };
+            }
+            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: toggleSpinParam } } });
+            if (resetCamera) await PluginCommands.Camera.Reset(this.plugin, {});
+        },
+
+        /** Focus (zoom) on the part of the structure defined by `selection`.
+         * If `selection` contains more items, focus on the union of those.
+         * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+        focus: async (selection: QueryParam[], structureNumber?: number) => {
+            const loci = this.getLociForParams(selection, structureNumber);
+            this.plugin.managers.camera.focusLoci(loci);
+        },
+
+        /** Trigger highlight on the part of the structure defined by `data`
+         * (this will look the same as when the user hovers over a part of the structure).
+         * If `focus`, also zoom on the highlighted part.
+         * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+        highlight: async (params: { data: QueryParam[], color?: ColorParams, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
             if (Loci.isEmpty(loci)) return;
             if (params.color) {
-                this.visual.setColor({ highlight: params.color });
+                await this.visual.setColor({ highlight: params.color });
             }
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci });
             if (params.focus) this.plugin.managers.camera.focusLoci(loci);
-
         },
 
+        /** Remove any current highlight and reset the highlight color to its default value. */
         clearHighlight: async () => {
             this.plugin.managers.interactivity.lociHighlights.highlightOnly({ loci: EmptyLoci });
-            if (this.isHighlightColorUpdated) this.visual.reset({ highlightColor: true });
+            if (this.isHighlightColorUpdated) {
+                await this.visual.reset({ highlightColor: true });
+            }
         },
 
-        /** `structureNumber` counts from 1; if not provided, select will be applied to all loaded structures.
-         * Use `keepColors` and/or `keepRepresentations` to preserve currently active selection.
-         */
+        /** Color the parts of the structure defined by `data`. Color the rest of the structure in `nonSelectedColor` if provided.
+         * If any items in `data` contain `focus`, zoom to the union of these items.
+         * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
+         * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
+         * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
         select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
             await this.visual.clearSelection(params.structureNumber, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
@@ -617,9 +679,9 @@ export class PDBeMolstarPlugin {
             }
         },
 
-        /** Clear any currently active "selection" (i.e. colored residues and added representations via `select`).
-         * `structureNumber` counts from 1; if not provided, clearSelection will be applied to all loaded structures.
-         * If `keepColors`, curent residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
+        /** Remove any coloring and extra representations previously added by the `select` method.
+         * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
+         * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
         clearSelection: async (structureNumber?: number, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
             let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
@@ -644,131 +706,6 @@ export class PDBeMolstarPlugin {
                         delete this.addedReprs[struct.number];
                     }
                 }
-            }
-        },
-
-        update: async (options: Partial<InitParams>, fullLoad?: boolean) => {
-            console.debug('Updating PDBeMolstarPlugin instance with options:', options);
-            // Validate options
-            if (!options) {
-                console.error('Missing `options` argument to `PDBeMolstarPlugin.visual.update');
-                return;
-            }
-            const validationIssues = validateInitParams(options);
-            if (validationIssues) {
-                console.error('Invalid PDBeMolstarPlugin options:', options);
-                return;
-            }
-
-            this.initParams = addDefaults(options, DefaultParams);
-
-            if (!this.initParams.moleculeId && !this.initParams.customData) return false;
-            if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
-            PluginCustomState(this.plugin).initParams = this.initParams;
-
-            // Show/hide buttons in the viewport control panel
-            this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
-
-            // Set background colour
-            if (this.initParams.bgColor || this.initParams.lighting) {
-                await this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
-            }
-
-            // Load Molecule CIF or coordQuery and Parse
-            const dataSource = this.getMoleculeSrcUrl();
-            if (dataSource) {
-                await this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary }, fullLoad);
-            }
-        },
-
-        visibility: async (data: { polymer?: boolean, het?: boolean, water?: boolean, carbs?: boolean, nonStandard?: boolean, maps?: boolean, [key: string]: any }) => {
-            if (!data) return;
-
-            for (const visual in data) {
-                const tags = StructureComponentTags[visual as keyof typeof StructureComponentTags] ?? [];
-                for (const tag of tags) {
-                    const componentRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, tag);
-                    if (componentRef) {
-                        const compVisual = this.plugin.state.data.select(componentRef)[0];
-                        if (compVisual && compVisual.obj) {
-                            const currentlyVisible = (compVisual.state && compVisual.state.isHidden) ? false : true;
-                            if (data[visual] !== currentlyVisible) {
-                                await PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: componentRef });
-                            }
-                        }
-                    }
-                }
-            }
-
-        },
-
-        toggleSpin: async (isSpinning?: boolean, resetCamera?: boolean) => {
-            if (!this.plugin.canvas3d) return;
-            const trackball = this.plugin.canvas3d.props.trackball;
-
-            let toggleSpinParam: any = trackball.animate.name === 'spin' ? { name: 'off', params: {} } : { name: 'spin', params: { speed: 1 } };
-
-            if (typeof isSpinning !== 'undefined') {
-                toggleSpinParam = { name: 'off', params: {} };
-                if (isSpinning) toggleSpinParam = { name: 'spin', params: { speed: 1 } };
-            }
-            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: toggleSpinParam } } });
-            if (resetCamera) await PluginCommands.Camera.Reset(this.plugin, {});
-        },
-
-        focus: async (params: QueryParam[], structureNumber?: number) => {
-            const loci = this.getLociForParams(params, structureNumber);
-            this.plugin.managers.camera.focusLoci(loci);
-        },
-
-        setColor: async (param: { highlight?: ColorParams, select?: ColorParams }) => {
-            if (!this.plugin.canvas3d) return;
-            if (!param.highlight && !param.select) return;
-            const renderer = { ...this.plugin.canvas3d.props.renderer };
-            const marking = { ...this.plugin.canvas3d.props.marking };
-            if (param.highlight) {
-                renderer.highlightColor = this.normalizeColor(param.highlight);
-                marking.highlightEdgeColor = Color.darken(this.normalizeColor(param.highlight), 1);
-                this.isHighlightColorUpdated = true;
-            }
-            if (param.select) {
-                renderer.selectColor = this.normalizeColor(param.select);
-                marking.selectEdgeColor = Color.darken(this.normalizeColor(param.select), 1);
-                this.isSelectedColorUpdated = true;
-            }
-            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
-        },
-
-        reset: async (params: { camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean }) => {
-            if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
-
-            if (params.theme) {
-                const defaultTheme: any = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
-                const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-                for (const compGrp of componentGroups) {
-                    await this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, defaultTheme);
-                }
-            }
-
-            if (params.highlightColor || params.selectColor) {
-                if (!this.plugin.canvas3d) return;
-                const renderer = { ...this.plugin.canvas3d.props.renderer };
-                const marking = { ...this.plugin.canvas3d.props.marking };
-                if (params.highlightColor) {
-                    renderer.highlightColor = this.defaultRendererProps.highlightColor;
-                    marking.highlightEdgeColor = this.defaultMarkingProps.highlightEdgeColor;
-                    this.isHighlightColorUpdated = false;
-                }
-                if (params.selectColor) {
-                    renderer.selectColor = this.defaultRendererProps.selectColor;
-                    marking.selectEdgeColor = this.defaultMarkingProps.selectEdgeColor;
-                    this.isSelectedColorUpdated = false;
-                }
-                await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
             }
         },
 
@@ -808,9 +745,109 @@ export class PDBeMolstarPlugin {
             }
         },
 
-        /** Remove any tooltips added by `this.visual.tooltips`. */
+        /** Remove any custom tooltips added by the `tooltips` method. */
         clearTooltips: async (structureNumber?: number) => {
             await this.visual.tooltips({ data: [], structureNumber });
+        },
+
+        /** Set highlight and/or selection color.
+         * Highlight color is used when the user hovers over a part of the structure or when applying the `highlight` method.
+         * Selection color is used when creating selections with Selection Mode (the mouse cursor icon) and is not related to the color used by the `select` method. */
+        setColor: async (params: { highlight?: ColorParams, select?: ColorParams }) => {
+            if (!this.plugin.canvas3d) return;
+            if (!params.highlight && !params.select) return;
+            const renderer = { ...this.plugin.canvas3d.props.renderer };
+            const marking = { ...this.plugin.canvas3d.props.marking };
+            if (params.highlight) {
+                renderer.highlightColor = this.normalizeColor(params.highlight);
+                marking.highlightEdgeColor = Color.darken(this.normalizeColor(params.highlight), 1);
+                this.isHighlightColorUpdated = true;
+            }
+            if (params.select) {
+                renderer.selectColor = this.normalizeColor(params.select);
+                marking.selectEdgeColor = Color.darken(this.normalizeColor(params.select), 1);
+                this.isSelectedColorUpdated = true;
+            }
+            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
+        },
+
+        /** Reset various settings to defaults:
+         * `camera` resets camera position (i.e. zooms on the whole scene).
+         * `theme` resets color theme for visual representations.
+         * `highlightColor` and `selectColor` reset colors previously set by the `setColor` method. */
+        reset: async (params: { camera?: boolean, theme?: boolean, highlightColor?: boolean, selectColor?: boolean }) => {
+            if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
+
+            if (params.theme) {
+                const defaultTheme: any = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
+                const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
+                for (const compGrp of componentGroups) {
+                    await this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, defaultTheme);
+                }
+            }
+
+            if (params.highlightColor || params.selectColor) {
+                if (!this.plugin.canvas3d) return;
+                const renderer = { ...this.plugin.canvas3d.props.renderer };
+                const marking = { ...this.plugin.canvas3d.props.marking };
+                if (params.highlightColor) {
+                    renderer.highlightColor = this.defaultRendererProps.highlightColor;
+                    marking.highlightEdgeColor = this.defaultMarkingProps.highlightEdgeColor;
+                    this.isHighlightColorUpdated = false;
+                }
+                if (params.selectColor) {
+                    renderer.selectColor = this.defaultRendererProps.selectColor;
+                    marking.selectEdgeColor = this.defaultMarkingProps.selectEdgeColor;
+                    this.isSelectedColorUpdated = false;
+                }
+                await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
+            }
+        },
+
+        /** Change parameters of the plugin instance.
+         * Can be used to load a different structure.
+         * If `fullLoad`, remove currently loaded structure before loading the new one;
+         * otherwise add the new structure to existing structures. */
+        update: async (options: Partial<InitParams>, fullLoad?: boolean) => {
+            console.debug('Updating PDBeMolstarPlugin instance with options:', options);
+            // Validate options
+            if (!options) {
+                console.error('Missing `options` argument to `PDBeMolstarPlugin.visual.update');
+                return false;
+            }
+            const validationIssues = validateInitParams(options);
+            if (validationIssues) {
+                console.error('Invalid PDBeMolstarPlugin options:', options);
+                return false;
+            }
+
+            this.initParams = addDefaults(options, DefaultParams);
+
+            if (!this.initParams.moleculeId && !this.initParams.customData) return false;
+            if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
+            PluginCustomState(this.plugin).initParams = this.initParams;
+
+            // Show/hide buttons in the viewport control panel
+            this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
+
+            // Set background colour
+            if (this.initParams.bgColor || this.initParams.lighting) {
+                await this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
+            }
+
+            // Load Molecule CIF or coordQuery and Parse
+            const dataSource = this.getMoleculeSrcUrl();
+            if (dataSource) {
+                await this.load(
+                    { url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary },
+                    fullLoad,
+                );
+            }
+            return true
         },
     };
 
@@ -823,6 +860,8 @@ export class PDBeMolstarPlugin {
     }
 }
 
+
+type AnyColor = ColorParams | string | number
 
 export const Tags = {
     /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */

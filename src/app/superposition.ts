@@ -17,6 +17,7 @@ import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
+import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 
 
 function getRandomColor(plugin: PluginContext, segmentIndex: number) {
