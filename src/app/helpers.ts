@@ -14,7 +14,6 @@ import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Overpaint } from 'Molstar/mol-theme/overpaint';
-import { Tags } from './index';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { InitParams } from './spec';
 
@@ -426,3 +425,21 @@ export async function applyOverpaint(plugin: PluginContext, structRef: Structure
     }
     await update.commit();
 }
+
+export const Tags = {
+    /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
+    Overpaint: 'overpaint-controls',
+    /** Marks structure components added by `select` */
+    AddedComponent: 'pdbe-molstar.added-component',
+} as const;
+
+export const StructureComponentTags = {
+    polymer: ['structure-component-static-polymer'],
+    het: ['structure-component-static-ligand', 'structure-component-static-ion'],
+    water: ['structure-component-static-water'],
+    carbs: ['structure-component-static-branched'],
+    nonStandard: ['structure-component-static-non-standard'],
+    coarse: ['structure-component-static-coarse'],
+    maps: ['volume-streaming-info'],
+};
+

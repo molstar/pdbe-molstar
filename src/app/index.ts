@@ -43,7 +43,7 @@ import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
@@ -862,23 +862,6 @@ export class PDBeMolstarPlugin {
 
 
 type AnyColor = ColorParams | string | number
-
-export const Tags = {
-    /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
-    Overpaint: 'overpaint-controls',
-    /** Marks structure components added by `select` */
-    AddedComponent: 'pdbe-molstar.added-component',
-} as const;
-
-const StructureComponentTags = {
-    polymer: ['structure-component-static-polymer'],
-    het: ['structure-component-static-ligand', 'structure-component-static-ion'],
-    water: ['structure-component-static-water'],
-    carbs: ['structure-component-static-branched'],
-    nonStandard: ['structure-component-static-non-standard'],
-    coarse: ['structure-component-static-coarse'],
-    maps: ['volume-streaming-info'],
-};
 
 
 (window as any).PDBeMolstarPlugin = PDBeMolstarPlugin;

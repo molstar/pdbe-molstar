@@ -41,3 +41,10 @@ svg.pdbe-animated-logo {
         }
     }
 }
+
+.msp-plugin ::-webkit-scrollbar-thumb {
+    background-color: #80808080;
+    border-radius: 10px;
+    border: solid 1px transparent;
+    background-clip: content-box;
+}
