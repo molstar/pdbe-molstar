@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>PDBe Molstar</title>
+
+    <!-- Molstar CSS & JS -->
+    <link rel="stylesheet" type="text/css" href="../build/pdbe-molstar-light.css">
+    <script type="text/javascript" src="../build/pdbe-molstar-plugin.js"></script>
+
+    <style>
+        body {
+            padding: 30px;
+        }
+
+        #myViewer {
+            width: 450px;
+            height: 450px;
+            position: relative;
+            margin-top: 100px;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>PDBe Mol* JS Plugin Demo</h3>
+    <div class="viewerSection" style="display: flex; flex-direction: row;">
+        <!-- Molstar container -->
+        <div id="myViewer"></div>
+        <div><button onclick="viewerInstance.loadFoldseekSuperposition(apiData)">Reload</button></div>
+    </div>
+
+    <script>
+        const apiData = {
+            "query": "Q5VSL9.cif",
+            "target": "7k36_I",
+            "pident": 78.8,
+            "evalue": 2.807e-59,
+            "qstart": 69,
+            "qend": 824,
+            "tstart": 1,
+            "tend": 599,
+            "qaln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQGTFGECSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDNSAACSSAVRKPAISLADSTDLRVLLNIMYLIVETVHQECEGDKAEWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAASPPASASDLIEQQQKRGRREHKALIKQDNLDAFNERDPYKADDSREEEEENDDDNSLEGETFPLERDEVMPPPLQHPQTDRLTCPKGLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPTSKAKTDSINILADVLPEEMPTTVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSISVLDYPHCVVHELPELTAESLEAGDSNQFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGNDLDARPWDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVLGQRVDLPEDFQMNYDLWLERE",
+            "taln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQ----GTSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDN------------ISLADSTDLRVLLNIMYLIVETVHQECE----EWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAA--------------------------------------------------------------------------------------GLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPT-------INILADVLP-----TVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSIS--------------------------QFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGND-----WDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVL--------GFQMNYDLWLERE",
+            "database": "pdb",
+        };
+
+        // Create plugin instance
+        const viewerInstance = new PDBeMolstarPlugin();
+        const viewerContainer = document.getElementById('myViewer');
+
+        const queryAfdbId = apiData.query.split('.')[0];
+        const [targetPdbId, targetChain] = apiData.target.split('_');
+
+        const options = {
+            customData: {
+                url: `https://alphafold.ebi.ac.uk/files/AF-${queryAfdbId}-F1-model_v4.cif`,
+                format: 'cif',
+                binary: false,
+            },
+            bgColor: { r: 255, g: 255, b: 255 },
+            alphafoldView: true,
+            sequencePanel: true,
+            // hideControls: true,
+            // expanded: true,
+        };
+
+        // Call render method to display the 3D view
+        viewerInstance.render(viewerContainer, options);
+
+        const sub = viewerInstance.events.loadComplete.subscribe(() => {
+            sub.unsubscribe(); // avoid infinite loop
+            viewerInstance.loadFoldseekSuperposition(apiData);
+        });
+
+    </script>
+
+</body>
+
+</html>

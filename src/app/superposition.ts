@@ -517,7 +517,8 @@ function chainSelection(struct_asym_id: string) {
     });
 }
 
-function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structure>, matrix: Mat4) {
+// TODO docstring
+export function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structure>, matrix: Mat4) {
     const b = plugin.state.data.build().to(s)
         .insert(StateTransforms.Model.TransformStructureConformation, { transform: { name: 'matrix', params: { data: matrix, transpose: false } } });
     return plugin.runTask(plugin.state.data.updateTree(b));
