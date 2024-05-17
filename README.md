@@ -37,5 +37,14 @@ npm run watch
 - The GitHub repo will automatically be mirrored to EBI GitLab (might take up to 1 hour)
 - CICD pipeline in EBI GitLab will automatically publish the package to npm (https://www.npmjs.com/package/pdbe-molstar)
 - The files will become available via JSDeliver
-  - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar-plugin.js for the latest version including development versions
-  - https://cdn.jsdelivr.net/npm/pdbe-molstar@latest/build/pdbe-molstar-plugin.js for the latest proper release
+  - Latest version including development versions:
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar-plugin.js
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar-component.js
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar.css
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar-light.css
+  - Latest proper release:
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@latest/build/pdbe-molstar-plugin.js
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@latest/build/pdbe-molstar-component.js
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@latest/build/pdbe-molstar.css
+    - https://cdn.jsdelivr.net/npm/pdbe-molstar@latest/build/pdbe-molstar-light.css
+-   Go to https://www.jsdelivr.com/tools/purge and purge the cache for abovementioned URLs (otherwise it might take up to 7 days to before `@latest` starts pointing to the new version)
