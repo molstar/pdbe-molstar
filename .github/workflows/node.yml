@@ -36,9 +36,18 @@ jobs:
         name: build
         path: build
 
+  # Check if this is 'master' branch
+  master-branch:
+    needs: [build]
+    if: github.ref == 'refs/heads/master' # Only run on master branch
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Echo OK
+        run: echo OK
+
   # Build pages
   build-pages:
-    needs: [build]
+    needs: [master-branch]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
