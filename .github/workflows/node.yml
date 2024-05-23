@@ -8,27 +8,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
       with:
-        node-version: 16
+        node-version: 20
     - run: npm ci
     - name: Lint
       run: npm run lint
     - name: Build
       run: npm run build
-    - name: Upload artifact pdbe-molstar-plugin.js
+    - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
-        name: pdbe-molstar-plugin.js
-        path: build/pdbe-molstar-plugin.js
-    - name: Upload artifact pdbe-molstar.css
-      uses: actions/upload-artifact@v4
-      with:
-        name: pdbe-molstar.css
-        path: build/pdbe-molstar.css
-    - name: Upload artifact pdbe-molstar-light.css
-      uses: actions/upload-artifact@v4
-      with:
-        name: pdbe-molstar-light.css
-        path: build/pdbe-molstar-light.css
+        name: build
+        path: build
