@@ -41,18 +41,16 @@ import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
 import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
 import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
-import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
-import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
-import { FoldseekApiData, loadFoldseekSuperposition } from './foldseek-superposition';
+import * as Foldseek from './extensions/foldseek';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
-import { initSuperposition, transform } from './superposition';
+import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { LeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
@@ -428,24 +426,6 @@ export class PDBeMolstarPlugin {
             return;
         }
         await this.plugin.build().delete(structure.cell).commit();
-    }
-
-    // TODO ensure repeated application works correctly
-    /** Apply tranformation to a structure.
-     * `structureNumber` is numbered from 1! */
-    async transformStructure(structureNumber: number, matrix: number[]) {
-        const structures = this.plugin.managers.structure.hierarchy.current.structures;
-        const structure = structures[structureNumber - 1];
-        if (!structure) {
-            console.error(`Cannot remove structure ${structureNumber}. There are only ${structures.length} structures.`);
-            return;
-        }
-        const mat = Mat4.fromArray(Mat4(), matrix, 0);
-        await transform(this.plugin, structure.cell, mat);
-    }
-
-    async loadFoldseekSuperposition(apiData: FoldseekApiData): Promise<MinimizeRmsd.Result> {
-        return await loadFoldseekSuperposition(this, apiData);
     }
 
     applyVisualParams = () => {
@@ -893,6 +873,11 @@ export class PDBeMolstarPlugin {
         this.isHighlightColorUpdated = false;
         this.isSelectedColorUpdated = false;
     }
+
+    /** Helper functions related to specific views or use cases */
+    static extensions = {
+        foldseek: Foldseek,
+    };
 }
 
 

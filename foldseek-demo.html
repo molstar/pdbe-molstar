@@ -30,7 +30,7 @@
     <div class="viewerSection" style="display: flex; flex-direction: row;">
         <!-- Molstar container -->
         <div id="myViewer"></div>
-        <div><button onclick="viewerInstance.loadFoldseekSuperposition(apiData)">Reload</button></div>
+        <div><button onclick="PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff')">Reload</button></div>
     </div>
 
     <script>
@@ -73,7 +73,7 @@
 
         const sub = viewerInstance.events.loadComplete.subscribe(() => {
             sub.unsubscribe(); // avoid infinite loop
-            viewerInstance.loadFoldseekSuperposition(apiData);
+            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff');
         });
 
     </script>

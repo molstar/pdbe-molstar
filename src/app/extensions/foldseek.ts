@@ -1,9 +1,9 @@
-import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
-import { ElementIndex, ResidueIndex, Structure } from 'molstar/lib/mol-model/structure';
-import { PDBeMolstarPlugin } from '.';
-// import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
-// import { superpose } from 'molstar/lib/mol-model/structure/structure/util/superposition';
-// import { QueryParam } from './helpers';
+/** Helper functions to allow visualizing Foldseek results and superposing them on the query structure */
+
+import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
+import { ElementIndex, ResidueIndex, Structure } from 'Molstar/mol-model/structure';
+import { PDBeMolstarPlugin } from '..';
+import { transform } from '../superposition';
 
 
 export interface FoldseekApiData {
@@ -18,47 +18,51 @@ export interface FoldseekApiData {
     database: 'pdb' | 'afdb',
 }
 
-export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiData: FoldseekApiData): Promise<MinimizeRmsd.Result> {
+/** Load target structure as defined by `apiData` (remove any previously loaded target)
+ * and superpose it on the already loaded query structure. */
+export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiData: FoldseekApiData, targetColor: string = '#00ff00'): Promise<MinimizeRmsd.Result> {
     const Q_STRUCT_INDEX = 0;
     const T_STRUCT_INDEX = 1;
 
+    // Remove previous target structure
     if (viewer.plugin.managers.structure.hierarchy.current.structures.length > 1) {
-        await viewer.deleteStructure(T_STRUCT_INDEX + 1); // remove previous target structure
+        await viewer.deleteStructure(T_STRUCT_INDEX + 1);
     }
-    const qChainId = 'A'; // TODO is this sufficient to get chain ID? probably not
+    // Load target structure
     let tEntryId: string;
-    let tChainId: string;
+    let tAuthAsymId: string;
     if (apiData.database === 'pdb') {
-        [tEntryId, tChainId] = apiData.target.split('_');
-        // TODO is this sufficient to get chain ID?
-        // TODO check if this chain ID is label_asym_id or auth_asym_id!!!!
+        [tEntryId, tAuthAsymId] = apiData.target.split('_');
         const pdbeUrl = viewer.initParams.pdbeUrl.replace(/\/$/, '');
         // const url = `${pdbeUrl}/entry-files/download/${tEntryId}_updated.cif`;
-        const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?label_asym_id=${tChainId}`; // assuming chain ID is label_asym_id
+        const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?auth_asym_id=${tAuthAsymId}`;
         await viewer.load({ url, format: 'mmcif', isBinary: false }, false);
     } else if (apiData.database === 'afdb') {
-        // TODO assign tEntryId, T_CHAIN_ID download structure from AFDB
+        // TODO assign tEntryId, tAuthAsymId and download structure from AFDB
         throw new Error('NotImplementedError');
     } else {
         throw new Error(`Unknown database: ${apiData.database}`);
     }
 
-    const [qMatchedIndicesInChain, tMatchedIndicesInChain] = getMatchedResidues(apiData.qstart - 1, apiData.qaln, apiData.tstart - 1, apiData.taln); // subtracting 1 to get 0-based indices
-
+    // Retrieve structure data
     const qStructure = viewer.plugin.managers.structure.hierarchy.current.structures[Q_STRUCT_INDEX].cell.obj?.data;
     const tStructure = viewer.plugin.managers.structure.hierarchy.current.structures[T_STRUCT_INDEX].cell.obj?.data;
     if (!qStructure) throw new Error('Query structure not loaded');
     if (!tStructure) throw new Error('Target structure not loaded');
 
-    const qCoords = getCoordsForResiduesInChain(qStructure, qMatchedIndicesInChain, qChainId);
-    const tCoords = getCoordsForResiduesInChain(tStructure, tMatchedIndicesInChain, tChainId);
+    // Decipher Foldseek alignment and produce transformation matrix
+    const [qMatchedIndicesInChain, tMatchedIndicesInChain] = getMatchedResidues(apiData.qstart - 1, apiData.qaln, apiData.tstart - 1, apiData.taln); // subtracting 1 to get 0-based indices
+    const qLabelAsymId = 'A'; // TODO is this a valid assumption?
+    const tLabelAsymId = auth_asym_id_to_label_asym_id(tStructure, tAuthAsymId);
+    const qCoords = getCoordsForResiduesInChain(qStructure, qMatchedIndicesInChain, qLabelAsymId);
+    const tCoords = getCoordsForResiduesInChain(tStructure, tMatchedIndicesInChain, tLabelAsymId);
     const superposition = MinimizeRmsd.compute({ a: qCoords, b: tCoords });
 
-    await viewer.transformStructure(T_STRUCT_INDEX + 1, superposition.bTransform);
-    await viewer.visual.select({ data: [{ color: '#00ff00' }], structureNumber: T_STRUCT_INDEX + 1 }); // color target
+    // Transform, color, focus
+    await transform(viewer.plugin, viewer.plugin.managers.structure.hierarchy.current.structures[T_STRUCT_INDEX].cell, superposition.bTransform);
+    await viewer.visual.select({ data: [{ color: targetColor }], structureNumber: T_STRUCT_INDEX + 1 }); // color target
     await viewer.visual.reset({ camera: true });
     return superposition;
-    // TODO check what will happen if there are alt locations (multiple CAs)
 }
 
 function getMatchedResidues(qstart: number, qaln: string, tstart: number, taln: string) {
@@ -106,6 +110,25 @@ function residueIndexRangeForChain(struct: Structure, label_asym_id: string): { 
     return { start: fromResidue, end: toResidue };
 }
 
+function auth_asym_id_to_label_asym_id(struct: Structure, auth_asym_id: string): string {
+    const entities = struct.model.entities.data;
+    const nEntities = entities._rowCount;
+    const chains = struct.model.atomicHierarchy.chains;
+    const nChains = chains._rowCount;
+    const polymerEntityIds = new Set<string>();
+    for (let i = 0; i < nEntities; i++) {
+        if (entities.type.value(i) === 'polymer') {
+            polymerEntityIds.add(entities.id.value(i));
+        }
+    }
+    for (let i = 0; i < nChains; i++) {
+        if (chains.auth_asym_id.value(i) === auth_asym_id && polymerEntityIds.has(chains.label_entity_id.value(i))) {
+            return chains.label_asym_id.value(i);
+        }
+    }
+    throw new Error(`There is no polymer chain with auth_asym_id ${auth_asym_id}.`);
+}
+
 function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[]) {
     const hier = struct.model.atomicHierarchy;
     const conf = struct.model.atomicConformation;
@@ -124,7 +147,8 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
             }
         }
         if (theAtom === -1) {
-            throw new Error('The world is dooomed!!! C alpha not found.')
+            const label_seq_id = hier.residues.label_seq_id.value(iRes);
+            throw new Error(`C alpha not found for residue ${label_seq_id}.`);
         }
         coords.x[i] = conf.x[theAtom];
         coords.y[i] = conf.y[theAtom];
@@ -132,23 +156,3 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
     }
     return coords;
 }
-
-// function getTransformFromAlignment(viewer: PDBeMolstarPlugin, target: { structureNumber: number, chain: string, seq_ids: number[] }, mobile: { structureNumber: number, chain: string, seq_ids: number[] }) {
-//     if (target.seq_ids.length !== mobile.seq_ids.length) {
-//         throw new Error('Number of target and mobile residues must be the same');
-//     }
-//     // const targetSelections: QueryParam[] = [{ struct_asym_id: target.chain, atoms: ['CA'] }]
-//     const targetSelections: QueryParam[] = target.seq_ids.map(resi => ({ struct_asym_id: target.chain, residue_number: resi, atoms: ['CA'] }));
-//     const targetLoci = viewer.getLociForParams(targetSelections, target.structureNumber);
-//     if (targetLoci.kind === 'empty-loci') return { rmsd: NaN, bTransform: Mat4.identity() };
-
-//     // const mobileSelections: QueryParam[] = [{ struct_asym_id: mobile.chain, atoms: ['CA'] }]
-//     const mobileSelections: QueryParam[] = mobile.seq_ids.map(resi => ({ struct_asym_id: mobile.chain, residue_number: resi, atoms: ['CA'] }));
-//     const mobileLoci = viewer.getLociForParams(mobileSelections, mobile.structureNumber);
-//     if (mobileLoci.kind === 'empty-loci') return { rmsd: NaN, bTransform: Mat4.identity() };
-
-//     const { rmsd, bTransform } = superpose([targetLoci, mobileLoci])[0];
-//     console.log('loci:', targetLoci, mobileLoci);
-//     console.log('transform:', rmsd, bTransform);
-//     return { rmsd, bTransform };
-// }

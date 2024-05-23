@@ -517,7 +517,7 @@ function chainSelection(struct_asym_id: string) {
     });
 }
 
-// TODO docstring
+/** Apply tranformation to a structure. Only use once per structure, combining multiple transformations is not implemented. */
 export function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.Structure>, matrix: Mat4) {
     const b = plugin.state.data.build().to(s)
         .insert(StateTransforms.Model.TransformStructureConformation, { transform: { name: 'matrix', params: { data: matrix, transpose: false } } });
