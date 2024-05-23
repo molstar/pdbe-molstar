@@ -7,8 +7,8 @@
     <title>PDBe Molstar</title>
 
     <!-- Molstar CSS & JS -->
-    <link rel="stylesheet" type="text/css" href="../build/pdbe-molstar-light.css">
-    <script type="text/javascript" src="../build/pdbe-molstar-plugin.js"></script>
+    <link rel="stylesheet" type="text/css" href="./build/pdbe-molstar-light.css">
+    <script type="text/javascript" src="./build/pdbe-molstar-plugin.js"></script>
 
     <style>
         body {
@@ -53,7 +53,6 @@
         const viewerContainer = document.getElementById('myViewer');
 
         const queryAfdbId = apiData.query.split('.')[0];
-        const [targetPdbId, targetChain] = apiData.target.split('_');
 
         const options = {
             customData: {
