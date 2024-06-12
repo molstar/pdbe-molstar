@@ -60,6 +60,12 @@
             position: relative;
         }
 
+        #seqPanel {
+            width: 500px;
+            height: 300px;
+            background-color: wheat;
+        }
+
         button {
             margin-right: 8px;
             margin-bottom: 8px;
@@ -105,14 +111,12 @@
                 <button onclick="viewerInstance.visual.toggleSpin()">Toggle</button>
 
                 <h4>Focus</h4>
-                <button
-                    onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
+                <button onclick="viewerInstance.visual.focus([{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }])">
                     Focus on Chain A:14-18
                 </button>
 
                 <h4>Highlight</h4>
-                <button
-                    onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
+                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
                     Highlight Chain A:14-18
                 </button>
                 <button onclick="viewerInstance.visual.clearHighlight()">
@@ -120,37 +124,31 @@
                 </button>
 
                 <h4>Selection</h4>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
                     Select & Focus on Chain A
                 </button>
                 <br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
                     Select & Focus on Chain B
                 </button>
                 <br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
                     Select Chain B:1-6
                 </button>
                 <br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [
+                <button onclick="viewerInstance.visual.select({ data: [
                         { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, 
                         { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
                     Select Chain B:1-6, B:15-20
                 </button>
                 <br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [
+                <button onclick="viewerInstance.visual.select({ data: [
                         { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 }, sideChain: true }, 
                         { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 }, representation: 'spacefill', representationColor: '#ff00ff' }]})">
                     Select Chain B:1-6, B:15-20 (extra reprs)
                 </button>
                 <br>
-                <button
-                    onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
+                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
                     Select Uniprot
                 </button>
                 <br>
@@ -219,10 +217,36 @@
             <!-- Molstar container -->
             <div id="myViewer"></div>
         </div>
+
+        <div id="seqPanelParent">
+            <div id="seqPanel"></div>
+        </div>
+        <div>
+            <button onclick="toggleSeqPanel()">toggle sequence</button>
+        </div>
     </div>
 
 
     <script>
+        function toggleSeqPanel() {
+            const seqPanel = document.getElementById('seqPanel');
+            if (seqPanel.style.display === 'none') {
+                seqPanel.style.display = null;
+            } else {
+                seqPanel.style.display = 'none';
+            }
+        }
+        function toggleSeqPanel2() {
+            const box = document.getElementById('seqPanelParent');
+            if (box.children.length === 0) {
+                const seqPanel = document.createElement('div');
+                seqPanel.id = 'seqPanel';
+                box.appendChild(seqPanel);
+            } else {
+                for (const child of box.children) child.remove();
+            }
+        }
+
         function getJsonParam(paramName) {
             const optionsString = new URL(window.location).searchParams.get(paramName);
             const options = JSON.parse(optionsString);
@@ -265,7 +289,7 @@
         const viewerContainer = document.getElementById('myViewer');
 
         // Call render method to display the 3D view
-        viewerInstance.render(viewerContainer, options);
+        viewerInstance.render(viewerContainer, options, 'seqPanel');
 
         const selectData = getJsonParam('select');
         if (selectData) {

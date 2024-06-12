@@ -59,6 +59,9 @@ import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
+import { createPluginSplitUI, renderReact18, resolveHTMLElement } from './split-ui';
+import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
+import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 
 
 export class PDBeMolstarPlugin {
@@ -85,7 +88,7 @@ export class PDBeMolstarPlugin {
         return initParamsFromHtmlAttributes(element);
     }
 
-    async render(target: string | HTMLElement, options: Partial<InitParams>) {
+    async render(target: string | HTMLElement, options: Partial<InitParams>, secondaryTarget?: string | HTMLElement) {
         console.debug('Rendering PDBeMolstarPlugin instance with options:', options);
         // Validate options
         if (!options) {
@@ -205,7 +208,18 @@ export class PDBeMolstarPlugin {
         (this.targetElement as any).viewerInstance = this;
 
         // Create/ Initialise Plugin
-        this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
+        if (secondaryTarget) {
+            this.plugin = await createPluginSplitUI({
+                panels: {
+                    [this.targetElement.id]: [DefaultViewport, {}],
+                    [resolveHTMLElement(secondaryTarget).id]: [SequenceView, { defaultMode: 'polymers' }],
+                },
+                spec: pdbePluginSpec,
+                render: renderReact18,
+            });
+        } else {
+            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
+        }
         PluginCustomState(this.plugin).initParams = { ...this.initParams };
         PluginCustomState(this.plugin).events = {
             segmentUpdate: this._ev<boolean>(),
