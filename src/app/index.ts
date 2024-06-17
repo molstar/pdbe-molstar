@@ -524,10 +524,10 @@ export class PDBeMolstarPlugin {
     /** Get structure ref for a structure with given `structureNumberOrId`.
      * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
      * If `structureNumberOrId` is undefined, return refs for all loaded structures. */
-    private getStructureRefs(structureNumberOrId?: number): { structureRef: StructureRef, number: number }[] {
+    private getStructureRefs(structureNumberOrId: number | string | undefined): { structureRef: StructureRef, number: number }[] {
         const allStructures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
         if (typeof structureNumberOrId === 'number') {
-            const theStructure = allStructures[structureNumberOrId - 1]
+            const theStructure = allStructures[structureNumberOrId - 1];
             return theStructure ? [theStructure] : [];
         } else if (typeof structureNumberOrId === 'string') {
             const structRef = this.structureRefMap.get(structureNumberOrId);
@@ -657,14 +657,12 @@ export class PDBeMolstarPlugin {
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
-            await this.visual.clearSelection(params.structureNumber, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
+            const structureNumberOrId = params.structureId ?? params.structureNumber;
+            await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
             // Structure list to apply selection
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (params.structureNumber !== undefined) {
-                structures = [structures[params.structureNumber - 1]];
-            }
+            const structures = this.getStructureRefs(structureNumberOrId);
 
             // Filter selection items that apply added representations
             const addedReprParams: { [repr: string]: QueryParam[] } = {};
@@ -739,12 +737,9 @@ export class PDBeMolstarPlugin {
         /** Remove any coloring and extra representations previously added by the `select` method.
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
-        clearSelection: async (structureNumber?: number, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
+        clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (structureNumber !== undefined) {
-                structures = [structures[structureNumber - 1]];
-            }
+            const structures = this.getStructureRefs(structureNumberOrId);
             for (const struct of structures) {
                 // Remove overpaint
                 if (!options?.keepColors) {
@@ -770,12 +765,9 @@ export class PDBeMolstarPlugin {
          * Repeated call to this function removes any previously added tooltips.
          * `structureNumber` counts from 1; if not provided, tooltips will be applied to all loaded structures.
          * Example: `await this.visual.tooltips({ data: [{ struct_asym_id: 'A', tooltip: 'Chain A' }, { struct_asym_id: 'B', tooltip: 'Chain B' }] });`. */
-        tooltips: async (params: { data: QueryParam[], structureNumber?: number }) => {
+        tooltips: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
             // Structure list to apply tooltips
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (params.structureNumber !== undefined) {
-                structures = [structures[params.structureNumber - 1]];
-            }
+            const structures = this.getStructureRefs(params.structureId ?? params.structureNumber);
 
             for (const struct of structures) {
                 const selections = this.getSelections(params.data, struct.number);
@@ -803,8 +795,8 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any custom tooltips added by the `tooltips` method. */
-        clearTooltips: async (structureNumber?: number) => {
-            await this.visual.tooltips({ data: [], structureNumber });
+        clearTooltips: async (structureNumberOrId?: number) => {
+            await this.visual.tooltips({ data: [], structureId: structureNumberOrId as any });
         },
 
         /** Set highlight and/or selection color.
