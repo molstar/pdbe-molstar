@@ -19,7 +19,16 @@ import { InitParams } from './spec';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
-export type LoadParams = { url: string, format?: BuiltInTrajectoryFormat, assemblyId?: string, isHetView?: boolean, isBinary?: boolean, progressMessage?: string }
+export type LoadParams = {
+    url: string,
+    format?: BuiltInTrajectoryFormat,
+    assemblyId?: string,
+    isHetView?: boolean,
+    isBinary?: boolean,
+    progressMessage?: string,
+    /** Arbitrary string identifier to refer to this structure later */
+    id?: string,
+}
 
 export type MapParams = {
     'em'?: MapStyle,
@@ -442,4 +451,3 @@ export const StructureComponentTags = {
     coarse: ['structure-component-static-coarse'],
     maps: ['volume-streaming-info'],
 };
-
