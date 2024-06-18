@@ -390,7 +390,6 @@ export class PDBeMolstarPlugin {
                     structRef = structure.ref;
                 }
                 if (id) {
-                    if (this.structureRefMap.has(id)) console.error(`Structure with ID ${id} already exists.`);
                     this.structureRefMap.set(id, structRef);
                 }
 
@@ -432,7 +431,7 @@ export class PDBeMolstarPlugin {
      * If `structureNumberOrId` is undefined, remove all structures.
      * You will likely need to call `await this.visual.reset({ camera: true })` afterwards. */
     async deleteStructure(structureNumberOrId?: number) {
-        const structs = this.getStructureRefs(structureNumberOrId);
+        const structs = this.getStructures(structureNumberOrId);
         if (structureNumberOrId !== undefined && structs.length === 0) {
             console.error(`Cannot delete structure: there is no structure with number or id ${structureNumberOrId}.`);
         }
@@ -524,7 +523,7 @@ export class PDBeMolstarPlugin {
     /** Get structure ref for a structure with given `structureNumberOrId`.
      * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
      * If `structureNumberOrId` is undefined, return refs for all loaded structures. */
-    private getStructureRefs(structureNumberOrId: number | string | undefined): { structureRef: StructureRef, number: number }[] {
+    private getStructures(structureNumberOrId: number | string | undefined): { structureRef: StructureRef, number: number }[] {
         const allStructures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
         if (typeof structureNumberOrId === 'number') {
             const theStructure = allStructures[structureNumberOrId - 1];
@@ -544,6 +543,11 @@ export class PDBeMolstarPlugin {
         } else {
             return allStructures;
         }
+    }
+    /** Get StructureRef for a structure with given `structureNumberOrId`.
+     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure. */
+    getStructure(structureNumberOrId: number | string): StructureRef | undefined {
+        return this.getStructures(structureNumberOrId)[0]?.structureRef;
     }
 
     /** Helper methods related to canvas and layout */
@@ -662,7 +666,7 @@ export class PDBeMolstarPlugin {
             await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
             // Structure list to apply selection
-            const structures = this.getStructureRefs(structureNumberOrId);
+            const structures = this.getStructures(structureNumberOrId);
 
             // Filter selection items that apply added representations
             const addedReprParams: { [repr: string]: QueryParam[] } = {};
@@ -739,7 +743,7 @@ export class PDBeMolstarPlugin {
          * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
         clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
-            const structures = this.getStructureRefs(structureNumberOrId);
+            const structures = this.getStructures(structureNumberOrId);
             for (const struct of structures) {
                 // Remove overpaint
                 if (!options?.keepColors) {
@@ -767,7 +771,7 @@ export class PDBeMolstarPlugin {
          * Example: `await this.visual.tooltips({ data: [{ struct_asym_id: 'A', tooltip: 'Chain A' }, { struct_asym_id: 'B', tooltip: 'Chain B' }] });`. */
         tooltips: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
             // Structure list to apply tooltips
-            const structures = this.getStructureRefs(params.structureId ?? params.structureNumber);
+            const structures = this.getStructures(params.structureId ?? params.structureNumber);
 
             for (const struct of structures) {
                 const selections = this.getSelections(params.data, struct.number);

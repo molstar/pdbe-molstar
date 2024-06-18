@@ -22,6 +22,17 @@
             margin-top: 100px;
             margin-right: 20px;
         }
+
+        .spinner_aj0A {
+            transform-origin: center;
+            animation: spinner_KYSC .75s infinite linear
+        }
+
+        @keyframes spinner_KYSC {
+            100% {
+                transform: rotate(360deg)
+            }
+        }
     </style>
 </head>
 
@@ -30,29 +41,60 @@
     <div class="viewerSection" style="display: flex; flex-direction: row;">
         <!-- Molstar container -->
         <div id="myViewer"></div>
-        <div><button onclick="PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff')">Reload</button></div>
+        <div style="display: block;">
+            <div>Targets:</div>
+            <div><input type="checkbox" class="load-target-checkbox" id="7k36_I" /><label for="7k36_I">7k36_I</label></div>
+            <div><input type="checkbox" class="load-target-checkbox" id="6s9o_D" /><label for="6s9o_D">6s9o_D</label></div>
+            <div><input type="checkbox" class="load-target-checkbox" id="4hxt_A" /><label for="4hxt_A">4hxt_A</label></div>
+            <svg id="loading-spinner" style="display: none;" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
+            </svg>
+        </div>
+
     </div>
 
     <script>
+        const queryAfdbId = 'Q5VSL9';
         const apiData = {
-            "query": "Q5VSL9.cif",
-            "target": "7k36_I",
-            "pident": 78.8,
-            "evalue": 2.807e-59,
-            "qstart": 69,
-            "qend": 824,
-            "tstart": 1,
-            "tend": 599,
-            "qaln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQGTFGECSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDNSAACSSAVRKPAISLADSTDLRVLLNIMYLIVETVHQECEGDKAEWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAASPPASASDLIEQQQKRGRREHKALIKQDNLDAFNERDPYKADDSREEEEENDDDNSLEGETFPLERDEVMPPPLQHPQTDRLTCPKGLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPTSKAKTDSINILADVLPEEMPTTVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSISVLDYPHCVVHELPELTAESLEAGDSNQFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGNDLDARPWDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVLGQRVDLPEDFQMNYDLWLERE",
-            "taln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQ----GTSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDN------------ISLADSTDLRVLLNIMYLIVETVHQECE----EWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAA--------------------------------------------------------------------------------------GLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPT-------INILADVLP-----TVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSIS--------------------------QFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGND-----WDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVL--------GFQMNYDLWLERE",
-            "database": "pdb",
-        };
+            // real data
+            "7k36_I": {
+                "query": "Q5VSL9.cif",
+                "target": "7k36_I",
+                "pident": 78.8,
+                "evalue": 2.807e-59,
+                "qstart": 69,
+                "qend": 824,
+                "tstart": 1,
+                "tend": 599,
+                "qaln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQGTFGECSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDNSAACSSAVRKPAISLADSTDLRVLLNIMYLIVETVHQECEGDKAEWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAASPPASASDLIEQQQKRGRREHKALIKQDNLDAFNERDPYKADDSREEEEENDDDNSLEGETFPLERDEVMPPPLQHPQTDRLTCPKGLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPTSKAKTDSINILADVLPEEMPTTVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSISVLDYPHCVVHELPELTAESLEAGDSNQFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGNDLDARPWDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVLGQRVDLPEDFQMNYDLWLERE",
+                "taln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQ----GTSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDN------------ISLADSTDLRVLLNIMYLIVETVHQECE----EWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAA--------------------------------------------------------------------------------------GLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPT-------INILADVLP-----TVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSIS--------------------------QFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGND-----WDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVL--------GFQMNYDLWLERE",
+                "database": "pdb",
+            },
+            // made up
+            "6s9o_D": {
+                "query": "Q5VSL9.cif",
+                "target": "6s9o_D",
+                "qstart": 126,
+                "tstart": 1,
+                "qaln": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "taln": "SELPQMVQQLNSPDQQELQSALRKLSQIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALRNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILSSALGALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQLALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQKQAVKEAGALEKLEQLQSHENEKIQKEAQEALEKL",
+                "database": "pdb",
+            },
+            // made up
+            "4hxt_A": {
+                "query": "Q5VSL9.cif",
+                "target": "4hxt_A",
+                "qstart": 485,
+                "tstart": 1,
+                "qaln": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "taln": "MNDVEKLVKLLTSTDSETQKEAARDLAEIASGPASAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPTSAIKAIVDAGGVEVLQKLLTSTDSEVQKEAQRALENIKSGGWLEH",
+                "database": "pdb",
+            },
+        }
 
         // Create plugin instance
         const viewerInstance = new PDBeMolstarPlugin();
         const viewerContainer = document.getElementById('myViewer');
-
-        const queryAfdbId = apiData.query.split('.')[0];
 
         const options = {
             customData: {
@@ -70,10 +112,26 @@
         // Call render method to display the 3D view
         viewerInstance.render(viewerContainer, options);
 
-        const sub = viewerInstance.events.loadComplete.subscribe(() => {
-            sub.unsubscribe(); // avoid infinite loop
-            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff');
-        });
+        function loadTarget(id) {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.style.display = null;
+            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], '#ff00ff')
+                .then(result => {
+                    console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
+                    spinner.style.display = 'none';
+                });
+        }
+
+        for (const checkbox of document.getElementsByClassName('load-target-checkbox')) {
+            checkbox.addEventListener('click', e => {
+                const { id, checked } = e.target;
+                if (checked) {
+                    loadTarget(id);
+                } else {
+                    viewerInstance.deleteStructure(id);
+                }
+            });
+        }
 
     </script>
 
