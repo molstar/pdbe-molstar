@@ -42,10 +42,15 @@
         <!-- Molstar container -->
         <div id="myViewer"></div>
         <div style="display: block;">
-            <div>Targets:</div>
-            <div><input type="checkbox" class="load-target-checkbox" id="7k36_I" /><label for="7k36_I">7k36_I</label></div>
-            <div><input type="checkbox" class="load-target-checkbox" id="6s9o_D" /><label for="6s9o_D">6s9o_D</label></div>
-            <div><input type="checkbox" class="load-target-checkbox" id="4hxt_A" /><label for="4hxt_A">4hxt_A</label></div>
+            <h4>Query color:</h4>
+            <div>
+                <input type="radio" name="color" id="color-plddt" onclick="setQueryColorPlddt()" checked /><label for="color-plddt">Model Confidence</label>
+                <input type="radio" name="color" id="color-uniform" onclick="setQueryColorUniform()" /><label for="color-uniform">Uniform</label>
+            </div>
+            <h4>Targets:</h4>
+            <div><input type="checkbox" id="7k36_I" onclick="handleCheckboxClick(this)" /><label for="7k36_I">7k36_I</label></div>
+            <div><input type="checkbox" id="6s9o_D" onclick="handleCheckboxClick(this)" /><label for="6s9o_D">6s9o_D</label></div>
+            <div><input type="checkbox" id="4hxt_A" onclick="handleCheckboxClick(this)" /><label for="4hxt_A">4hxt_A</label></div>
             <svg id="loading-spinner" style="display: none;" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
             </svg>
@@ -90,7 +95,19 @@
                 "taln": "MNDVEKLVKLLTSTDSETQKEAARDLAEIASGPASAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPTSAIKAIVDAGGVEVLQKLLTSTDSEVQKEAQRALENIKSGGWLEH",
                 "database": "pdb",
             },
-        }
+        };
+
+        const PALETTE = [
+            '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
+            '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
+            '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
+            '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
+        ];
+        const targetColors = {};
+        Object.keys(apiData).forEach((targetId, i) => {
+            targetColors[targetId] = PALETTE[i % PALETTE.length];
+            document.getElementById(targetId).style['accent-color'] = targetColors[targetId]; // color checkboxes
+        });
 
         // Create plugin instance
         const viewerInstance = new PDBeMolstarPlugin();
@@ -112,26 +129,38 @@
         // Call render method to display the 3D view
         viewerInstance.render(viewerContainer, options);
 
+        const loadingTargets = new Set(); // set of targets that are currently being processed (for the loading icon)
+
         function loadTarget(id) {
             const spinner = document.getElementById('loading-spinner');
             spinner.style.display = null;
-            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], '#ff00ff')
+            loadingTargets.add(id);
+            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
                 .then(result => {
                     console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
-                    spinner.style.display = 'none';
+                    loadingTargets.delete(id);
+                    if (loadingTargets.size === 0) {
+                        spinner.style.display = 'none';
+                    }
                 });
         }
 
-        for (const checkbox of document.getElementsByClassName('load-target-checkbox')) {
-            checkbox.addEventListener('click', e => {
-                const { id, checked } = e.target;
-                if (checked) {
-                    loadTarget(id);
-                } else {
-                    viewerInstance.deleteStructure(id);
-                }
-            });
+        function handleCheckboxClick(target) {
+            const { id, checked } = target;
+            if (checked) {
+                loadTarget(id);
+            } else {
+                viewerInstance.deleteStructure(id);
+            }
         }
+
+        function setQueryColorPlddt() {
+            viewerInstance.visual.clearSelection('main');
+        }
+        function setQueryColorUniform() {
+            viewerInstance.visual.select({ data: [{ color: '#0053D6' }], structureId: 'main' });
+        }
+
 
     </script>
 
