@@ -122,6 +122,20 @@
             targetColors[targetId] = PDBeMolstarPlugin.extensions.foldseek.hashColor(targetId);
             document.getElementById(targetId).style['accent-color'] = targetColors[targetId]; // color checkboxes
         });
+        const pdbs = '6dks 6fpq 2din 6gi3 3vti 5azb 7bz6 3cxl 2bg6 4axb 3e0s 2igc 1tyx 5d4l 2gyt 4je3 8f7y 1vlr 3h4k 7m8y 1v8u 1h58 6xv7 1oux 5u3k 4u9j 1adz 3fgt 5ir5 1szh 4jed 4ksn 4gud 5djn 6va2 3zdu 2a9m 5x1l 2eoi 6gba 6oak 6zpf 3fka 5bt9 4rss 6lwa 7d7z 5t0i 3uab 4pzy 4ja3 1r45 4www 5zvq 6uf4 3l1b 4ho5 1qhd 7xdj 2via 1jvt 3ntc 3l7d 2yfn 7roj 1y1p 7cj9 3j4a 2waq 6isj 7dnk 1vdv 2bry 4rtv 3cob 2dmq 1aa2 7doa 6p3i 8sas 3l4j 3rha 1zjl 4bqf 2jtd 6juf 3mhh 3v10 6wyh 6gpg 2va9 3bop 5sqr 6f3v 6nhk 6yla 4ae0 1xea 2cd3 2hdj';
+        let i = 0;
+        for (const pdb of pdbs.split(' ')) {
+            const id = `${pdb}_A`;
+            const color = PDBeMolstarPlugin.extensions.foldseek.hashColor(id);
+            const box = document.createElement('div');
+            box.style.backgroundColor = color;
+            box.style.width = '60px';
+            box.style.height = '20px';
+            box.style.margin = '1px';
+            box.textContent = id;
+            document.getElementById('blabla').appendChild(box);
+            i++;
+        }
 
         // Create plugin instance
         const viewerInstance = new PDBeMolstarPlugin();
