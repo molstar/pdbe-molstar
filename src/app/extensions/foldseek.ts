@@ -1,5 +1,6 @@
 /** Helper functions to allow visualizing Foldseek results and superposing them on the query structure */
 
+import { exportHierarchy } from 'Molstar/extensions/model-export/export';
 import { Mat4 } from 'Molstar/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'Molstar/mol-model/structure';
@@ -151,4 +152,9 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
         coords.z[i] = conf.z[theAtom];
     }
     return coords;
+}
+
+/** Export currently loaded models in mmCIF (or BCIF). Pack in a ZIP if there is more then 1 model. */
+export function exportModels(viewer: PDBeMolstarPlugin, format: 'cif' | 'bcif' = 'cif') {
+    return exportHierarchy(viewer.plugin, { format });
 }
