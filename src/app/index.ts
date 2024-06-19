@@ -608,7 +608,21 @@ export class PDBeMolstarPlugin {
                     }
                 }
             }
+        },
 
+        /** Change the visibility of a structure.
+         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+         * If `visibility` is undefined, toggle current visibility state. */
+        structureVisibility: async (structureNumberOrId: string | number, visibility?: boolean) => {
+            const struct = this.getStructure(structureNumberOrId);
+            if (!struct) {
+                console.error(`Cannot change visibility of structure ${structureNumberOrId}: structure not found.`);
+                return;
+            }
+            const currentVisibility = !struct.cell.state.isHidden;
+            if (visibility !== currentVisibility) {
+                await PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: struct.cell.transform.ref });
+            }
         },
 
         /** With `isSpinning` parameter, switch visual rotation on or off. Without `isSpinning` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */

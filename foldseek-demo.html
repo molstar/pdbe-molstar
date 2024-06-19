@@ -48,9 +48,21 @@
                 <input type="radio" name="color" id="color-uniform" onclick="setQueryColorUniform()" /><label for="color-uniform">Uniform</label>
             </div>
             <h4>Targets:</h4>
-            <div><input type="checkbox" id="7k36_I" onclick="handleCheckboxClick(this)" /><label for="7k36_I">7k36_I</label></div>
-            <div><input type="checkbox" id="6s9o_D" onclick="handleCheckboxClick(this)" /><label for="6s9o_D">6s9o_D</label></div>
-            <div><input type="checkbox" id="4hxt_A" onclick="handleCheckboxClick(this)" /><label for="4hxt_A">4hxt_A</label></div>
+            <div>
+                <input type="checkbox" id="7k36_I" onclick="handleCheckboxClick(this)" />
+                <label for="7k36_I">7k36_I</label>
+                <span id="7k36_I-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="6s9o_D" onclick="handleCheckboxClick(this)" />
+                <label for="6s9o_D">6s9o_D</label>
+                <span id="6s9o_D-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="4hxt_A" onclick="handleCheckboxClick(this)" />
+                <label for="4hxt_A">4hxt_A</label>
+                <span id="4hxt_A-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
             <svg id="loading-spinner" style="display: none;" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
             </svg>
@@ -135,7 +147,7 @@
             const spinner = document.getElementById('loading-spinner');
             spinner.style.display = null;
             loadingTargets.add(id);
-            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
+            return PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
                 .then(result => {
                     console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
                     loadingTargets.delete(id);
@@ -148,9 +160,27 @@
         function handleCheckboxClick(target) {
             const { id, checked } = target;
             if (checked) {
-                loadTarget(id);
+                loadTarget(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = null;
+                    document.getElementById(`${id}-visibility`).style['text-decoration'] = 'none';
+                });
             } else {
-                viewerInstance.deleteStructure(id);
+                viewerInstance.deleteStructure(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = 'none';
+                });
+            }
+        }
+        function handleVisibilityClick(target) {
+            const structId = target.id.match(/(.+)-visibility/)[1];
+            const vis = target.style['text-decoration'] !== 'line-through';
+            if (vis) {
+                // hide
+                target.style['text-decoration'] = 'line-through';
+                viewerInstance.visual.structureVisibility(structId, false);
+            } else {
+                // show
+                target.style['text-decoration'] = 'none';
+                viewerInstance.visual.structureVisibility(structId, true);
             }
         }
 
