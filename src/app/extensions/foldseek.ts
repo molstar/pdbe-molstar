@@ -1,8 +1,11 @@
 /** Helper functions to allow visualizing Foldseek results and superposing them on the query structure */
 
+import { hashFnv32a } from 'Molstar/mol-data/util';
 import { Mat4 } from 'Molstar/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'Molstar/mol-model/structure';
+import { Color } from 'Molstar/mol-util/color';
+import { Hcl } from 'Molstar/mol-util/color/spaces/hcl';
 import { PDBeMolstarPlugin } from '..';
 import { transform } from '../superposition';
 
@@ -151,4 +154,24 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
         coords.z[i] = conf.z[theAtom];
     }
     return coords;
+}
+
+let _textEncoder: TextEncoder | undefined;
+
+/** Assign a quasi-random (but deterministic) color to a string */
+export function hashColor(str: string): string {
+    _textEncoder ??= new TextEncoder();
+    const bytes = _textEncoder.encode(str);
+    const hash = hashFnv32a(bytes) >>> 0;
+    const cRel = (hash >>> 24) / 255;
+    const lRel = (hash >>> 16) % 256 / 255;
+    const hRel = hash % (2 ** 16) / (2 ** 16);
+    const H_MAX = 360;
+    const C_MAX = 80;
+    const L_MIN = 30;
+    const L_MAX = 90;
+    const h = hRel * H_MAX;
+    const c = cRel ** 0.5 * C_MAX;
+    const l = lRel * (L_MAX - L_MIN) + L_MIN;
+    return Color.toHexStyle(Hcl.toColor(Hcl.create(h, c, l)));
 }
