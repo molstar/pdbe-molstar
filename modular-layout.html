@@ -60,6 +60,12 @@
             position: relative;
         }
 
+        #seqPanel {
+            width: 500px;
+            height: 300px;
+            background-color: wheat;
+        }
+
         button {
             margin-right: 8px;
             margin-bottom: 8px;
@@ -211,10 +217,36 @@
             <!-- Molstar container -->
             <div id="myViewer"></div>
         </div>
+
+        <div id="seqPanelParent">
+            <div id="seqPanel"></div>
+        </div>
+        <div>
+            <button onclick="toggleSeqPanel()">toggle sequence</button>
+        </div>
     </div>
 
 
     <script>
+        function toggleSeqPanel() {
+            const seqPanel = document.getElementById('seqPanel');
+            if (seqPanel.style.display === 'none') {
+                seqPanel.style.display = null;
+            } else {
+                seqPanel.style.display = 'none';
+            }
+        }
+        function toggleSeqPanel2() {
+            const box = document.getElementById('seqPanelParent');
+            if (box.children.length === 0) {
+                const seqPanel = document.createElement('div');
+                seqPanel.id = 'seqPanel';
+                box.appendChild(seqPanel);
+            } else {
+                for (const child of box.children) child.remove();
+            }
+        }
+
         function getJsonParam(paramName) {
             const optionsString = new URL(window.location).searchParams.get(paramName);
             const options = JSON.parse(optionsString);
@@ -256,8 +288,13 @@
         // Get element from HTML/Template to place the viewer 
         const viewerContainer = document.getElementById('myViewer');
 
+        const layout = [
+            { target: 'myViewer', component: PDBeMolstarPlugin.UIComponents.DefaultViewport },
+            { target: 'seqPanel', component: PDBeMolstarPlugin.UIComponents.SequenceView, props: { defaultMode: 'polymers' } },
+        ];
         // Call render method to display the 3D view
-        viewerInstance.render(viewerContainer, options);
+        // viewerInstance.render(viewerContainer, options);
+        viewerInstance.render(layout, options);
 
         const selectData = getJsonParam('select');
         if (selectData) {
