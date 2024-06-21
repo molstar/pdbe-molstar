@@ -55,13 +55,12 @@ import { SuperpositionFocusRepresentation } from './superposition-focus-represen
 import { LeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
+import { UIComponents } from './ui/split-ui/components';
+import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 import { SuperpostionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
-import { createPluginSplitUI, renderReact18, resolveHTMLElement } from './split-ui';
-import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
-import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 
 
 export class PDBeMolstarPlugin {
@@ -88,7 +87,7 @@ export class PDBeMolstarPlugin {
         return initParamsFromHtmlAttributes(element);
     }
 
-    async render(target: string | HTMLElement, options: Partial<InitParams>, secondaryTarget?: string | HTMLElement) {
+    async render(target: string | HTMLElement | LayoutSpec, options: Partial<InitParams>) {
         console.debug('Rendering PDBeMolstarPlugin instance with options:', options);
         // Validate options
         if (!options) {
@@ -204,22 +203,22 @@ export class PDBeMolstarPlugin {
             );
         }
 
-        this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
-        (this.targetElement as any).viewerInstance = this;
-
         // Create/ Initialise Plugin
-        if (secondaryTarget) {
+        if (Array.isArray(target)) {
+            this.targetElement = resolveHTMLElement(target[0].target);
             this.plugin = await createPluginSplitUI({
-                panels: {
-                    [this.targetElement.id]: [DefaultViewport, {}],
-                    [resolveHTMLElement(secondaryTarget).id]: [SequenceView, { defaultMode: 'polymers' }],
-                },
+                layout: target,
                 spec: pdbePluginSpec,
-                render: renderReact18,
             });
+            for (const comp of target) {
+                (resolveHTMLElement(comp.target) as any).viewerInstance = this;
+            }
         } else {
+            this.targetElement = resolveHTMLElement(target);
             this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
+            (this.targetElement as any).viewerInstance = this;
         }
+
         PluginCustomState(this.plugin).initParams = { ...this.initParams };
         PluginCustomState(this.plugin).events = {
             segmentUpdate: this._ev<boolean>(),
@@ -892,6 +891,9 @@ export class PDBeMolstarPlugin {
     static extensions = {
         foldseek: Foldseek,
     };
+
+    /** Components for building custom UI layouts */
+    static UIComponents = UIComponents;
 }
 
 

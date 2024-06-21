@@ -4,20 +4,32 @@ import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DefaultPluginUISpec } from './spec';
+import { DefaultPluginUISpec } from '../../spec';
 
 
 export function renderReact18(element: any, target: Element) { // TODO import this from src/mol-plugin-ui/react18.ts once using MolStar 4.x.x
     createRoot(target).render(element);
 }
 
-export async function createPluginSplitUI<TComps extends Record<string, PluginUIComponentClass<any>>>(options: {
-    panels: { [target in keyof TComps]: [TComps[target], PropsForPluginUIComponentClass<TComps[target]>] }
-    render: (component: any, container: Element) => any,
+export interface LayoutSpecComponent<T extends PluginUIComponentClass<any>> {
+    target: string | HTMLElement,
+    component: T,
+    props?: PropsForPluginUIComponentClass<T>,
+}
+export function LayoutSpecComponent<T extends PluginUIComponentClass<any>>(target: string | HTMLElement, component: T, props?: PropsForPluginUIComponentClass<T>): LayoutSpecComponent<T> {
+    return { target, component, props };
+}
+export type LayoutSpec = LayoutSpecComponent<any>[]
+
+
+export async function createPluginSplitUI(options: {
+    layout: LayoutSpec,
     spec?: PluginUISpec,
+    render?: (component: any, container: Element) => any,
     onBeforeUIRender?: (ctx: PluginUIContext) => (Promise<void> | void),
 }) {
-    const { spec, panels, onBeforeUIRender, render } = options;
+    const { spec, layout, onBeforeUIRender } = options;
+    const render = options.render ?? renderReact18;
     const ctx = new PluginUIContext(spec || DefaultPluginUISpec());
     await ctx.init();
     if (onBeforeUIRender) {
@@ -26,9 +38,8 @@ export async function createPluginSplitUI<TComps extends Record<string, PluginUI
     if (!ctx.isInitialized) {
         throw new Error('NotImplementedError: React-rendering before PluginContext is initialized'); // TODO implement a la src/mol-plugin-ui/plugin.tsx
     }
-    for (const target in panels) {
-        const [componentClass, props] = panels[target];
-        render(<PluginPanelWrapper plugin={ctx} component={componentClass} props={props} />, resolveHTMLElement(target));
+    for (const { target: element, component, props } of layout) {
+        render(<PluginPanelWrapper plugin={ctx} component={component} props={props ?? {}} />, resolveHTMLElement(element));
         // TODO in future: consider adding a listener that re-renders the React component when the div is removed and re-added to DOM
     }
     try {
@@ -49,7 +60,7 @@ export function resolveHTMLElement(element: HTMLElement | string): HTMLElement {
     }
 }
 
-type PluginUIComponentClass<P extends {}> = { new(props: P, context?: any): PluginUIComponent<P> }
+export type PluginUIComponentClass<P extends {}> = { new(props: P, context?: any): PluginUIComponent<P> }
 type PropsForPluginUIComponentClass<C extends PluginUIComponentClass<any>> = C extends PluginUIComponentClass<infer P> ? P : never
 
 function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: PluginUIComponentClass<P>, props: P }) {

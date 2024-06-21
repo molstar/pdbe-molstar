@@ -288,8 +288,13 @@
         // Get element from HTML/Template to place the viewer 
         const viewerContainer = document.getElementById('myViewer');
 
+        const layout = [
+            { target: 'myViewer', component: PDBeMolstarPlugin.UIComponents.DefaultViewport },
+            { target: 'seqPanel', component: PDBeMolstarPlugin.UIComponents.SequenceView, props: { defaultMode: 'polymers' } },
+        ];
         // Call render method to display the 3D view
-        viewerInstance.render(viewerContainer, options, 'seqPanel');
+        // viewerInstance.render(viewerContainer, options);
+        viewerInstance.render(layout, options);
 
         const selectData = getJsonParam('select');
         if (selectData) {
