@@ -22,6 +22,7 @@ import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { CustomStructureProperties, StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
+import { DefaultViewport } from 'Molstar/mol-plugin-ui/plugin';
 import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
@@ -45,13 +46,13 @@ import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
-import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
+import { WithOverlay } from './ui/overlay-viewport';
 import { LeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
@@ -154,7 +155,9 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: this.initParams.superposition ? SuperpostionViewport : void 0
+                // view: this.initParams.superposition ? SuperpostionViewport : void 0
+                // view: this.initParams.superposition ? SuperpostionViewport : OverlayViewport,
+                view: this.initParams.superposition ? SuperpostionViewport : WithOverlay(DefaultViewport),
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
@@ -223,7 +226,7 @@ export class PDBeMolstarPlugin {
         PluginCustomState(this.plugin).events = {
             segmentUpdate: this._ev<boolean>(),
             superpositionInit: this._ev<boolean>(),
-            isBusy: this._ev<boolean>()
+            isBusy: this._ev<boolean>(),
         };
 
         // Set background colour
@@ -250,9 +253,6 @@ export class PDBeMolstarPlugin {
             this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
-            if (this.initParams.loadingOverlay) {
-                new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-            }
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
@@ -264,9 +264,6 @@ export class PDBeMolstarPlugin {
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
-                if (this.initParams.loadingOverlay) {
-                    new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-                }
                 this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
             }
 
