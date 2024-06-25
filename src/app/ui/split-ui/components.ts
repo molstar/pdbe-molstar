@@ -1,7 +1,7 @@
-import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
-import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
-import { PluginUIComponentClass } from './split-ui';
-import { WithOverlay } from '../overlay-viewport';
+import { DefaultViewport } from 'Molstar/mol-plugin-ui/plugin';
+import { SequenceView } from 'Molstar/mol-plugin-ui/sequence';
+import { JSXElementConstructor } from 'react';
+import { WithOverlay } from '../overlay';
 
 
 export const UIComponents = {
@@ -12,4 +12,4 @@ export const UIComponents = {
     // TODO add all meaningful components
     // TODO fix overlay
     // TODO test events
-} as const satisfies Record<string, PluginUIComponentClass<any>>;
+} as const satisfies Record<string, JSXElementConstructor<any>>;

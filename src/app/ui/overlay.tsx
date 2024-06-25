@@ -1,14 +1,13 @@
 import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { Component, FunctionComponent } from 'react';
+import { ComponentClass, JSXElementConstructor } from 'react';
 import { PluginCustomState } from '../plugin-custom-state';
-import { PluginUIComponentClass } from './split-ui/split-ui';
 
 
 // TODO use custom BehaviorSubject instead of this.plugin.behaviors.state.isUpdating
 // PluginCustomState(this.plugin).events?.isLoading
 // TODO add to SuperpositionViewport as well
 
-export function WithOverlay(MainContent: typeof Component | FunctionComponent, OverlayContent: typeof Component | FunctionComponent = PDBeLoadingOverlayBox): PluginUIComponentClass<{}> {
+export function WithOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
     return class extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
         state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
         componentDidMount(): void {

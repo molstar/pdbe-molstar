@@ -1,26 +1,25 @@
 
-import { PluginReactContext, PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { PluginReactContext } from 'Molstar/mol-plugin-ui/base';
 import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
-import { createElement, ComponentClass, ComponentProps } from 'react';
+import { ComponentProps, JSXElementConstructor, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DefaultPluginUISpec } from '../../spec';
-import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
-import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 
 
 export function renderReact18(element: any, target: Element) { // TODO import this from src/mol-plugin-ui/react18.ts once using MolStar 4.x.x
     createRoot(target).render(element);
 }
 
-export interface LayoutSpecComponent<T extends PluginUIComponentClass<any>> {
+export interface LayoutSpecComponent<T extends JSXElementConstructor<any>> {
     target: string | HTMLElement,
     component: T,
-    props?: PropsForPluginUIComponentClass<T>,
+    props?: ComponentProps<T>,
 }
-export function LayoutSpecComponent<T extends PluginUIComponentClass<any>>(target: string | HTMLElement, component: T, props?: PropsForPluginUIComponentClass<T>): LayoutSpecComponent<T> {
+export function LayoutSpecComponent<T extends JSXElementConstructor<any>>(target: string | HTMLElement, component: T, props?: ComponentProps<T>): LayoutSpecComponent<T> {
     return { target, component, props };
 }
+
 export type LayoutSpec = LayoutSpecComponent<any>[]
 
 
@@ -62,14 +61,8 @@ export function resolveHTMLElement(element: HTMLElement | string): HTMLElement {
     }
 }
 
-// export type PluginUIComponentClass<P extends {}> = { new(props: P, context?: any): PluginUIComponent<P> | PurePluginUIComponent<P> }
-export type PluginUIComponentClass<P extends {}> = React.ComponentClass<P>
-type PropsForPluginUIComponentClass<C extends PluginUIComponentClass<any>> = C extends PluginUIComponentClass<infer P> ? P : never
-// TODO: relax to React.ComponentClass, ComponentProps
 
-type x = ComponentProps<typeof SequenceView>
-
-function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: PluginUIComponentClass<P>, props: P }) {
+function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: JSXElementConstructor<P>, props: P }) {
     return <PluginReactContext.Provider value={plugin}>
         <div className='msp-plugin' style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div className='msp-plugin-content msp-layout-standard' style={{ position: 'relative', width: '100%', height: '100%' }}>
