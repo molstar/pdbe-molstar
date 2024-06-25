@@ -1,10 +1,12 @@
 
-import { PluginReactContext, PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { PluginReactContext, PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
-import { createElement } from 'react';
+import { createElement, ComponentClass, ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DefaultPluginUISpec } from '../../spec';
+import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
+import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 
 
 export function renderReact18(element: any, target: Element) { // TODO import this from src/mol-plugin-ui/react18.ts once using MolStar 4.x.x
@@ -60,8 +62,12 @@ export function resolveHTMLElement(element: HTMLElement | string): HTMLElement {
     }
 }
 
-export type PluginUIComponentClass<P extends {}> = { new(props: P, context?: any): PluginUIComponent<P> }
+// export type PluginUIComponentClass<P extends {}> = { new(props: P, context?: any): PluginUIComponent<P> | PurePluginUIComponent<P> }
+export type PluginUIComponentClass<P extends {}> = React.ComponentClass<P>
 type PropsForPluginUIComponentClass<C extends PluginUIComponentClass<any>> = C extends PluginUIComponentClass<infer P> ? P : never
+// TODO: relax to React.ComponentClass, ComponentProps
+
+type x = ComponentProps<typeof SequenceView>
 
 function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: PluginUIComponentClass<P>, props: P }) {
     return <PluginReactContext.Provider value={plugin}>

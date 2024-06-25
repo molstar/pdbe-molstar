@@ -1,22 +1,24 @@
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
 import { Component, FunctionComponent } from 'react';
 import { PluginCustomState } from '../plugin-custom-state';
+import { PluginUIComponentClass } from './split-ui/split-ui';
 
 
 // TODO use custom BehaviorSubject instead of this.plugin.behaviors.state.isUpdating
 // PluginCustomState(this.plugin).events?.isLoading
 // TODO add to SuperpositionViewport as well
 
-export function WithOverlay(MainContent: typeof Component | FunctionComponent, OverlayContent: typeof Component | FunctionComponent = PDBeLoadingOverlayBox): React.ComponentClass {
-    return class extends PluginUIComponent<{}, { busy: boolean }> {
-        state: Readonly<{ busy: boolean; }> = { busy: false };
+export function WithOverlay(MainContent: typeof Component | FunctionComponent, OverlayContent: typeof Component | FunctionComponent = PDBeLoadingOverlayBox): PluginUIComponentClass<{}> {
+    return class extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
+        state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
         componentDidMount(): void {
             super.componentDidMount?.();
             const busyBehavior = this.plugin.behaviors.state.isUpdating;
-            this.subscribe(busyBehavior, busy => this.setState({ busy }));
+            this.subscribe(busyBehavior, busy => this.setState({ showOverlay: busy && !!PluginCustomState(this.plugin).initParams?.loadingOverlay }));
         }
         render() {
-            const showOverlay = this.state.busy && PluginCustomState(this.plugin).initParams?.loadingOverlay;
+            console.log('busy', this.state.showOverlay)
+            const showOverlay = this.state.showOverlay && PluginCustomState(this.plugin).initParams?.loadingOverlay;
             return <>
                 <MainContent />
                 {showOverlay && <div className='pdbemolstar-overlay'>
