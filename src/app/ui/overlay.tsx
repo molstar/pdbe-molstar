@@ -3,24 +3,22 @@ import { ComponentClass, JSXElementConstructor } from 'react';
 import { PluginCustomState } from '../plugin-custom-state';
 
 
-// TODO use custom BehaviorSubject instead of this.plugin.behaviors.state.isUpdating
-// PluginCustomState(this.plugin).events?.isLoading
-// TODO add to SuperpositionViewport as well
-
-export function WithOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
+export function WithLoadingOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
     return class extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
         state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
         componentDidMount(): void {
             super.componentDidMount?.();
-            const busyBehavior = this.plugin.behaviors.state.isUpdating;
-            this.subscribe(busyBehavior, busy => this.setState({ showOverlay: busy && !!PluginCustomState(this.plugin).initParams?.loadingOverlay }));
+            const busyEvent = PluginCustomState(this.plugin).events?.isBusy;
+            if (busyEvent) {
+                this.subscribe(busyEvent, busy => {
+                    this.setState({ showOverlay: busy && !!PluginCustomState(this.plugin).initParams?.loadingOverlay });
+                });
+            }
         }
         render() {
-            console.log('busy', this.state.showOverlay)
-            const showOverlay = this.state.showOverlay && PluginCustomState(this.plugin).initParams?.loadingOverlay;
             return <>
                 <MainContent />
-                {showOverlay && <div className='pdbemolstar-overlay'>
+                {this.state.showOverlay && <div className='pdbemolstar-overlay'>
                     <OverlayContent />
                 </div>}
             </>;

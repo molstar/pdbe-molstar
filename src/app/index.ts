@@ -22,7 +22,6 @@ import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { CustomStructureProperties, StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
-import { DefaultViewport } from 'Molstar/mol-plugin-ui/plugin';
 import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
 import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
 import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
@@ -52,13 +51,13 @@ import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
-import { WithOverlay } from './ui/overlay';
 import { LeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
+import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
-import { SuperpostionViewport } from './ui/superposition-viewport';
+import { SuperpositionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
@@ -66,6 +65,7 @@ import './overlay.scss';
 
 export class PDBeMolstarPlugin {
 
+    /** Helper for creating events (e.g. RxJS Subjects) */
     private _ev = RxEventHelper.create();
 
     readonly events = {
@@ -155,9 +155,7 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                // view: this.initParams.superposition ? SuperpostionViewport : void 0
-                // view: this.initParams.superposition ? SuperpostionViewport : OverlayViewport,
-                view: this.initParams.superposition ? SuperpostionViewport : WithOverlay(DefaultViewport),
+                view: this.initParams.superposition ? SuperpositionViewport : PDBeViewport,
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
@@ -207,27 +205,31 @@ export class PDBeMolstarPlugin {
         }
 
         // Create/ Initialise Plugin
+        const onBeforeUIRender = (plugin: PluginContext) => {
+            // This needs to run after the plugin is created but before the UI is rendered
+            PluginCustomState(plugin).initParams = { ...this.initParams };
+            PluginCustomState(plugin).events = {
+                segmentUpdate: this._ev<boolean>(),
+                superpositionInit: this._ev<boolean>(),
+                isBusy: this._ev<boolean>(),
+            };
+        };
+
         if (Array.isArray(target)) {
             this.targetElement = resolveHTMLElement(target[0].target);
             this.plugin = await createPluginSplitUI({
                 layout: target,
                 spec: pdbePluginSpec,
+                onBeforeUIRender,
             });
             for (const comp of target) {
                 (resolveHTMLElement(comp.target) as any).viewerInstance = this;
             }
         } else {
             this.targetElement = resolveHTMLElement(target);
-            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
+            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, { onBeforeUIRender });
             (this.targetElement as any).viewerInstance = this;
         }
-
-        PluginCustomState(this.plugin).initParams = { ...this.initParams };
-        PluginCustomState(this.plugin).events = {
-            segmentUpdate: this._ev<boolean>(),
-            superpositionInit: this._ev<boolean>(),
-            isBusy: this._ev<boolean>(),
-        };
 
         // Set background colour
         if (this.initParams.bgColor || this.initParams.lighting) {
@@ -362,6 +364,7 @@ export class PDBeMolstarPlugin {
         await runWithProgressMessage(this.plugin, progressMessage, async () => {
             let success = false;
             try {
+                PluginCustomState(this.plugin).events?.isBusy.next(true);
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
                 let downloadOptions: any = void 0;
@@ -420,6 +423,7 @@ export class PDBeMolstarPlugin {
                 success = true;
             } finally {
                 this.events.loadComplete.next(success);
+                PluginCustomState(this.plugin).events?.isBusy.next(false);
             }
         });
     }
