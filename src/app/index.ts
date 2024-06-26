@@ -46,7 +46,6 @@ import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
-import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
@@ -55,8 +54,10 @@ import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { LeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
+import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
-import { SuperpostionViewport } from './ui/superposition-viewport';
+import { UIComponents } from './ui/split-ui/components';
+import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
@@ -64,6 +65,7 @@ import './overlay.scss';
 
 export class PDBeMolstarPlugin {
 
+    /** Helper for creating events (e.g. RxJS Subjects) */
     private _ev = RxEventHelper.create();
 
     readonly events = {
@@ -88,7 +90,7 @@ export class PDBeMolstarPlugin {
         return initParamsFromHtmlAttributes(element);
     }
 
-    async render(target: string | HTMLElement, options: Partial<InitParams>) {
+    async render(target: string | HTMLElement | LayoutSpec, options: Partial<InitParams>) {
         console.debug('Rendering PDBeMolstarPlugin instance with options:', options);
         // Validate options
         if (!options) {
@@ -155,7 +157,7 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: this.initParams.superposition ? SuperpostionViewport : void 0
+                view: PDBeViewport,
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
@@ -190,6 +192,10 @@ export class PDBeMolstarPlugin {
         if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
+        if (this.initParams.superposition) {
+            pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+            pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
+        }
 
         // override default event bindings
         if (this.initParams.selectBindings) {
@@ -204,17 +210,32 @@ export class PDBeMolstarPlugin {
             );
         }
 
-        this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
-        (this.targetElement as any).viewerInstance = this;
-
         // Create/ Initialise Plugin
-        this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
-        PluginCustomState(this.plugin).initParams = { ...this.initParams };
-        PluginCustomState(this.plugin).events = {
-            segmentUpdate: this._ev<boolean>(),
-            superpositionInit: this._ev<boolean>(),
-            isBusy: this._ev<boolean>()
+        const onBeforeUIRender = (plugin: PluginContext) => {
+            // This needs to run after the plugin is created but before the UI is rendered
+            PluginCustomState(plugin).initParams = { ...this.initParams };
+            PluginCustomState(plugin).events = {
+                segmentUpdate: this._ev<boolean>(),
+                superpositionInit: this._ev<boolean>(),
+                isBusy: this._ev<boolean>(),
+            };
         };
+
+        if (Array.isArray(target)) {
+            this.targetElement = resolveHTMLElement(target[0].target);
+            this.plugin = await createPluginSplitUI({
+                layout: target,
+                spec: pdbePluginSpec,
+                onBeforeUIRender,
+            });
+            for (const comp of target) {
+                (resolveHTMLElement(comp.target) as any).viewerInstance = this;
+            }
+        } else {
+            this.targetElement = resolveHTMLElement(target);
+            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, { onBeforeUIRender });
+            (this.targetElement as any).viewerInstance = this;
+        }
 
         // Set background colour
         if (this.initParams.bgColor || this.initParams.lighting) {
@@ -240,9 +261,6 @@ export class PDBeMolstarPlugin {
             this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
-            if (this.initParams.loadingOverlay) {
-                new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-            }
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
@@ -253,9 +271,6 @@ export class PDBeMolstarPlugin {
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
-                if (this.initParams.loadingOverlay) {
-                    new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-                }
                 this.load({
                     url: dataSource.url,
                     format: dataSource.format as BuiltInTrajectoryFormat,
@@ -266,12 +281,12 @@ export class PDBeMolstarPlugin {
                 });
             }
 
-            // Binding to other PDB Component events
+            // Subscribe to events from other PDB Component
             if (this.initParams.subscribeEvents) {
                 subscribeToComponentEvents(this);
             }
 
-            // Event handling
+            // Emit events for other PDB Components
             CustomEvents.add(this.plugin, this.targetElement);
 
         }
@@ -361,6 +376,7 @@ export class PDBeMolstarPlugin {
         await runWithProgressMessage(this.plugin, progressMessage, async () => {
             let success = false;
             try {
+                PluginCustomState(this.plugin).events?.isBusy.next(true);
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
                 let downloadOptions: any = void 0;
@@ -422,6 +438,7 @@ export class PDBeMolstarPlugin {
                 success = true;
             } finally {
                 this.events.loadComplete.next(success);
+                PluginCustomState(this.plugin).events?.isBusy.next(false);
             }
         });
     }
@@ -900,6 +917,10 @@ export class PDBeMolstarPlugin {
             this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
             this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
             this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
+            if (this.initParams.superposition) {
+                this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, false);
+                this.plugin.config.set(PluginConfig.Viewport.ShowTrajectoryControls, false);
+            }
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
@@ -930,6 +951,9 @@ export class PDBeMolstarPlugin {
     static extensions = {
         foldseek: Foldseek,
     };
+
+    /** Components for building custom UI layouts */
+    static UIComponents = UIComponents;
 }
 
 

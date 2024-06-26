@@ -1,56 +1,54 @@
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { lociDetails, EventDetail } from './loci-details';
 import { InteractivityManager } from 'Molstar/mol-plugin-state/manager/interactivity';
+import { PluginContext } from 'Molstar/mol-plugin/context';
 import { debounceTime } from 'rxjs/operators';
+import { EventDetail, lociDetails } from './loci-details';
+
 
 export namespace CustomEvents {
-
-    function create(eventTypeArr: string[]) {
-        const eventObj = {} as any;
-        for (let ei = 0, el = eventTypeArr.length; ei < el; ei++) {
-            const eventType = eventTypeArr[ei];
-            let event;
-            if (typeof MouseEvent == 'function') {
-                // current standard
-                event = new MouseEvent(eventType, { 'view': window, 'bubbles': true, 'cancelable': true });
-            } else if (typeof document.createEvent == 'function') {
-                // older standard
-                event = document.createEvent('MouseEvents');
-                event.initEvent(eventType, true /* bubbles */, true /* cancelable */);
-
-            }
-            eventObj[eventType] = event;
-        };
-        return eventObj;
+    function createEvent(eventType: string): MouseEvent {
+        if (typeof MouseEvent == 'function') {
+            // current standard
+            return new MouseEvent(eventType, { 'view': window, 'bubbles': true, 'cancelable': true });
+        } else if (typeof document.createEvent == 'function') {
+            // older standard
+            const event = document.createEvent('MouseEvents');
+            event.initEvent(eventType, true /* bubbles */, true /* cancelable */);
+            return event;
+        } else {
+            throw new Error('Cannot create event');
+        }
     }
 
-    function dispatchCustomEvent(event: any, eventData: EventDetail, targetElement: HTMLElement) {
-        if (typeof eventData !== 'undefined') {
-            (eventData as any)['residueNumber'] = eventData.seq_id;
-            event['eventData'] = eventData;
-            event.eventData.residueNumber = eventData.seq_id;
+    function dispatchCustomEvent(event: UIEvent, eventData: EventDetail, targetElement: HTMLElement) {
+        if (eventData !== undefined) {
+            if (eventData.seq_id !== undefined) {
+                (eventData as any).residueNumber = eventData.seq_id;
+            }
+            (event as any).eventData = eventData;
             targetElement.dispatchEvent(event);
         }
     }
 
     export function add(plugin: PluginContext, targetElement: HTMLElement) {
-        const pdbevents = create(['PDB.molstar.click', 'PDB.molstar.mouseover', 'PDB.molstar.mouseout']);
+        const PDB_molstar_click = createEvent('PDB.molstar.click');
+        const PDB_molstar_mouseover = createEvent('PDB.molstar.mouseover');
+        const PDB_molstar_mouseout = createEvent('PDB.molstar.mouseout');
+
         plugin.behaviors.interaction.click.subscribe((e: InteractivityManager.ClickEvent) => {
             if (e.button === 1 && e.current && e.current.loci.kind !== 'empty-loci') {
                 const evData = lociDetails(e.current.loci);
-                if (evData) dispatchCustomEvent(pdbevents['PDB.molstar.click'], evData, targetElement);
+                if (evData) dispatchCustomEvent(PDB_molstar_click, evData, targetElement);
             }
         });
         plugin.behaviors.interaction.hover.pipe(debounceTime(100)).subscribe((e: InteractivityManager.HoverEvent) => {
             if (e.current && e.current.loci && e.current.loci.kind !== 'empty-loci') {
                 const evData = lociDetails(e.current.loci);
-                if (evData) dispatchCustomEvent(pdbevents['PDB.molstar.mouseover'], evData, targetElement);
+                if (evData) dispatchCustomEvent(PDB_molstar_mouseover, evData, targetElement);
             }
 
             if (e.current && e.current.loci && e.current.loci.kind === 'empty-loci') {
-                dispatchCustomEvent(pdbevents['PDB.molstar.mouseout'], {}, targetElement);
+                dispatchCustomEvent(PDB_molstar_mouseout, {}, targetElement);
             }
         });
     }
-
 }
