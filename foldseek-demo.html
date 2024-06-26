@@ -22,6 +22,17 @@
             margin-top: 100px;
             margin-right: 20px;
         }
+
+        .spinner_aj0A {
+            transform-origin: center;
+            animation: spinner_KYSC .75s infinite linear
+        }
+
+        @keyframes spinner_KYSC {
+            100% {
+                transform: rotate(360deg)
+            }
+        }
     </style>
 </head>
 
@@ -30,29 +41,92 @@
     <div class="viewerSection" style="display: flex; flex-direction: row;">
         <!-- Molstar container -->
         <div id="myViewer"></div>
-        <div><button onclick="PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff')">Reload</button></div>
+        <div style="display: block;">
+            <h4>Query color:</h4>
+            <div>
+                <input type="radio" name="color" id="color-plddt" onclick="setQueryColorPlddt()" checked /><label for="color-plddt">Model Confidence</label>
+                <input type="radio" name="color" id="color-uniform" onclick="setQueryColorUniform()" /><label for="color-uniform">Uniform</label>
+            </div>
+            <h4>Targets:</h4>
+            <div>
+                <input type="checkbox" id="7k36_I" onclick="handleCheckboxClick(this)" />
+                <label for="7k36_I">7k36_I</label>
+                <span id="7k36_I-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="6s9o_D" onclick="handleCheckboxClick(this)" />
+                <label for="6s9o_D">6s9o_D</label>
+                <span id="6s9o_D-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="4hxt_A" onclick="handleCheckboxClick(this)" />
+                <label for="4hxt_A">4hxt_A</label>
+                <span id="4hxt_A-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div style="height: 24px; margin-bottom: 24px;">
+                <svg id="loading-spinner" style="display: none;" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
+                </svg>
+            </div>
+            <button onclick="PDBeMolstarPlugin.extensions.foldseek.exportModels(viewerInstance)">Export superposed models</button>
+        </div>
+
     </div>
 
     <script>
+        const queryAfdbId = 'Q5VSL9';
         const apiData = {
-            "query": "Q5VSL9.cif",
-            "target": "7k36_I",
-            "pident": 78.8,
-            "evalue": 2.807e-59,
-            "qstart": 69,
-            "qend": 824,
-            "tstart": 1,
-            "tend": 599,
-            "qaln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQGTFGECSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDNSAACSSAVRKPAISLADSTDLRVLLNIMYLIVETVHQECEGDKAEWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAASPPASASDLIEQQQKRGRREHKALIKQDNLDAFNERDPYKADDSREEEEENDDDNSLEGETFPLERDEVMPPPLQHPQTDRLTCPKGLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPTSKAKTDSINILADVLPEEMPTTVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSISVLDYPHCVVHELPELTAESLEAGDSNQFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGNDLDARPWDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVLGQRVDLPEDFQMNYDLWLERE",
-            "taln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQ----GTSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDN------------ISLADSTDLRVLLNIMYLIVETVHQECE----EWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAA--------------------------------------------------------------------------------------GLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPT-------INILADVLP-----TVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSIS--------------------------QFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGND-----WDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVL--------GFQMNYDLWLERE",
-            "database": "pdb",
+            // real data
+            "7k36_I": {
+                "query": "Q5VSL9.cif",
+                "target": "7k36_I",
+                "pident": 78.8,
+                "evalue": 2.807e-59,
+                "qstart": 69,
+                "qend": 824,
+                "tstart": 1,
+                "tend": 599,
+                "qaln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQGTFGECSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDNSAACSSAVRKPAISLADSTDLRVLLNIMYLIVETVHQECEGDKAEWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAASPPASASDLIEQQQKRGRREHKALIKQDNLDAFNERDPYKADDSREEEEENDDDNSLEGETFPLERDEVMPPPLQHPQTDRLTCPKGLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPTSKAKTDSINILADVLPEEMPTTVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSISVLDYPHCVVHELPELTAESLEAGDSNQFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGNDLDARPWDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVLGQRVDLPEDFQMNYDLWLERE",
+                "taln": "EFEYADTDKWAAELSELYSYTEGPEFLMNRKCFEEDFRIHVTDKKWTELDTNQHRTHAMRLLDGLEVTAREKRLKVARAILYVAQ----GTSSEAEVQSWMRYNIFLLLEVGTFNALVELLNMEIDN------------ISLADSTDLRVLLNIMYLIVETVHQECE----EWRTMRQTFRAELGSPLYNNEPFAIMLFGMVTKFCSGHAPHFPMKKVLLLLWKTVLCTLGGFEELQSMKAEKRSILGLPPLPEDSIKVIRNMRAA--------------------------------------------------------------------------------------GLPWAPKVREKDIEMFLESSRSKFIGYTLGSDTNTVVGLPRPIHESIKTLKQHKYTSIAEVQAQMEEEYLRSPLSGGEEEVEQVPAETLYQGLLPSLPQYMIALLKILLAAAPT-------INILADVLP-----TVLQSMKLGVDVNRHKEVIVKAISAVLLLLLKHFKLNHVYQFEYMAQHLVFANCIPLILKFFNQNIMSYITAKNSIS--------------------------QFCWRNLFSCINLLRILNKLTKWKHSRTMMLVVFKSAPILKRALKVKQAMMQLYVLKLLKVQTKYLGRQWRKSNMKTMSAIYQKVRHRLNDDWAYGND-----WDFQAEECALRANIERFNARRYDRAHSNPDFLPVDNCLQSVL--------GFQMNYDLWLERE",
+                "database": "pdb",
+            },
+            // made up
+            "6s9o_D": {
+                "query": "Q5VSL9.cif",
+                "target": "6s9o_D",
+                "qstart": 126,
+                "tstart": 1,
+                "qaln": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "taln": "SELPQMVQQLNSPDQQELQSALRKLSQIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALRNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILSSALGALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQLALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQIQAVIDAGALPALVQLLSSPNEQILQEALWALSNIASGGNEQKQAVKEAGALEKLEQLQSHENEKIQKEAQEALEKL",
+                "database": "pdb",
+            },
+            // made up
+            "4hxt_A": {
+                "query": "Q5VSL9.cif",
+                "target": "4hxt_A",
+                "qstart": 485,
+                "tstart": 1,
+                "qaln": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "taln": "MNDVEKLVKLLTSTDSETQKEAARDLAEIASGPASAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPDEAIKAIVDAGGVEVLVKLLTSTDSEVQKEAARALANIASGPTSAIKAIVDAGGVEVLQKLLTSTDSEVQKEAQRALENIKSGGWLEH",
+                "database": "pdb",
+            },
         };
+
+        const PALETTE = [
+            '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
+            '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
+            '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
+            '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
+        ];
+        const targetColors = {};
+        Object.keys(apiData).forEach((targetId, i) => {
+            targetColors[targetId] = PALETTE[i % PALETTE.length];
+            document.getElementById(targetId).style['accent-color'] = targetColors[targetId]; // color checkboxes
+        });
 
         // Create plugin instance
         const viewerInstance = new PDBeMolstarPlugin();
         const viewerContainer = document.getElementById('myViewer');
-
-        const queryAfdbId = apiData.query.split('.')[0];
 
         const options = {
             customData: {
@@ -70,10 +144,56 @@
         // Call render method to display the 3D view
         viewerInstance.render(viewerContainer, options);
 
-        const sub = viewerInstance.events.loadComplete.subscribe(() => {
-            sub.unsubscribe(); // avoid infinite loop
-            PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, apiData, '#ff00ff');
-        });
+        const loadingTargets = new Set(); // set of targets that are currently being processed (for the loading icon)
+
+        function loadTarget(id) {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.style.display = null;
+            loadingTargets.add(id);
+            return PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
+                .then(result => {
+                    console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
+                    loadingTargets.delete(id);
+                    if (loadingTargets.size === 0) {
+                        spinner.style.display = 'none';
+                    }
+                });
+        }
+
+        function handleCheckboxClick(target) {
+            const { id, checked } = target;
+            if (checked) {
+                loadTarget(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = null;
+                    document.getElementById(`${id}-visibility`).style['text-decoration'] = 'none';
+                });
+            } else {
+                viewerInstance.deleteStructure(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = 'none';
+                });
+            }
+        }
+        function handleVisibilityClick(target) {
+            const structId = target.id.match(/(.+)-visibility/)[1];
+            const vis = target.style['text-decoration'] !== 'line-through';
+            if (vis) {
+                // hide
+                target.style['text-decoration'] = 'line-through';
+                viewerInstance.visual.structureVisibility(structId, false);
+            } else {
+                // show
+                target.style['text-decoration'] = 'none';
+                viewerInstance.visual.structureVisibility(structId, true);
+            }
+        }
+
+        function setQueryColorPlddt() {
+            viewerInstance.visual.clearSelection('main');
+        }
+        function setQueryColorUniform() {
+            viewerInstance.visual.select({ data: [{ color: '#0053D6' }], structureId: 'main' });
+        }
+
 
     </script>
 

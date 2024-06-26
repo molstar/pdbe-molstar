@@ -9,5 +9,4 @@ export const UIComponents = {
     /** Component containing 1D view of the sequences (top panel in default layout) */
     SequenceView,
     // TODO add all meaningful components
-    // TODO test events
 } as const satisfies Record<string, JSXElementConstructor<any>>;

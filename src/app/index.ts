@@ -18,6 +18,7 @@ import { AnimateStateSnapshots } from 'Molstar/mol-plugin-state/animation/built-
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
 import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
+import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { CustomStructureProperties, StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
@@ -81,6 +82,8 @@ export class PDBeMolstarPlugin {
     isSelectedColorUpdated = false;
     /** Keeps track of representations added by `.visual.select` for each structure. */
     private addedReprs: { [structureNumber: number]: boolean } = {};
+    /** Maps structure IDs (assigned when loading) to cell refs. */
+    private structureRefMap = new Map<string, StateTransform.Ref>();
 
     /** Extract InitParams from attributes of an HTML element */
     static initParamsFromHtmlAttributes(element: HTMLElement): Partial<InitParams> {
@@ -261,7 +264,6 @@ export class PDBeMolstarPlugin {
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-
             // Collapse left panel and set left panel tab to none
             PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
             this.plugin.behaviors.layout.leftPanelTabName.next('none');
@@ -269,7 +271,14 @@ export class PDBeMolstarPlugin {
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
-                this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
+                this.load({
+                    url: dataSource.url,
+                    format: dataSource.format as BuiltInTrajectoryFormat,
+                    assemblyId: this.initParams.assemblyId,
+                    isBinary: dataSource.isBinary,
+                    progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...`,
+                    id: 'main',
+                });
             }
 
             // Subscribe to events from other PDB Component
@@ -363,7 +372,7 @@ export class PDBeMolstarPlugin {
         }
     }
 
-    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', progressMessage }: LoadParams, fullLoad = true) {
+    async load({ url, format = 'mmcif', isBinary = false, assemblyId = '', progressMessage, id }: LoadParams, fullLoad = true) {
         await runWithProgressMessage(this.plugin, progressMessage, async () => {
             let success = false;
             try {
@@ -380,21 +389,24 @@ export class PDBeMolstarPlugin {
                 const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
                 const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
 
+                let structRef: string;
                 if (!isHetView) {
-
                     await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
                         structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
                         showUnitcell: false,
                         representationPreset: 'auto'
                     });
-
+                    structRef = this.plugin.state.data.selectQ(q => q.byRef(data.ref).subtree().ofType(PluginStateObject.Molecule.Structure))[0].transform.ref;
                     if (this.initParams.hideStructure.length > 0 || this.initParams.visualStyle) {
                         this.applyVisualParams();
                     }
-
                 } else {
                     const model = await this.plugin.builders.structure.createModel(trajectory);
-                    await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
+                    const structure = await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
+                    structRef = structure.ref;
+                }
+                if (id) {
+                    this.structureRefMap.set(id, structRef);
                 }
 
                 // show selection if param is set
@@ -431,18 +443,22 @@ export class PDBeMolstarPlugin {
         });
     }
 
-    // TODO implement structure tags
-    /** Remove a loaded structure.
-     * `structureNumber` is numbered from 1!
-     * You will likely need to call `await this.visual.reset({ camera: true })` afterwards*/
-    async deleteStructure(structureNumber: number) {
-        const structures = this.plugin.managers.structure.hierarchy.current.structures;
-        const structure = structures[structureNumber - 1];
-        if (!structure) {
-            console.error(`Cannot remove structure ${structureNumber}. There are only ${structures.length} structures.`);
-            return;
+    /** Remove loaded structure(s).
+     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+     * If `structureNumberOrId` is undefined, remove all structures.
+     * You will likely need to call `await this.visual.reset({ camera: true })` afterwards. */
+    async deleteStructure(structureNumberOrId?: number) {
+        const structs = this.getStructures(structureNumberOrId);
+        if (structureNumberOrId !== undefined && structs.length === 0) {
+            console.error(`Cannot delete structure: there is no structure with number or id ${structureNumberOrId}.`);
         }
-        await this.plugin.build().delete(structure.cell).commit();
+        for (const struct of structs) {
+            const dataNode = this.plugin.state.data.selectQ(q => q.byRef(struct.structureRef.cell.transform.ref).ancestorOfType([PluginStateObject.Data.String, PluginStateObject.Data.Binary]))[0];
+            if (dataNode) {
+                await this.plugin.build().delete(dataNode).commit();
+            }
+        }
+        // no need to remove ID from this.structRefMap, it will get remove in the next getStructureRefs call
     }
 
     applyVisualParams = () => {
@@ -521,6 +537,36 @@ export class PDBeMolstarPlugin {
         return defaultColor;
     }
 
+    /** Get structure ref for a structure with given `structureNumberOrId`.
+     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+     * If `structureNumberOrId` is undefined, return refs for all loaded structures. */
+    private getStructures(structureNumberOrId: number | string | undefined): { structureRef: StructureRef, number: number }[] {
+        const allStructures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
+        if (typeof structureNumberOrId === 'number') {
+            const theStructure = allStructures[structureNumberOrId - 1];
+            return theStructure ? [theStructure] : [];
+        } else if (typeof structureNumberOrId === 'string') {
+            const structRef = this.structureRefMap.get(structureNumberOrId);
+            if (structRef === undefined) {
+                return [];
+            }
+            const found = allStructures.find(s => s.structureRef.cell.transform.ref === structRef);
+            if (found) {
+                return [found];
+            } else {
+                this.structureRefMap.delete(structureNumberOrId); // remove outdated record
+                return [];
+            }
+        } else {
+            return allStructures;
+        }
+    }
+    /** Get StructureRef for a structure with given `structureNumberOrId`.
+     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure. */
+    getStructure(structureNumberOrId: number | string): StructureRef | undefined {
+        return this.getStructures(structureNumberOrId)[0]?.structureRef;
+    }
+
     /** Helper methods related to canvas and layout */
     canvas = {
         /** Set canvas background color. */
@@ -579,7 +625,21 @@ export class PDBeMolstarPlugin {
                     }
                 }
             }
+        },
 
+        /** Change the visibility of a structure.
+         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+         * If `visibility` is undefined, toggle current visibility state. */
+        structureVisibility: async (structureNumberOrId: string | number, visibility?: boolean) => {
+            const struct = this.getStructure(structureNumberOrId);
+            if (!struct) {
+                console.error(`Cannot change visibility of structure ${structureNumberOrId}: structure not found.`);
+                return;
+            }
+            const currentVisibility = !struct.cell.state.isHidden;
+            if (visibility !== currentVisibility) {
+                await PluginCommands.State.ToggleVisibility(this.plugin, { state: this.state, ref: struct.cell.transform.ref });
+            }
         },
 
         /** With `isSpinning` parameter, switch visual rotation on or off. Without `isSpinning` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */
@@ -632,14 +692,12 @@ export class PDBeMolstarPlugin {
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
-            await this.visual.clearSelection(params.structureNumber, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
+        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
+            const structureNumberOrId = params.structureId ?? params.structureNumber;
+            await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
             // Structure list to apply selection
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (params.structureNumber !== undefined) {
-                structures = [structures[params.structureNumber - 1]];
-            }
+            const structures = this.getStructures(structureNumberOrId);
 
             // Filter selection items that apply added representations
             const addedReprParams: { [repr: string]: QueryParam[] } = {};
@@ -714,12 +772,9 @@ export class PDBeMolstarPlugin {
         /** Remove any coloring and extra representations previously added by the `select` method.
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
-        clearSelection: async (structureNumber?: number, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
+        clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (structureNumber !== undefined) {
-                structures = [structures[structureNumber - 1]];
-            }
+            const structures = this.getStructures(structureNumberOrId);
             for (const struct of structures) {
                 // Remove overpaint
                 if (!options?.keepColors) {
@@ -745,12 +800,9 @@ export class PDBeMolstarPlugin {
          * Repeated call to this function removes any previously added tooltips.
          * `structureNumber` counts from 1; if not provided, tooltips will be applied to all loaded structures.
          * Example: `await this.visual.tooltips({ data: [{ struct_asym_id: 'A', tooltip: 'Chain A' }, { struct_asym_id: 'B', tooltip: 'Chain B' }] });`. */
-        tooltips: async (params: { data: QueryParam[], structureNumber?: number }) => {
+        tooltips: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
             // Structure list to apply tooltips
-            let structures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
-            if (params.structureNumber !== undefined) {
-                structures = [structures[params.structureNumber - 1]];
-            }
+            const structures = this.getStructures(params.structureId ?? params.structureNumber);
 
             for (const struct of structures) {
                 const selections = this.getSelections(params.data, struct.number);
@@ -778,8 +830,8 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any custom tooltips added by the `tooltips` method. */
-        clearTooltips: async (structureNumber?: number) => {
-            await this.visual.tooltips({ data: [], structureNumber });
+        clearTooltips: async (structureNumberOrId?: number) => {
+            await this.visual.tooltips({ data: [], structureId: structureNumberOrId as any });
         },
 
         /** Set highlight and/or selection color.

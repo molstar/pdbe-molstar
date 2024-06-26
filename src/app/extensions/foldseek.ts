@@ -1,5 +1,7 @@
 /** Helper functions to allow visualizing Foldseek results and superposing them on the query structure */
 
+import { exportHierarchy } from 'Molstar/extensions/model-export/export';
+import { Mat4 } from 'Molstar/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'Molstar/mol-model/structure';
 import { PDBeMolstarPlugin } from '..';
@@ -18,16 +20,11 @@ export interface FoldseekApiData {
     database: 'pdb' | 'afdb',
 }
 
-/** Load target structure as defined by `apiData` (remove any previously loaded target)
+/** Load target structure as defined by `apiData`
  * and superpose it on the already loaded query structure. */
-export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiData: FoldseekApiData, targetColor: string = '#00ff00'): Promise<MinimizeRmsd.Result> {
-    const Q_STRUCT_INDEX = 0;
-    const T_STRUCT_INDEX = 1;
+export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targetStructId: string, apiData: FoldseekApiData, targetColor: string = '#00ff00'): Promise<{ rmsd: number, nAligned: number, bTransform: Mat4 }> {
+    const Q_STRUCT_ID = 'main';
 
-    // Remove previous target structure
-    if (viewer.plugin.managers.structure.hierarchy.current.structures.length > 1) {
-        await viewer.deleteStructure(T_STRUCT_INDEX + 1);
-    }
     // Load target structure
     let tEntryId: string;
     let tAuthAsymId: string;
@@ -36,7 +33,7 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiDa
         const pdbeUrl = viewer.initParams.pdbeUrl.replace(/\/$/, '');
         // const url = `${pdbeUrl}/entry-files/download/${tEntryId}_updated.cif`;
         const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?auth_asym_id=${tAuthAsymId}`;
-        await viewer.load({ url, format: 'mmcif', isBinary: false }, false);
+        await viewer.load({ url, format: 'mmcif', isBinary: false, id: targetStructId }, false);
     } else if (apiData.database === 'afdb') {
         // TODO assign tEntryId, tAuthAsymId and download structure from AFDB
         throw new Error('NotImplementedError');
@@ -45,8 +42,8 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiDa
     }
 
     // Retrieve structure data
-    const qStructure = viewer.plugin.managers.structure.hierarchy.current.structures[Q_STRUCT_INDEX].cell.obj?.data;
-    const tStructure = viewer.plugin.managers.structure.hierarchy.current.structures[T_STRUCT_INDEX].cell.obj?.data;
+    const qStructure = viewer.getStructure(Q_STRUCT_ID)?.cell.obj?.data;
+    const tStructure = viewer.getStructure(targetStructId)?.cell.obj?.data;
     if (!qStructure) throw new Error('Query structure not loaded');
     if (!tStructure) throw new Error('Target structure not loaded');
 
@@ -59,10 +56,10 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, apiDa
     const superposition = MinimizeRmsd.compute({ a: qCoords, b: tCoords });
 
     // Transform, color, focus
-    await transform(viewer.plugin, viewer.plugin.managers.structure.hierarchy.current.structures[T_STRUCT_INDEX].cell, superposition.bTransform);
-    await viewer.visual.select({ data: [{ color: targetColor }], structureNumber: T_STRUCT_INDEX + 1 }); // color target
+    await transform(viewer.plugin, viewer.getStructure(targetStructId)!.cell, superposition.bTransform);
+    await viewer.visual.select({ data: [{ color: targetColor }], structureId: targetStructId }); // color target
     await viewer.visual.reset({ camera: true });
-    return superposition;
+    return { ...superposition, nAligned: qMatchedIndicesInChain.length };
 }
 
 function getMatchedResidues(qstart: number, qaln: string, tstart: number, taln: string) {
@@ -155,4 +152,9 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
         coords.z[i] = conf.z[theAtom];
     }
     return coords;
+}
+
+/** Export currently loaded models in mmCIF (or BCIF). Pack in a ZIP if there is more then 1 model. */
+export function exportModels(viewer: PDBeMolstarPlugin, format: 'cif' | 'bcif' = 'cif') {
+    return exportHierarchy(viewer.plugin, { format });
 }
