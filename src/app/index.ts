@@ -57,7 +57,6 @@ import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
-import { SuperpositionViewport } from './ui/superposition-viewport';
 
 import 'Molstar/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
@@ -155,7 +154,7 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: this.initParams.superposition ? SuperpositionViewport : PDBeViewport,
+                view: PDBeViewport,
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
@@ -190,6 +189,10 @@ export class PDBeMolstarPlugin {
         if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
+        if (this.initParams.superposition){
+            pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+            pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
+        }
 
         // override default event bindings
         if (this.initParams.selectBindings) {
@@ -862,6 +865,10 @@ export class PDBeMolstarPlugin {
             this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
             this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
             this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
+            if (this.initParams.superposition) {
+                this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, false);
+                this.plugin.config.set(PluginConfig.Viewport.ShowTrajectoryControls, false);
+            }
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
