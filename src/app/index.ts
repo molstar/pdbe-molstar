@@ -189,7 +189,7 @@ export class PDBeMolstarPlugin {
         if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
-        if (this.initParams.superposition){
+        if (this.initParams.superposition) {
             pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
             pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
         }
@@ -272,12 +272,12 @@ export class PDBeMolstarPlugin {
                 this.load({ url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary, progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...` });
             }
 
-            // Binding to other PDB Component events
+            // Subscribe to events from other PDB Component
             if (this.initParams.subscribeEvents) {
                 subscribeToComponentEvents(this);
             }
 
-            // Event handling
+            // Emit events for other PDB Components
             CustomEvents.add(this.plugin, this.targetElement);
 
         }
