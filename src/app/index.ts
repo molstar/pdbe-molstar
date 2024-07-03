@@ -229,7 +229,9 @@ export class PDBeMolstarPlugin {
                 onBeforeUIRender,
             });
             for (const comp of target) {
-                (resolveHTMLElement(comp.target) as any).viewerInstance = this;
+                try {
+                    (resolveHTMLElement(comp.target) as any).viewerInstance = this;
+                } catch { /* some of the target elements missing, ignore */ }
             }
         } else {
             this.targetElement = resolveHTMLElement(target);

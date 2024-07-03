@@ -36,8 +36,16 @@ export async function createPluginSplitUI(options: {
     if (onBeforeUIRender) {
         await onBeforeUIRender(ctx);
     }
-    for (const { target: element, component, props } of layout) {
-        render(<PluginPanelWrapper plugin={ctx} component={component} props={props ?? {}} />, resolveHTMLElement(element));
+    for (const { target, component, props } of layout) {
+        let targetElement: HTMLElement | undefined = undefined;
+        try {
+            targetElement = resolveHTMLElement(target);
+        } catch (err) {
+            console.warn('Skipping rendering a UI component because its target HTML element was not found.', err);
+        }
+        if (targetElement) {
+            render(<PluginPanelWrapper plugin={ctx} component={component} props={props ?? {}} />, targetElement);
+        }
         // TODO in future: consider adding a listener that re-renders the React component when the div is removed and re-added to DOM
     }
     try {
