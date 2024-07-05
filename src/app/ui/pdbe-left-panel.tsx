@@ -18,10 +18,10 @@ import { SegmentTree } from './segment-tree';
 const _WavesIcon = <svg width='24px' height='24px' viewBox='0 0 24 24'><path d="M17 16.99c-1.35 0-2.2.42-2.95.8-.65.33-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.95c1.35 0 2.2-.42 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.42 2.95-.8c.65-.33 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm0-4.45c-1.35 0-2.2.43-2.95.8-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.32-1.17.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm2.95-8.08c-.75-.38-1.58-.8-2.95-.8s-2.2.42-2.95.8c-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.37-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.93c1.35 0 2.2-.43 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V5.04c-.9 0-1.4-.25-2.05-.58zM17 8.09c-1.35 0-2.2.43-2.95.8-.65.35-1.15.6-2.05.6s-1.4-.25-2.05-.6c-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.35-1.15.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.32 1.18-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V9.49c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8z" /></svg>;
 export function WavesIconSvg() { return _WavesIcon; }
 
-type LeftPanelTabName = 'none' | 'root' | 'data' | 'states' | 'settings' | 'help' | 'segments'
+type PDBeLeftPanelTabName = 'none' | 'root' | 'data' | 'states' | 'settings' | 'help' | 'segments'
 
-export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTabName }> {
-    state = { tab: this.plugin.behaviors.layout.leftPanelTabName.value as LeftPanelTabName };
+export class PDBeLeftPanelControls extends PluginUIComponent<{}, { tab: PDBeLeftPanelTabName }> {
+    readonly state = { tab: this.plugin.behaviors.layout.leftPanelTabName.value as PDBeLeftPanelTabName };
 
     componentDidMount() {
         this.subscribe(this.plugin.behaviors.layout.leftPanelTabName, tab => {
@@ -42,14 +42,14 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
         });
     }
 
-    set = (tab: LeftPanelTabName) => {
+    set = (tab: PDBeLeftPanelTabName) => {
         if (this.state.tab === tab) {
             tab = 'none'; // clicking on active tab should collapse panel
         }
         this.plugin.behaviors.layout.leftPanelTabName.next(tab as any); // will update state via subscription
     };
 
-    tabs: { [K in LeftPanelTabName]: JSX.Element } = {
+    tabs: { [K in PDBeLeftPanelTabName]: JSX.Element } = {
         'none': <></>,
         'root': <>
             <SectionHeader icon={HomeOutlinedSvg} title='Home' />
@@ -96,31 +96,6 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
         </div>;
     }
 }
-
-// class DataIcon extends PluginUIComponent<{ set: (tab: LeftPanelTabName) => void }, { changed: boolean }> {
-//     state = { changed: false };
-
-//     get tab() {
-//         return this.plugin.behaviors.layout.leftPanelTabName.value;
-//     }
-
-//     componentDidMount() {
-//         this.subscribe(this.plugin.behaviors.layout.leftPanelTabName, tab => {
-//             if (this.tab === 'data') this.setState({ changed: false });
-//             else this.forceUpdate();
-//         });
-
-//         this.subscribe(this.plugin.state.data.events.changed, state => {
-//             if (this.tab !== 'data') this.setState({ changed: true });
-//         });
-//     }
-
-//     render() {
-//         return <IconButton
-//             svg={AccountTreeOutlinedSvg} toggleState={this.tab === 'data'} transparent onClick={() => this.props.set('data')} title='State Tree'
-//             style={{ position: 'relative' }} extraContent={this.state.changed ? <div className='msp-left-panel-controls-button-data-dirty' /> : void 0} />;
-//     }
-// }
 
 class FullSettings extends PluginUIComponent {
     private setSettings = (p: { param: PD.Base<any>, name: string, value: any }) => {
