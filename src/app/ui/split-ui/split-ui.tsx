@@ -90,7 +90,7 @@ function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin
 
     return <PluginReactContext.Provider value={plugin}>
         <div className='msp-plugin' style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <div className='msp-plugin-content msp-layout-standard' style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <div className='msp-plugin-content msp-layout-standard msp-layout-static' style={{ position: 'relative', width: '100%', height: '100%' }}>
                 {createElement(component, props)}
             </div>
         </div>
