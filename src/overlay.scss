@@ -61,3 +61,15 @@ svg.pdbe-animated-logo {
 .msp-plugin .msp-viewport-controls-panel .msp-viewport-controls-panel-controls {
     max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
 }
+
+// Avoid wraping headers in left panel help 
+.msp-plugin .msp-simple-help-section {
+    overflow: hidden;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+.msp-plugin .msp-control-group-header button {
+    overflow: hidden;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}

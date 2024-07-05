@@ -88,7 +88,7 @@
             <div style="display: flex; flex-direction: row;">
                 <div class="panelBox" style="width: 20%;">
                     Left panel
-                    <div id="leftPanel" style=" height: 450px;"></div>
+                    <div id="leftPanel" style="height: 450px; width: 100%;"></div>
                 </div>
                 <div class="panelBox" style="width: 50%;">
                     PDBeViewport
@@ -308,7 +308,12 @@
             { target: 'leftPanel', component: PDBeMolstarPlugin.UIComponents.PDBeLeftPanelControls, props: { defaultMode: 'all' } },
             { target: 'rightPanel', component: PDBeMolstarPlugin.UIComponents.ControlsWrapper },
         ];
-        viewerInstance.render(layout, options);
+        viewerInstance.render(layout, options).then(() => {
+            // Adjust left panel width based on active tab
+            viewerInstance.plugin.behaviors.layout.leftPanelTabName.subscribe(tab => {
+                document.getElementById('leftPanel').style.width = (tab === 'none') ? '33px' : '100%';
+            });
+        });
 
         const selectData = getJsonParam('select');
         if (selectData) {
