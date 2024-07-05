@@ -52,7 +52,7 @@ import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
-import { LeftPanelControls } from './ui/pdbe-left-panel';
+import { PDBeLeftPanelControls } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
@@ -139,10 +139,10 @@ export class PDBeMolstarPlugin {
                 isExpanded: this.initParams.expanded,
                 showControls: !this.initParams.hideControls,
                 regionState: {
-                    left: 'full',
-                    right: 'full',
+                    left: this.initParams.leftPanel ? 'full' : 'hidden',
+                    right: this.initParams.rightPanel ? 'full' : 'hidden',
                     top: this.initParams.sequencePanel ? 'full' : 'hidden',
-                    bottom: 'full',
+                    bottom: this.initParams.logPanel ? 'full' : 'hidden',
                 },
                 controlsDisplay: this.initParams.reactive ? 'reactive' : this.initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
             }
@@ -150,10 +150,7 @@ export class PDBeMolstarPlugin {
 
         pdbePluginSpec.components = {
             controls: {
-                left: LeftPanelControls,
-                // right: DefaultStructureTools,
-                // top: 'none',
-                bottom: 'none'
+                left: PDBeLeftPanelControls,
             },
             viewport: {
                 controls: PDBeViewportControls,
@@ -266,9 +263,9 @@ export class PDBeMolstarPlugin {
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-            // Collapse left panel and set left panel tab to none
-            PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
+            // Set left panel tab to none (collapses the panel if visible)
             this.plugin.behaviors.layout.leftPanelTabName.next('none');
+
 
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();

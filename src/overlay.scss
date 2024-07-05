@@ -42,6 +42,7 @@ svg.pdbe-animated-logo {
     }
 }
 
+
 .msp-plugin ::-webkit-scrollbar-thumb {
     background-color: #80808080;
     border-radius: 10px;
@@ -49,6 +50,14 @@ svg.pdbe-animated-logo {
     background-clip: content-box;
 }
 
-.msp-plugin .msp-plugin-init-error{
+.msp-plugin .msp-plugin-init-error {
     color: #808080;
+}
+
+.msp-plugin .msp-layout-static {
+    container-type: size; // define container to reference in .msp-viewport-controls-panel-controls
+}
+
+.msp-plugin .msp-viewport-controls-panel .msp-viewport-controls-panel-controls {
+    max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
 }

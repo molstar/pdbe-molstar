@@ -305,7 +305,7 @@
             { target: 'centerPanel', component: PDBeMolstarPlugin.UIComponents.PDBeViewport },
             { target: 'seqPanel', component: PDBeMolstarPlugin.UIComponents.SequenceView, props: { defaultMode: 'polymers' } },
             { target: 'logPanel', component: PDBeMolstarPlugin.UIComponents.Log },
-            { target: 'leftPanel', component: PDBeMolstarPlugin.UIComponents.LeftPanelControls, props: { defaultMode: 'all' } },
+            { target: 'leftPanel', component: PDBeMolstarPlugin.UIComponents.PDBeLeftPanelControls, props: { defaultMode: 'all' } },
             { target: 'rightPanel', component: PDBeMolstarPlugin.UIComponents.ControlsWrapper },
         ];
         viewerInstance.render(layout, options);
