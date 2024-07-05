@@ -26,7 +26,7 @@ export class PDBeLeftPanelControls extends PluginUIComponent<{}, { tab: PDBeLeft
     componentDidMount() {
         this.subscribe(this.plugin.behaviors.layout.leftPanelTabName, tab => {
             if (this.state.tab !== tab) this.setState({ tab });
-            
+
             // Collapse panel if no active tab, expand if active tab (don't apply if panel hidden!)
             if (tab === 'none' && this.plugin.layout.state.regionState.left === 'full') {
                 PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
