@@ -148,6 +148,12 @@ export interface InitParams {
     hideCanvasControls: ('expand' | 'selection' | 'animation' | 'controlToggle' | 'controlInfo')[],
     /** Display Sequence panel */
     sequencePanel: boolean,
+    /** Display Left control panel */
+    leftPanel: boolean,
+    /** Display Right control panel */
+    rightPanel: boolean,
+    /** Display Log panel */
+    logPanel: boolean,
     /** Display PDBe entry link in top right corner of the canvas */
     pdbeLink: boolean,
     /** Show overlay with PDBe logo while the initial structure is being loaded */
@@ -196,6 +202,9 @@ export const DefaultParams: InitParams = {
     hideControls: false,
     hideCanvasControls: [],
     sequencePanel: false,
+    leftPanel: true,
+    rightPanel: true,
+    logPanel: false,
     pdbeLink: true,
     loadingOverlay: false,
     expanded: false,

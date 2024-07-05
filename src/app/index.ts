@@ -45,7 +45,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage, setLeftPanelTab } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
@@ -137,10 +137,10 @@ export class PDBeMolstarPlugin {
                 isExpanded: this.initParams.expanded,
                 showControls: !this.initParams.hideControls,
                 regionState: {
-                    left: 'full',
-                    right: 'full',
+                    left: this.initParams.leftPanel ? 'full' : 'hidden',
+                    right: this.initParams.rightPanel ? 'full' : 'hidden',
                     top: this.initParams.sequencePanel ? 'full' : 'hidden',
-                    bottom: 'full',
+                    bottom: this.initParams.logPanel ? 'full' : 'hidden',
                 },
                 controlsDisplay: this.initParams.reactive ? 'reactive' : this.initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
             }
@@ -149,9 +149,6 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.components = {
             controls: {
                 left: LeftPanelControls,
-                // right: DefaultStructureTools,
-                // top: 'none',
-                bottom: 'none'
             },
             viewport: {
                 controls: PDBeViewportControls,
@@ -237,7 +234,7 @@ export class PDBeMolstarPlugin {
 
         if (this.initParams.superposition) {
             // Set left panel tab
-            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
+            await setLeftPanelTab(this.plugin, 'segments');
 
             // Initialise superposition
             if (this.initParams.loadingOverlay) {
@@ -246,9 +243,9 @@ export class PDBeMolstarPlugin {
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-            // Collapse left panel and set left panel tab to none
-            PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
-            this.plugin.behaviors.layout.leftPanelTabName.next('none');
+            // Set left panel active tab to none (collapses the panel), if panel visible
+            await setLeftPanelTab(this.plugin, 'none');
+
 
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();

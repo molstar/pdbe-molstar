@@ -8,6 +8,7 @@ import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 import { PluginCommands } from 'Molstar/mol-plugin/commands';
 import { PluginContext } from 'Molstar/mol-plugin/context';
+import { LeftPanelTabName } from 'Molstar/mol-plugin/layout';
 import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import Expression from 'Molstar/mol-script/language/expression';
 import { compile } from 'Molstar/mol-script/runtime/query/compiler';
@@ -451,3 +452,13 @@ export const StructureComponentTags = {
     coarse: ['structure-component-static-coarse'],
     maps: ['volume-streaming-info'],
 };
+
+/** Set active tab in the left panel, without changing panel visibility
+ * ('full' panel can become 'collapsed' and vice versa, but 'hidden' stays 'hidden'). */
+export async function setLeftPanelTab(plugin: PluginContext, tabName: LeftPanelTabName | string): Promise<void> {
+    const hidden = plugin.layout.state.regionState.left === 'hidden';
+    plugin.behaviors.layout.leftPanelTabName.next(tabName as LeftPanelTabName);
+    if (hidden) {
+        await PluginCommands.Layout.Update(plugin, { state: { regionState: { ...plugin.layout.state.regionState, left: 'hidden' } } });
+    }
+}

@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file, following t
 ## [Unreleased]
 
 - PDBeMolstarPlugin.extensions.foldseek
+- Added options `leftPanel`, `rightPanel`, `logPanel`
 
 ## [v3.2.0] - 2024-04-24
 - Mol* core dependency updated to 3.45.0
