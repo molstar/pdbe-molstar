@@ -45,7 +45,7 @@ import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage, setLeftPanelTab } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
@@ -234,7 +234,7 @@ export class PDBeMolstarPlugin {
 
         if (this.initParams.superposition) {
             // Set left panel tab
-            await setLeftPanelTab(this.plugin, 'segments');
+            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
             if (this.initParams.loadingOverlay) {
@@ -243,8 +243,8 @@ export class PDBeMolstarPlugin {
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-            // Set left panel active tab to none (collapses the panel), if panel visible
-            await setLeftPanelTab(this.plugin, 'none');
+            // Set left panel tab to none (collapses the panel if visible)
+            this.plugin.behaviors.layout.leftPanelTabName.next('none');
 
 
             // Load Molecule CIF or coordQuery and Parse

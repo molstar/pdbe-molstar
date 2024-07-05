@@ -26,8 +26,13 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
     componentDidMount() {
         this.subscribe(this.plugin.behaviors.layout.leftPanelTabName, tab => {
             if (this.state.tab !== tab) this.setState({ tab });
-            if (tab === 'none' && this.plugin.layout.state.regionState.left !== 'collapsed') {
+            
+            // Collapse panel if no active tab, expand if active tab (don't apply if panel hidden!)
+            if (tab === 'none' && this.plugin.layout.state.regionState.left === 'full') {
                 PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
+            }
+            if (tab !== 'none' && this.plugin.layout.state.regionState.left === 'collapsed') {
+                PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'full' } } });
             }
         });
 
@@ -39,15 +44,9 @@ export class LeftPanelControls extends PluginUIComponent<{}, { tab: LeftPanelTab
 
     set = (tab: LeftPanelTabName) => {
         if (this.state.tab === tab) {
-            this.setState({ tab: 'none' }, () => this.plugin.behaviors.layout.leftPanelTabName.next('none'));
-            PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'collapsed' } } });
-            return;
+            tab = 'none'; // clicking on active tab should collapse panel
         }
-
-        this.setState({ tab }, () => this.plugin.behaviors.layout.leftPanelTabName.next(tab as any));
-        if (this.plugin.layout.state.regionState.left !== 'full') {
-            PluginCommands.Layout.Update(this.plugin, { state: { regionState: { ...this.plugin.layout.state.regionState, left: 'full' } } });
-        }
+        this.plugin.behaviors.layout.leftPanelTabName.next(tab as any); // will update state via subscription
     };
 
     tabs: { [K in LeftPanelTabName]: JSX.Element } = {
