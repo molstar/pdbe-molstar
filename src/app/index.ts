@@ -52,7 +52,7 @@ import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
-import { PDBeLeftPanelControls } from './ui/pdbe-left-panel';
+import { PDBeLeftPanelControls2 } from './ui/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
@@ -150,7 +150,7 @@ export class PDBeMolstarPlugin {
 
         pdbePluginSpec.components = {
             controls: {
-                left: PDBeLeftPanelControls,
+                left: PDBeLeftPanelControls2,
             },
             viewport: {
                 controls: PDBeViewportControls,

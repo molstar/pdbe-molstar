@@ -4,7 +4,7 @@ import { PluginCustomState } from '../plugin-custom-state';
 
 
 export function WithLoadingOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
-    return class extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
+    return class _WithLoadingOverlay extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
         state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
         componentDidMount(): void {
             super.componentDidMount?.();
