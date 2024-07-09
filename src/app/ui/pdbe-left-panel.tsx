@@ -212,39 +212,66 @@ class SuperpositionHelpContent extends PluginUIComponent {
 }
 
 
-interface Tab {
+export interface TabSpec {
+    /** Unique identifier of the tab */
     id: string,
+    /** Tab title (shown in header and as tooltip on the icon) */
     title: string,
-    icon: React.FC, // TODO React.JSXElementConstructor<{}> or string?
+    /** Tab icon (shown in icon bar and in tab header), either a React component or a string with icon path (in 24x24 viewBox) */
+    icon: React.JSXElementConstructor<{}> | string,
+    /** Custom tab header (default is icon + title) */
     header?: React.JSXElementConstructor<{}>,
+    /** Tab body (main content in the tab) */
     body: React.JSXElementConstructor<{}>,
+    /** Position of the tab icon in the icon bar */
     position?: 'top' | 'bottom',
+    /** Limit tab visibility to when `showWhen` returns true (default: always visible) */
     showWhen?: (plugin: PluginContext) => boolean,
-    dirtyOn?: (plugin: PluginContext) => Subject<any>,
+    /** The tab icon will show a marker whenever `dirtyOn` Subject fires a truthy value and the tab is not currently open.
+     * The marker will disappear when the tab is opened or when `dirtyOn` fires a falsey value. */
+    dirtyOn?: (plugin: PluginContext) => Subject<any> | undefined,
 }
 
-function GenericLeftPanelControls(tabs: Tab[], defaultTab: string | null = null): React.ComponentClass<{}> {
-    return class _GenericLeftPanelControls extends PluginUIComponent<{}, { tab: string | null, dirtyTabs: string[] }> {
+function resolveIcon(Icon: React.JSXElementConstructor<{}> | string): React.FC {
+    if (typeof Icon === 'string') {
+        return function _Icon() { return <svg width='24px' height='24px' viewBox='0 0 24 24'><path d={Icon}></path></svg>; };
+    } else {
+        return function _Icon() { return <Icon />; };
+    }
+}
+
+const NO_TAB = 'none';
+
+function GenericLeftPanelControls(tabs: TabSpec[], defaultTab: string = NO_TAB): React.ComponentClass<{}> {
+    if (tabs.some(tab => tab.id === NO_TAB)) throw new Error(`Cannot use '${NO_TAB}' as tab id because it is reserved.`);
+
+    return class _GenericLeftPanelControls extends PluginUIComponent<{}, { tab: string, dirtyTabs: string[] }> {
         readonly state = {
             tab: defaultTab,
             dirtyTabs: [] as string[],
         };
 
-        set = (tab: string | null) => {
+        toggleTab = (tab: string) => {
             if (this.state.tab === tab) {
-                tab = null; // clicking on active tab should collapse panel
+                tab = NO_TAB; // clicking on active tab should collapse panel
             }
             this.setState({ tab });
             // this.plugin.behaviors.layout.leftPanelTabName.next(tab as any); // will update state via subscription
         };
+        setDirtyTab = (tab: string, dirty: boolean) => {
+            if (dirty && !this.state.dirtyTabs.includes(tab)) {
+                this.setState({ dirtyTabs: [...this.state.dirtyTabs, tab] }); // Add to dirty tabs
+            } else if (!dirty && this.state.dirtyTabs.includes(tab)) {
+                this.setState({ dirtyTabs: this.state.dirtyTabs.filter(t => t !== tab) }); // Remove from dirty tabs
+            }
+        };
 
         componentDidMount(): void {
             for (const tab of tabs) {
-                if (tab.dirtyOn) {
-                    this.subscribe(tab.dirtyOn(this.plugin), () => {
-                        if (this.state.tab !== tab.id && !this.state.dirtyTabs.includes(tab.id)) {
-                            this.setState({ dirtyTabs: [...this.state.dirtyTabs, tab.id] }); // Add to dirty tabs
-                        }
+                const dirtySubject = tab.dirtyOn?.(this.plugin);
+                if (dirtySubject) {
+                    this.subscribe(dirtySubject, isDirty => {
+                        this.setDirtyTab(tab.id, !!isDirty && this.state.tab !== tab.id);
                     });
                 }
             }
@@ -252,22 +279,20 @@ function GenericLeftPanelControls(tabs: Tab[], defaultTab: string | null = null)
 
         render() {
             const currentTabId = this.state.tab;
-            if (this.state.dirtyTabs.includes(currentTabId as string)) {
-                this.setState({ dirtyTabs: this.state.dirtyTabs.filter(t => t !== currentTabId) }); // Remove from dirty tabs
-            }
+            this.setDirtyTab(currentTabId as string, false);
             const currentTab = currentTabId ? tabs.find(t => t.id === currentTabId) : undefined;
             const CurrentTabHeader = currentTab?.header;
             const CurrentTabBody = currentTab?.body;
 
-            const iconForTab = (tab: Tab) => {
+            const iconForTab = (tab: TabSpec) => {
                 if (tab.showWhen && !tab.showWhen(this.plugin)) return null;
-                return <IconButton key={tab.id} title={tab.title} svg={tab.icon} toggleState={currentTabId === tab.id}
-                    onClick={() => this.set(tab.id)} transparent style={{ position: 'relative' }}
+                return <IconButton key={tab.id} title={tab.title} svg={resolveIcon(tab.icon)} toggleState={currentTabId === tab.id}
+                    onClick={() => this.toggleTab(tab.id)} transparent style={{ position: 'relative' }}
                     extraContent={this.state.dirtyTabs.includes(tab.id) ? <div className='msp-left-panel-controls-button-data-dirty' /> : undefined} />;
             };
 
             return <div className='msp-left-panel-controls'>
-                {/* Tab icons */}
+                {/* Icon bar */}
                 <div className='msp-left-panel-controls-buttons'>
                     {tabs.filter(tab => tab.position !== 'bottom').map(iconForTab)}
                     <div className='msp-left-panel-controls-buttons-bottom'>
@@ -277,7 +302,7 @@ function GenericLeftPanelControls(tabs: Tab[], defaultTab: string | null = null)
                 {/* Tab content */}
                 {currentTab &&
                     <div className='msp-scrollable-container'>
-                        {CurrentTabHeader && <CurrentTabHeader /> || <SectionHeader icon={currentTab.icon} title={currentTab.title} />}
+                        {CurrentTabHeader && <CurrentTabHeader /> || <SectionHeader icon={resolveIcon(currentTab.icon)} title={currentTab.title} />}
                         {CurrentTabBody && <CurrentTabBody />}
                     </div>
                 }
@@ -330,4 +355,4 @@ export const PDBeLeftPanelControls2 = GenericLeftPanelControls([
         position: 'bottom',
     },
 ]);
-// TODO: ensure binding with this.plugin.behaviors.layout.leftPanelTabName, create tab registry and allow only using tab names
+// TODO: ensure binding with this.plugin.behaviors.layout.leftPanelTabName, binding with collapsed state, create tab registry and allow only using tab names
