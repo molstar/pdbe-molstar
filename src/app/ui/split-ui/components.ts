@@ -2,7 +2,7 @@ import { ControlsWrapper, Log } from 'Molstar/mol-plugin-ui/plugin';
 import { SequenceView } from 'Molstar/mol-plugin-ui/sequence';
 import { JSXElementConstructor } from 'react';
 import { PDBeViewport } from '../pdbe-viewport';
-import { PDBeLeftPanelControls } from '../pdbe-left-panel';
+import { DefaultLeftPanelControls } from '../left-panel/pdbe-left-panel';
 
 
 export const UIComponents = {
@@ -16,7 +16,7 @@ export const UIComponents = {
     Log,
 
     /** Component containing left panel controls (contents depend on PDBeMolstar init params (superposition/ligand/default view)) */
-    PDBeLeftPanelControls,
+    PDBeLeftPanelControls: DefaultLeftPanelControls,
 
     /** Component containing right panel controls (contents depend on PDBeMolstar init params (superposition/ligand/default view)) */
     ControlsWrapper,
