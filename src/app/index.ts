@@ -52,7 +52,7 @@ import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
-import { DefaultLeftPanelControls } from './ui/left-panel/pdbe-left-panel';
+import { PDBeLeftPanelControls } from './ui/left-panel/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
 import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
@@ -150,7 +150,7 @@ export class PDBeMolstarPlugin {
 
         pdbePluginSpec.components = {
             controls: {
-                left: DefaultLeftPanelControls,
+                left: PDBeLeftPanelControls,
             },
             viewport: {
                 controls: PDBeViewportControls,
@@ -257,16 +257,12 @@ export class PDBeMolstarPlugin {
 
         if (this.initParams.superposition) {
             // Set left panel tab
-            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any); // TODO remove, use defaultTab instead
+            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-            // Set left panel tab to none (collapses the panel if visible)
-            this.plugin.behaviors.layout.leftPanelTabName.next('none'); // TODO remove, use defaultTab instead
-
-
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {

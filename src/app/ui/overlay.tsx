@@ -3,6 +3,7 @@ import { ComponentClass, JSXElementConstructor } from 'react';
 import { PluginCustomState } from '../plugin-custom-state';
 
 
+/** Return a React component with MainContent, overlayed by OverlayContent when `PluginCustomState(this.plugin).events?.isBusy` last emitted value is true. */
 export function WithLoadingOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
     return class _WithLoadingOverlay extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
         state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
@@ -26,6 +27,7 @@ export function WithLoadingOverlay(MainContent: JSXElementConstructor<{}>, Overl
     };
 }
 
+/** Overlay component with animated PDBe logo */
 function PDBeLoadingOverlayBox() {
     return <div className='pdbemolstar-overlay-box'>
         <svg className='pdbe-animated-logo' viewBox='0 0 300 300'>

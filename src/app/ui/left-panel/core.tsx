@@ -6,6 +6,7 @@ import { sleep } from 'Molstar/mol-util/sleep';
 import { BehaviorSubject, Subject } from 'rxjs';
 
 
+/** Specification of one tab in a tabbed panel */
 export interface TabSpec {
     /** Unique identifier of the tab */
     id: string,
@@ -17,8 +18,6 @@ export interface TabSpec {
     header?: React.JSXElementConstructor<{}>,
     /** Tab body (main content in the tab) */
     body: React.JSXElementConstructor<{}>,
-    /** Position of the tab icon in the icon bar */
-    position?: 'top' | 'bottom',
     /** Limit tab visibility to when `showWhen` returns true (default: always visible) */
     showWhen?: (plugin: PluginContext) => boolean,
     /** The tab icon will show a marker whenever `dirtyOn` Subject fires a truthy value and the tab is not currently open.
@@ -26,6 +25,7 @@ export interface TabSpec {
     dirtyOn?: (plugin: PluginContext) => Subject<any> | undefined,
 }
 
+/** Convert `Icon` to a React functional element. `Icon` can be either React element (class or functional) or a string with icon path (in 24x24 viewBox) */
 function resolveIcon(Icon: React.JSXElementConstructor<{}> | string): React.FC {
     if (typeof Icon === 'string') {
         return function _Icon() { return <svg width='24px' height='24px' viewBox='0 0 24 24'><path d={Icon}></path></svg>; };
@@ -34,15 +34,18 @@ function resolveIcon(Icon: React.JSXElementConstructor<{}> | string): React.FC {
     }
 }
 
+/** Special tab id value, meaning no tab is open */
 const NO_TAB = 'none';
 
-export function VerticalTabbedPanel(tabs: TabSpec[], options?: { defaultTab?: string, boundBehavior?: (plugin: PluginContext) => BehaviorSubject<string>, onTabChange?: (plugin: PluginContext, tab: string) => any }): React.ComponentClass<{}> {
+/** Return a React component showing a panel with tab icons on the left and tab content of the open tab on the right */
+export function VerticalTabbedPanel(options: { tabsTop?: TabSpec[], tabsBottom?: TabSpec[], defaultTab?: string, boundBehavior?: (plugin: PluginContext) => BehaviorSubject<string>, onTabChange?: (plugin: PluginContext, tab: string) => any }): React.ComponentClass<{}> {
+    const tabs = [...options.tabsTop ?? [], ...options.tabsBottom ?? []];
     if (tabs.some(tab => tab.id === NO_TAB)) throw new Error(`Cannot use '${NO_TAB}' as tab id because it is reserved.`);
 
     return class _GenericLeftPanelControls extends PluginUIComponent<{}, { tab: string, dirtyTabs: string[] }> {
-        readonly boundBehavior = options?.boundBehavior?.(this.plugin);
+        readonly boundBehavior = options.boundBehavior?.(this.plugin);
         readonly state = {
-            tab: options?.defaultTab ?? this.boundBehavior?.value ?? NO_TAB,
+            tab: options.defaultTab ?? this.boundBehavior?.value ?? NO_TAB,
             dirtyTabs: [] as string[],
         };
 
@@ -51,7 +54,7 @@ export function VerticalTabbedPanel(tabs: TabSpec[], options?: { defaultTab?: st
             this.setDirtyTab(tab, false);
             this.setState({ tab }, () => {
                 this.boundBehavior?.next(tab);
-                options?.onTabChange?.(this.plugin, tab);
+                options.onTabChange?.(this.plugin, tab);
             });
         };
         toggleTab = (tab: string) => {
@@ -83,7 +86,7 @@ export function VerticalTabbedPanel(tabs: TabSpec[], options?: { defaultTab?: st
                     });
                 }
             }
-            options?.onTabChange?.(this.plugin, this.state.tab);
+            options.onTabChange?.(this.plugin, this.state.tab);
         }
 
         render() {
@@ -102,9 +105,9 @@ export function VerticalTabbedPanel(tabs: TabSpec[], options?: { defaultTab?: st
             return <div className='msp-left-panel-controls'>
                 {/* Icon bar */}
                 <div className='msp-left-panel-controls-buttons'>
-                    {tabs.filter(tab => tab.position !== 'bottom').map(iconForTab)}
+                    {options.tabsTop?.map(iconForTab)}
                     <div className='msp-left-panel-controls-buttons-bottom'>
-                        {tabs.filter(tab => tab.position === 'bottom').map(iconForTab)}
+                        {options.tabsBottom?.map(iconForTab)}
                     </div>
                 </div>
                 {/* Tab content */}
@@ -119,6 +122,8 @@ export function VerticalTabbedPanel(tabs: TabSpec[], options?: { defaultTab?: st
     };
 }
 
+/** Set left panel state in Molstar layout to 'full' (if expanded) or 'collapsed' (if not expanded).
+ * Do not change the state if it is 'hidden'. */
 async function adjustLeftPanelState(plugin: PluginContext, expanded: boolean) {
     await sleep(0); // this ensures PluginCommands.Layout.Update runs after componentDidMount, without this the panel will not collapse when defaultTab is none (not sure why)
     if (expanded && plugin.layout.state.regionState.left === 'collapsed') {
@@ -129,13 +134,15 @@ async function adjustLeftPanelState(plugin: PluginContext, expanded: boolean) {
     }
 }
 
-export function LeftPanel(tabs: TabSpec[], options?: { defaultTab?: string, onTabChange?: (plugin: PluginContext, tab: string) => any }): React.ComponentClass<{}> {
-    return VerticalTabbedPanel(tabs, {
-        defaultTab: options?.defaultTab,
+/** Like `VerticalTabbedPanel` but is bound to plugin.behaviors.layout.leftPanelTabName and plugin.layout.state.regionState (ensures left panel collapsing/expanding) */
+export function LeftPanel(options: { tabsTop?: TabSpec[], tabsBottom?: TabSpec[], defaultTab?: string, onTabChange?: (plugin: PluginContext, tab: string) => any }): React.ComponentClass<{}> {
+    return VerticalTabbedPanel({
+        ...options,
         boundBehavior: plugin => plugin.behaviors.layout.leftPanelTabName as BehaviorSubject<string>,
         onTabChange: (plugin, tab) => {
-            adjustLeftPanelState(plugin, tabs.some(t => t.id === tab));
-            options?.onTabChange?.(plugin, tab);
+            const tabPresent = !!(options.tabsTop?.some(t => t.id === tab) || options.tabsBottom?.some(t => t.id === tab));
+            adjustLeftPanelState(plugin, tabPresent);
+            options.onTabChange?.(plugin, tab);
         },
     });
 }
