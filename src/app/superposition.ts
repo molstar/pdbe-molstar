@@ -10,8 +10,8 @@ import { Script } from 'Molstar/mol-script/script';
 import { State, StateObjectRef, StateObjectSelector } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Asset } from 'Molstar/mol-util/assets';
-import { Color } from 'Molstar/mol-util/color/color';
-import { ColorLists } from 'Molstar/mol-util/color/lists';
+import { Color, ColorListEntry } from 'Molstar/mol-util/color/color';
+import { ColorListName, ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
@@ -19,22 +19,17 @@ import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
 
-function getRandomColor(plugin: PluginContext, segmentIndex: number) {
-    const clList: any = ColorLists;
+function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
+    return palettes.flatMap(paletteName => ColorLists[paletteName].list);
+}
+export const SuperpositionColorPalette = combinedColorPalette(['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow']);
+
+export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     const spState = PluginCustomState(plugin).superpositionState;
     if (!spState) throw new Error('customState.superpositionState has not been initialized');
-    let palleteIndex = spState.colorState[segmentIndex].palleteIndex;
-    let colorIndex = spState.colorState[segmentIndex].colorIndex;
-    if (clList[spState.colorPalette[palleteIndex]].list[colorIndex + 1]) {
-        colorIndex += 1;
-    } else {
-        colorIndex = 0;
-        palleteIndex = spState.colorPalette[palleteIndex + 1] ? palleteIndex + 1 : 0;
-    }
-    const palleteName = spState.colorPalette[palleteIndex];
-    spState.colorState[segmentIndex].palleteIndex = palleteIndex;
-    spState.colorState[segmentIndex].colorIndex = colorIndex;
-    return clList[palleteName].list[colorIndex];
+    const nextColor = SuperpositionColorPalette[spState.colorCounters[segmentIndex]];
+    spState.colorCounters[segmentIndex] = (spState.colorCounters[segmentIndex] + 1) % SuperpositionColorPalette.length;
+    return nextColor;
 }
 
 export async function initSuperposition(plugin: PluginContext, completeSubject?: Subject<boolean>) {
@@ -55,8 +50,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
             invalidStruct: [],
             noMatrixStruct: [],
             hets: {},
-            colorPalette: ['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow'],
-            colorState: [],
+            colorCounters: [],
             alphafold: {
                 apiData: {
                     cif: '',
@@ -89,7 +83,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         segmentData.forEach(() => {
             customState.superpositionState!.loadedStructs.push([]);
             customState.superpositionState!.visibleRefs.push([]);
-            customState.superpositionState!.colorState.push({ palleteIndex: 0, colorIndex: -1 });
+            customState.superpositionState!.colorCounters.push(0);
         });
 
         // Set segment and cluster details from superPositionParams
@@ -102,7 +96,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         customState.events?.superpositionInit.next(true);
 
         // Get entry list to load matrix data
-        let entryList: ClusterMember[] = [];
+        const entryList: ClusterMember[] = [];
         const clusters = segmentData[segmentIndex].clusters;
         clusters.forEach((cluster: ClusterMember[], clusterIndex: number) => {
             // Validate for cluster index if provided in superPositionParams
@@ -110,7 +104,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
 
             // Add respresentative structure to the list
             if (superpositionParams?.superposeAll) {
-                entryList = entryList.concat(cluster);
+                entryList.push(...cluster);
             } else {
                 entryList.push(cluster[0]);
             }
@@ -133,7 +127,6 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
 }
 
 async function getAfUrl(plugin: PluginContext, accession: string) {
-
     let apiResponse: any;
     let apiData: any;
     await plugin.runTask(Task.create('Get AlphaFold URL', async ctx => {
@@ -150,7 +143,6 @@ async function getAfUrl(plugin: PluginContext, accession: string) {
             // console.warn(e);
         }
     }));
-
 
     return apiData;
 }
@@ -276,7 +268,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
         if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
         const spState = customState.superpositionState;
 
-        for await (const s of entryList) {
+        for (const s of entryList) {
             // validate matrix availability
             if (!spState.matrixData[`${s.pdb_id}_${s.auth_asym_id}`]) {
                 spState.noMatrixStruct.push(`${s.pdb_id}_${s.struct_asym_id}`);
@@ -321,7 +313,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             // Create representations
             let chainSel: StateObjectSelector | undefined;
             if ((superpositionParams && superpositionParams.ligandView) && s.is_representative) {
-                const uniformColor1 = getRandomColor(plugin, segmentIndex); // random color
+                const uniformColor1 = getNextColor(plugin, segmentIndex); // random color
                 chainSel = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, chainSelection(s.struct_asym_id), `Chain-${segmentIndex}`, { label: `Chain`, tags: [`superposition-sel`] });
                 if (chainSel) {
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor1 }, size: 'uniform' }, { tag: `superposition-visual` });
@@ -331,7 +323,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             } else if ((superpositionParams && superpositionParams.ligandView) && !s.is_representative) {
                 // Do nothing
             } else {
-                const uniformColor2 = getRandomColor(plugin, segmentIndex); // random color
+                const uniformColor2 = getNextColor(plugin, segmentIndex); // random color
                 chainSel = await plugin.builders.structure.tryCreateComponentStatic(strInstance, 'polymer', { label: `Chain`, tags: [`Chain-${segmentIndex}`, `superposition-sel`] });
                 if (chainSel) {
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor2 }, size: 'uniform' }, { tag: `superposition-visual` });
@@ -566,6 +558,7 @@ async function getMatrixData(plugin: PluginContext) {
     }
 }
 
+/** Download data about segment clustering and save in plugin custom state */
 async function getSegmentData(plugin: PluginContext) {
     const customState = PluginCustomState(plugin);
     if (!customState.initParams) throw new Error('customState.initParams has not been initialized');

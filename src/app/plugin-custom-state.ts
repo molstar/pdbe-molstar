@@ -25,8 +25,8 @@ export interface PluginCustomState {
         invalidStruct: string[],
         noMatrixStruct: string[],
         hets: { [key: string]: unknown[] },
-        colorPalette: ['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow'],
-        colorState: { palleteIndex: number, colorIndex: number }[],
+        /** Counts how many colors have been assigned, per segment */
+        colorCounters: number[],
         alphafold: {
             apiData: {
                 cif: string,
