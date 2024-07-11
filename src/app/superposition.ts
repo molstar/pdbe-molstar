@@ -1,23 +1,23 @@
 import { SymmetryOperator } from 'Molstar/mol-math/geometry';
 import { Mat4 } from 'Molstar/mol-math/linear-algebra';
-import { StructureProperties } from 'Molstar/mol-model/structure';
+import { ChainIndex, Model, StructureProperties } from 'Molstar/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
 import { PluginStateObject as PSO, PluginStateObject } from 'Molstar/mol-plugin-state/objects';
 import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
 import { PluginContext } from 'Molstar/mol-plugin/context';
 import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
 import { Script } from 'Molstar/mol-script/script';
-import { State, StateObjectRef, StateObjectSelector } from 'Molstar/mol-state';
+import { StateObjectRef, StateObjectSelector } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Asset } from 'Molstar/mol-util/assets';
 import { Color } from 'Molstar/mol-util/color/color';
 import { ColorListName, ColorLists } from 'Molstar/mol-util/color/lists';
+import { ColorNames } from 'Molstar/mol-util/color/names';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
-import { ColorNames } from 'molstar/lib/mol-util/color/names';
 
 
 function combinedColorPalette(palettes: ColorListName[]): Color[] {
@@ -339,44 +339,31 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor2 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
-
-
-                // // const addTooltipUpdate = plugin.state.behaviors.build().to(BestDatabaseSequenceMapping.id).update(BestDatabaseSequenceMapping, (old: any) => { old.showTooltip = true; });
-                // // await plugin.runTask(plugin.state.behaviors.updateTree(addTooltipUpdate));
-                // BestDatabaseSequenceMapping
-                // console.log(plugin.state.data.select(modelRef)[0])
-
             }
 
             let invalidStruct = chainSel ? false : true;
-            if (superpositionParams && superpositionParams.ligandView) {
+            if (superpositionParams?.ligandView) {
+                const model = getModelFromModelRef(plugin, modelRef);
+                const ligandInfo = model ? getLigandInfo(model) : {};
+                const ligandsInChain = ligandInfo[s.auth_asym_id] ?? [];
+                ligandsInChain.sort((a, b) => `${a.label_comp_id}-${a.label_asym_id}` > `${b.label_comp_id}-${b.label_asym_id}` ? 1 : -1);
+                for (const ligand of ligandsInChain) {
+                    const ligandExpression = MS.struct.generator.atomGroups({
+                        'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), ligand.label_asym_id]),
+                    });
+                    const labelTagParams = { label: ligand.label_comp_id, tags: [`superposition-ligand-sel`] };
+                    const hetColor = assignLigandClusterColor(plugin, s.pdb_id, ligand.label_asym_id) ?? normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
+                    if (hetColor === 'hide') continue;
 
-                const state = plugin.state.data;
-                const hetInfo = await getLigandNamesFromModelData(plugin, state, modelRef);
-                const hets = hetInfo ? hetInfo.hetNames : [];
-                // const interactingHets = [];
-                if (hets && hets.length > 0) {
-                    for (const het of hets) {
-                        const ligand = MS.struct.generator.atomGroups({
-                            'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
-                            'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), het]),
-                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
-                        });
-
-                        const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
-                        const hetColor = assignLigandClusterColor(plugin, s, het) ?? normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
-                        if (hetColor === 'hide') continue;
-
-                        const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligand, `${het}-${segmentIndex}`, labelTagParams);
-                        if (ligandExp) {
-                            await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'ball-and-stick', color: 'uniform', colorParams: { value: hetColor } }, { tag: `superposition-ligand-visual` });
-                            spState.refMaps[ligandExp.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
-                            invalidStruct = false;
-                            // interactingHets.push(het);
-                        }
+                    const ligandObj = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligandExpression, `${ligand.label_comp_id}-${ligand.label_asym_id}-${segmentIndex}`, labelTagParams);
+                    if (ligandObj) {
+                        await plugin.builders.structure.representation.addRepresentation(ligandObj, { type: 'ball-and-stick', color: 'uniform', colorParams: { value: hetColor } }, { tag: `superposition-ligand-visual` });
+                        spState.refMaps[ligandObj.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
+                        invalidStruct = false;
                     }
                 }
 
+                const hetInfo = await getLigandNamesFromModelData(plugin, modelRef);
                 const carbEntityCount = hetInfo ? hetInfo.carbEntityCount : 0;
                 if (carbEntityCount > 0) {
 
@@ -451,8 +438,6 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         i++;
                     }
 
-
-
                 }
 
                 if (invalidStruct) {
@@ -480,13 +465,13 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
     });
 }
 
-function assignLigandClusterColor(plugin: PluginContext, s: ClusterMember, het: string): Color | 'hide' | undefined {
+function assignLigandClusterColor(plugin: PluginContext, pdbId: string, labelAsymId: string): Color | 'hide' | undefined {
     const customState = PluginCustomState(plugin);
     if (!customState?.superpositionState?.ligandClusterData) {
         return undefined;
     }
-    const ligandData = customState.superpositionState.ligandClusterData[s.pdb_id] ?? [];
-    const record = ligandData.find(x => x.label_comp_id === het && x.auth_asym_id === s.auth_asym_id); // not good, will have to consider label_asym_id
+    const ligandData = customState.superpositionState.ligandClusterData[pdbId] ?? [];
+    const record = ligandData.find(x => x.label_asym_id === labelAsymId);
     if (record) {
         if (record.cluster_id !== null && record.cluster_id !== undefined && record.cluster_id >= 0) {
             // clustered
@@ -509,10 +494,8 @@ function assignLigandClusterColor(plugin: PluginContext, s: ClusterMember, het: 
     }
 }
 
-async function getLigandNamesFromModelData(plugin: PluginContext, state: State, modelRef: string) {
-    const cell = state.select(modelRef)[0];
-    if (!cell || !cell.obj) return void 0;
-    const model = cell.obj.data;
+async function getLigandNamesFromModelData(plugin: PluginContext, modelRef: string) {
+    const model = getModelFromModelRef(plugin, modelRef);
     if (!model) return;
 
     const structures: any[] = [];
@@ -524,6 +507,36 @@ async function getLigandNamesFromModelData(plugin: PluginContext, state: State, 
     const info = await ModelInfo.get(model, structures);
     return info;
 }
+
+interface LigandRecord {
+    label_asym_id: string,
+    auth_asym_id: string,
+    label_comp_id: string,
+}
+
+function getModelFromModelRef(plugin: PluginContext, modelRef: string): Model | undefined {
+    const cell = plugin.state.data.select(modelRef)[0];
+    const model = cell?.obj?.data as Model | undefined;
+    return model;
+}
+function getLigandInfo(model: Model) {
+    const h = model.atomicHierarchy;
+    const nChains = h.chains._rowCount;
+    const result: { [auth_asym_id: string]: LigandRecord[] } = {};
+    for (let iChain = 0 as ChainIndex; iChain < nChains; iChain++) {
+        const auth_asym_id = h.chains.auth_asym_id.value(iChain);
+        const label_asym_id = h.chains.label_asym_id.value(iChain);
+        const iEntity = h.index.getEntityFromChain(iChain);
+        const entityType = model.entities.data.type.value(iEntity);
+        if (entityType === 'non-polymer') {
+            const iFirstAtom = h.chainAtomSegments.offsets[iChain];
+            const label_comp_id = h.atoms.label_comp_id.value(iFirstAtom);
+            (result[auth_asym_id] ??= []).push({ label_asym_id, auth_asym_id, label_comp_id });
+        }
+    }
+    return result;
+}
+
 
 async function loadStructure(plugin: PluginContext, url: string, format: BuiltInTrajectoryFormat, isBinary?: boolean) {
     try {
