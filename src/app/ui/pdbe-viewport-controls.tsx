@@ -1,11 +1,13 @@
 import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
+import { ColorNames } from 'Molstar/mol-util/color/names';
+import { normalizeColor } from '../helpers';
 import { PluginCustomState } from '../plugin-custom-state';
 
 
 export class PDBeViewportControls extends ViewportControls {
     private isBlack(): boolean {
         const bgColor = PluginCustomState(this.plugin).initParams?.bgColor;
-        return bgColor !== undefined && bgColor.r === 0 && bgColor.g === 0 && bgColor.b === 0;
+        return bgColor !== undefined && normalizeColor(bgColor) === ColorNames.black;
     }
 
     render() {

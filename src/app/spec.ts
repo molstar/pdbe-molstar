@@ -51,6 +51,10 @@ export const DefaultPluginUISpec = (): PluginUISpec => ({
 /** RGB color (r, g, b values 0-255) */
 export interface ColorParams { r: number, g: number, b: number }
 
+/** Color name (e.g. 'yellow') or hexcode (e.g. '#ffff00') or Molstar color encoding (e.g. 16776960) or RGB color object (e.g. { r: 255, g: 255, b: 0 }) */
+export type AnyColor = ColorParams | string | number
+
+
 export const Preset = ['default', 'unitcell', 'all-models', 'supercell'] as const;
 export type Preset = (typeof Preset)[number]
 
@@ -91,10 +95,10 @@ export interface InitParams {
         superposeCompleteCluster?: boolean,
         ligandView?: boolean,
         superposeAll?: boolean,
-        ligandColor?: ColorParams,
+        ligandColor?: AnyColor,
     },
     /** Specify parts of the structure to highlight with different colors */
-    selection?: { data: QueryParam[], nonSelectedColor?: ColorParams },
+    selection?: { data: QueryParam[], nonSelectedColor?: AnyColor },
 
     // APPEARANCE
     /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */
@@ -106,11 +110,11 @@ export interface InitParams {
     /** Customize map style (opacity and solid/wireframe) */
     mapSettings?: MapParams,
     /** Canvas background color */
-    bgColor: ColorParams,
+    bgColor: AnyColor,
     /** Color appearing on mouse-over */
-    highlightColor?: ColorParams,
+    highlightColor?: AnyColor,
     /** Color for marking the selected part of structure (when Selection Mode is active) */
-    selectColor?: ColorParams,
+    selectColor?: AnyColor,
     /** Default lighting (I don't think it really works) */
     lighting?: Lighting,
 

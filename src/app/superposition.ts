@@ -14,7 +14,7 @@ import { Color, ColorListEntry } from 'Molstar/mol-util/color/color';
 import { ColorListName, ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
-import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
+import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
@@ -23,6 +23,8 @@ function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
     return palettes.flatMap(paletteName => ColorLists[paletteName].list);
 }
 export const SuperpositionColorPalette = combinedColorPalette(['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow']);
+const DefaultLigandColor = Color.fromRgb(253, 3, 253);
+
 
 export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     const spState = PluginCustomState(plugin).superpositionState;
@@ -354,11 +356,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         });
 
                         const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
-                        let hetColor = Color.fromRgb(253, 3, 253);
-                        if (superpositionParams?.ligandColor) {
-                            const { r, g, b } = superpositionParams.ligandColor;
-                            hetColor = Color.fromRgb(r, g, b);
-                        }
+                        const hetColor = normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
                         const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligand, `${het}-${segmentIndex}`, labelTagParams);
                         if (ligandExp) {
                             await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'ball-and-stick', color: 'uniform', colorParams: { value: hetColor } }, { tag: `superposition-ligand-visual` });

@@ -14,8 +14,10 @@ import { compile } from 'Molstar/mol-script/runtime/query/compiler';
 import { StateSelection } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Overpaint } from 'Molstar/mol-theme/overpaint';
+import { Color } from 'Molstar/mol-util/color';
+import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
-import { InitParams } from './spec';
+import { AnyColor, InitParams } from './spec';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -407,6 +409,21 @@ export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaul
     return result as T;
 }
 
+/** Convert `colorVal` from any of supported color formats (e.g. 'yellow', '#ffff00', {r:255,g:255,b:0}) to `Color`.
+ * Return default color (gray) if `colorVal` is undefined or null.
+*/
+export function normalizeColor(colorVal: AnyColor | null | undefined, defaultColor: Color = Color.fromRgb(170, 170, 170)): Color {
+    try {
+        if (colorVal === undefined || colorVal === null) return defaultColor;
+        if (typeof colorVal === 'number') return Color(colorVal);
+        if (typeof colorVal === 'string' && colorVal[0] === '#') return Color(Number(`0x${colorVal.substring(1)}`));
+        if (typeof colorVal === 'string' && colorVal in ColorNames) return ColorNames[colorVal as ColorName];
+        if (typeof colorVal === 'object') return Color.fromRgb(colorVal.r ?? 0, colorVal.g ?? 0, colorVal.b ?? 0);
+    } catch {
+        // do nothing
+    }
+    return defaultColor;
+}
 
 /** Apply overpaint to every representation of every component in a structure.
  * Excludes representations created as "added representations" by `PDBeMolstarPlugin.visual.select`. */
