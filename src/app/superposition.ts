@@ -17,6 +17,7 @@ import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
+import { ColorNames } from 'molstar/lib/mol-util/color/names';
 
 
 function combinedColorPalette(palettes: ColorListName[]): Color[] {
@@ -83,29 +84,6 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
 
         if (customState.initParams?.superpositionParams?.ligandView) {
             customState.superpositionState.ligandClusterData = await getLigandClusteringData(plugin);
-            console.log('ligandClustering:', customState.superpositionState.ligandClusterData)
-            // DEBUG find multiple copies of same ligand in one chain
-            for (const pdbId in customState.superpositionState.ligandClusterData) {
-                const data = customState.superpositionState.ligandClusterData[pdbId];
-                const seen = new Set<string>();
-                for (const record of data) {
-                    const key = `${record.label_comp_id}/${record.auth_asym_id}`;
-                    if (seen.has(key)) console.log('duplicate', pdbId, key);
-                    else seen.add(key);
-                }
-            }
-            const bogCounts: { [clust in number]: number } = {};
-            for (const pdbId in customState.superpositionState.ligandClusterData) {
-                const data = customState.superpositionState.ligandClusterData[pdbId];
-                for (const record of data) {
-                    if (record.label_comp_id === 'BOG') {
-                        bogCounts[record.cluster_id ?? -1] ??= 0;
-                        bogCounts[record.cluster_id ?? -1]++;
-                    }
-                }
-            }
-            console.log('BOG counts:', bogCounts);
-
         }
 
         if (!customState.initParams!.moleculeId) throw new Error('initParams.moleculeId is not defined');
@@ -386,27 +364,8 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         });
 
                         const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
-                        let hetColor = normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
-                        console.log('het', s.pdb_id, `${s.struct_asym_id}[${s.auth_asym_id}]`, het)
-                        if (customState.superpositionState.ligandClusterData) {
-                            const ligandData = customState.superpositionState.ligandClusterData[s.pdb_id] ?? [];
-                            const record = ligandData.find(x => x.label_comp_id === het && x.auth_asym_id === s.auth_asym_id); // not good, will have to consider label_asym_id
-                            if (record) {
-                                if (record.cluster_id !== null && record.cluster_id !== undefined && record.cluster_id >= 0) {
-                                    // clustered
-                                    hetColor = LigandClusterPalette[record.cluster_id % LigandClusterPalette.length];
-                                } else {
-                                    // noise
-                                    console.log('no cluster', s.pdb_id, s.auth_asym_id, het)
-                                    // continue
-                                }
-                            } else {
-                                // missing
-                                console.log('no record', s.pdb_id, s.auth_asym_id, het)
-                                hetColor = Color.fromRgb(255, 255, 0);
-                                // continue
-                            }
-                        }
+                        const hetColor = assignLigandClusterColor(plugin, s, het) ?? normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
+                        if (hetColor === 'hide') continue;
 
                         const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligand, `${het}-${segmentIndex}`, labelTagParams);
                         if (ligandExp) {
@@ -519,6 +478,35 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             customState.events?.isBusy.next(false);
         }
     });
+}
+
+function assignLigandClusterColor(plugin: PluginContext, s: ClusterMember, het: string): Color | 'hide' | undefined {
+    const customState = PluginCustomState(plugin);
+    if (!customState?.superpositionState?.ligandClusterData) {
+        return undefined;
+    }
+    const ligandData = customState.superpositionState.ligandClusterData[s.pdb_id] ?? [];
+    const record = ligandData.find(x => x.label_comp_id === het && x.auth_asym_id === s.auth_asym_id); // not good, will have to consider label_asym_id
+    if (record) {
+        if (record.cluster_id !== null && record.cluster_id !== undefined && record.cluster_id >= 0) {
+            // clustered
+            return LigandClusterPalette[record.cluster_id % LigandClusterPalette.length];
+        } else {
+            // noise
+            if (customState.initParams?.superpositionParams?.ligandClustering?.noiseColor === 'hide') {
+                return 'hide';
+            } else {
+                return normalizeColor(customState.initParams?.superpositionParams?.ligandClustering?.noiseColor, DefaultLigandColor);
+            }
+        }
+    } else {
+        // missing
+        if (customState.initParams?.superpositionParams?.ligandClustering?.missingColor === 'hide') {
+            return 'hide';
+        } else {
+            return normalizeColor(customState.initParams?.superpositionParams?.ligandClustering?.missingColor, ColorNames.white);
+        }
+    }
 }
 
 async function getLigandNamesFromModelData(plugin: PluginContext, state: State, modelRef: string) {
