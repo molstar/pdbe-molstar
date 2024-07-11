@@ -14,7 +14,7 @@ import { Color } from 'Molstar/mol-util/color/color';
 import { ColorListName, ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
-import { ModelInfo, ModelServerRequest, getStructureUrl } from './helpers';
+import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
@@ -26,6 +26,8 @@ function combinedColorPalette(palettes: ColorListName[]): Color[] {
 }
 export const SuperpositionColorPalette = combinedColorPalette(['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow']);
 export const LigandClusterPalette = combinedColorPalette(['set-1', 'set-2']);
+const DefaultLigandColor = Color.fromRgb(253, 3, 253);
+
 
 export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     const spState = PluginCustomState(plugin).superpositionState;
@@ -384,11 +386,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         });
 
                         const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
-                        let hetColor = Color.fromRgb(253, 3, 253);
-                        if (superpositionParams?.ligandColor) {
-                            const { r, g, b } = superpositionParams.ligandColor;
-                            hetColor = Color.fromRgb(r, g, b);
-                        }
+                        let hetColor = normalizeColor(superpositionParams.ligandColor, DefaultLigandColor);
                         console.log('het', s.pdb_id, `${s.struct_asym_id}[${s.auth_asym_id}]`, het)
                         if (customState.superpositionState.ligandClusterData) {
                             const ligandData = customState.superpositionState.ligandClusterData[s.pdb_id] ?? [];
