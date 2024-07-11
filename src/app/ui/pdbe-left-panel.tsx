@@ -82,6 +82,7 @@ export class PDBeLeftPanelControls extends PluginUIComponent<{}, { tab: PDBeLeft
         return <div className='msp-left-panel-controls'>
             <div className='msp-left-panel-controls-buttons'>
                 {/* <IconButton svg={HomeOutlined} toggleState={tab === 'root'} transparent onClick={() => this.set('root')} title='Home' /> */}
+                <IconButton svg={AccountTreeOutlinedSvg} toggleState={tab === 'data'} transparent onClick={() => this.set('data')} title='Data' />
                 {/* <DataIcon set={this.set} /> */}
                 {/* <IconButton svg={SaveOutlined} toggleState={tab === 'states'} transparent onClick={() => this.set('states')} title='Plugin State' /> */}
                 <IconButton svg={HelpOutlineSvg} toggleState={tab === 'help'} transparent onClick={() => this.set('help')} title='Help' />

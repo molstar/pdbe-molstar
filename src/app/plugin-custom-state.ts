@@ -4,6 +4,7 @@ import { PluginContext } from 'Molstar/mol-plugin/context';
 import { StateSelection, StateTransform } from 'Molstar/mol-state';
 import { Subject } from 'rxjs';
 import { InitParams } from './spec';
+import { LigandClusteringData } from './superposition';
 
 
 export interface PluginCustomState {
@@ -19,6 +20,7 @@ export interface PluginCustomState {
         refMaps: { [ref: string]: string },
         segmentData: Segment[] | undefined,
         matrixData: { [key: string]: { matrix: number[][] } },
+        ligandClusterData?: LigandClusteringData,
         activeSegment: number,
         loadedStructs: string[][],
         visibleRefs: StateTransform.Ref[][],

@@ -92,6 +92,7 @@ export interface InitParams {
         ligandView?: boolean,
         superposeAll?: boolean,
         ligandColor?: ColorParams,
+        ligandClustering?: { url: string, noiseColor?: ColorParams | 'hide', missingColor?: ColorParams | 'hide' },
     },
     /** Specify parts of the structure to highlight with different colors */
     selection?: { data: QueryParam[], nonSelectedColor?: ColorParams },

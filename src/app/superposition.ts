@@ -10,7 +10,7 @@ import { Script } from 'Molstar/mol-script/script';
 import { State, StateObjectRef, StateObjectSelector } from 'Molstar/mol-state';
 import { Task } from 'Molstar/mol-task';
 import { Asset } from 'Molstar/mol-util/assets';
-import { Color, ColorListEntry } from 'Molstar/mol-util/color/color';
+import { Color } from 'Molstar/mol-util/color/color';
 import { ColorListName, ColorLists } from 'Molstar/mol-util/color/lists';
 import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
@@ -19,10 +19,13 @@ import { ClusterMember, PluginCustomState } from './plugin-custom-state';
 import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
 
-function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
-    return palettes.flatMap(paletteName => ColorLists[paletteName].list);
+function combinedColorPalette(palettes: ColorListName[]): Color[] {
+    return palettes
+        .flatMap(paletteName => ColorLists[paletteName].list)
+        .map(entry => (typeof entry === 'number') ? entry : entry[0]);
 }
 export const SuperpositionColorPalette = combinedColorPalette(['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow']);
+export const LigandClusterPalette = combinedColorPalette(['set-1', 'set-2']);
 
 export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     const spState = PluginCustomState(plugin).superpositionState;
@@ -75,6 +78,33 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         // Load Matrix Data
         await getMatrixData(plugin);
         if (!customState.superpositionState.segmentData) return;
+
+        if (customState.initParams?.superpositionParams?.ligandView) {
+            customState.superpositionState.ligandClusterData = await getLigandClusteringData(plugin);
+            console.log('ligandClustering:', customState.superpositionState.ligandClusterData)
+            // DEBUG find multiple copies of same ligand in one chain
+            for (const pdbId in customState.superpositionState.ligandClusterData) {
+                const data = customState.superpositionState.ligandClusterData[pdbId];
+                const seen = new Set<string>();
+                for (const record of data) {
+                    const key = `${record.label_comp_id}/${record.auth_asym_id}`;
+                    if (seen.has(key)) console.log('duplicate', pdbId, key);
+                    else seen.add(key);
+                }
+            }
+            const bogCounts: { [clust in number]: number } = {};
+            for (const pdbId in customState.superpositionState.ligandClusterData) {
+                const data = customState.superpositionState.ligandClusterData[pdbId];
+                for (const record of data) {
+                    if (record.label_comp_id === 'BOG') {
+                        bogCounts[record.cluster_id ?? -1] ??= 0;
+                        bogCounts[record.cluster_id ?? -1]++;
+                    }
+                }
+            }
+            console.log('BOG counts:', bogCounts);
+
+        }
 
         if (!customState.initParams!.moleculeId) throw new Error('initParams.moleculeId is not defined');
         const afStrUrls = await getAfUrl(plugin, customState.initParams!.moleculeId);
@@ -346,7 +376,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                 const hets = hetInfo ? hetInfo.hetNames : [];
                 // const interactingHets = [];
                 if (hets && hets.length > 0) {
-                    for await (const het of hets) {
+                    for (const het of hets) {
                         const ligand = MS.struct.generator.atomGroups({
                             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
                             'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), het]),
@@ -359,6 +389,27 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                             const { r, g, b } = superpositionParams.ligandColor;
                             hetColor = Color.fromRgb(r, g, b);
                         }
+                        console.log('het', s.pdb_id, `${s.struct_asym_id}[${s.auth_asym_id}]`, het)
+                        if (customState.superpositionState.ligandClusterData) {
+                            const ligandData = customState.superpositionState.ligandClusterData[s.pdb_id] ?? [];
+                            const record = ligandData.find(x => x.label_comp_id === het && x.auth_asym_id === s.auth_asym_id); // not good, will have to consider label_asym_id
+                            if (record) {
+                                if (record.cluster_id !== null && record.cluster_id !== undefined && record.cluster_id >= 0) {
+                                    // clustered
+                                    hetColor = LigandClusterPalette[record.cluster_id % LigandClusterPalette.length];
+                                } else {
+                                    // noise
+                                    console.log('no cluster', s.pdb_id, s.auth_asym_id, het)
+                                    // continue
+                                }
+                            } else {
+                                // missing
+                                console.log('no record', s.pdb_id, s.auth_asym_id, het)
+                                hetColor = Color.fromRgb(255, 255, 0);
+                                // continue
+                            }
+                        }
+
                         const ligandExp = await plugin.builders.structure.tryCreateComponentFromExpression(strInstance, ligand, `${het}-${segmentIndex}`, labelTagParams);
                         if (ligandExp) {
                             await plugin.builders.structure.representation.addRepresentation(ligandExp, { type: 'ball-and-stick', color: 'uniform', colorParams: { value: hetColor } }, { tag: `superposition-ligand-visual` });
@@ -549,7 +600,7 @@ async function getMatrixData(plugin: PluginContext) {
     const clusterRecUrl = Asset.getUrlAsset(assetManager, clusterRecUrlStr);
     try {
         const clusterRecData = await plugin.runTask(assetManager.resolve(clusterRecUrl, 'json', false));
-        if (clusterRecData && clusterRecData.data) {
+        if (clusterRecData?.data) {
             customState.superpositionState.matrixData = clusterRecData.data;
         }
     } catch (e) {
@@ -577,6 +628,43 @@ async function getSegmentData(plugin: PluginContext) {
         customState.superpositionError = `Superposition data not available for ${customState.initParams.moleculeId}`;
         customState.events?.superpositionInit.next(true); // Emit segment API data load event
     }
+}
+
+interface LigandClusteringRecord {
+    label_comp_id?: string | null,
+    label_asym_id: string,
+    auth_asym_id: string,
+    auth_seq_id?: number,
+    cluster_id?: number | null,
+    cluster_color?: string,
+}
+export interface LigandClusteringData {
+    [pdbId: string]: LigandClusteringRecord[],
+}
+
+async function getLigandClusteringData(plugin: PluginContext): Promise<LigandClusteringData | undefined> {
+    const customState = PluginCustomState(plugin);
+    if (!customState.initParams) throw new Error('customState.initParams has not been initialized');
+    if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
+    const serverUrl = customState.initParams.superpositionParams?.ligandClustering?.url;
+    if (!serverUrl) return undefined;
+    if (!customState.initParams.moleculeId) return undefined;
+
+    const url = `${serverUrl.replace(/\/$/, '')}/${customState.initParams.moleculeId}`;
+    const assetManager = plugin.managers.asset;
+    const urlAsset = Asset.getUrlAsset(assetManager, url);
+    try {
+        const result = await plugin.runTask(assetManager.resolve(urlAsset, 'json', false));
+        if (result.data) {
+            return result.data[customState.initParams.moleculeId];
+        } else {
+            return undefined;
+        }
+    } catch (e) {
+        customState.superpositionError = `Ligand clustering data not available for ${customState.initParams.moleculeId}`;
+        customState.events?.superpositionInit.next(true); // Emit segment API data load event
+    }
+
 }
 
 function getChainLigands(carbEntity: any) {
