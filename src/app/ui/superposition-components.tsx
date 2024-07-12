@@ -1,15 +1,17 @@
-import { StructureComponentRef, StructureRepresentationRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { State, StateTransformer } from 'Molstar/mol-state';
-import { ParamDefinition } from 'Molstar/mol-util/param-definition';
-import { CollapsableControls, CollapsableState, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { Button, IconButton } from 'Molstar/mol-plugin-ui/controls/common';
-import { CubeOutlineSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg, MoreHorizSvg, CheckSvg, CloseSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
-import { debounceTime } from 'rxjs/operators';
+import { StructureComponentRef, StructureRepresentationRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
+import { CollapsableControls, CollapsableState, PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { Button, IconButton } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { CheckSvg, CloseSvg, CubeOutlineSvg, MoreHorizSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { State, StateTransformer } from 'molstar/lib/mol-state';
+import { ParamDefinition } from 'molstar/lib/mol-util/param-definition';
+import React from 'react';
 import { Subject } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { PluginCustomState } from '../plugin-custom-state';
+
 
 interface StructureComponentControlState extends CollapsableState {
     isDisabled: boolean

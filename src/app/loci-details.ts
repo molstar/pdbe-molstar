@@ -1,7 +1,8 @@
-import { Unit, StructureElement, StructureProperties as Props, Bond } from 'Molstar/mol-model/structure';
-import { Loci } from 'Molstar/mol-model/loci';
-import { OrderedSet } from 'Molstar/mol-data/int';
-import { SIFTSMapping as BestDatabaseSequenceMappingProp } from 'Molstar/mol-model-props/sequence/sifts-mapping';
+import { OrderedSet } from 'molstar/lib/mol-data/int';
+import { SIFTSMapping as BestDatabaseSequenceMappingProp } from 'molstar/lib/mol-model-props/sequence/sifts-mapping';
+import { Loci } from 'molstar/lib/mol-model/loci';
+import { Bond, StructureProperties as Props, StructureElement, Unit } from 'molstar/lib/mol-model/structure';
+
 
 export type EventDetail = {
     models?: string[],

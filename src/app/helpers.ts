@@ -1,21 +1,21 @@
-import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
-import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'Molstar/mol-model/structure';
-import { AtomsQueryParams } from 'Molstar/mol-model/structure/query/queries/generators';
-import { StructureQuery } from 'Molstar/mol-model/structure/query/query';
-import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
-import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { CreateVolumeStreamingInfo } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import Expression from 'Molstar/mol-script/language/expression';
-import { compile } from 'Molstar/mol-script/runtime/query/compiler';
-import { StateSelection } from 'Molstar/mol-state';
-import { Task } from 'Molstar/mol-task';
-import { Overpaint } from 'Molstar/mol-theme/overpaint';
-import { Color } from 'Molstar/mol-util/color';
-import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
+import { QualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/prop';
+import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'molstar/lib/mol-model/structure';
+import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
+import { StructureQuery } from 'molstar/lib/mol-model/structure/query/query';
+import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
+import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
+import { CreateVolumeStreamingInfo } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
+import { Expression } from 'molstar/lib/mol-script/language/expression';
+import { compile } from 'molstar/lib/mol-script/runtime/query/compiler';
+import { StateSelection } from 'molstar/lib/mol-state';
+import { Task } from 'molstar/lib/mol-task';
+import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
+import { Color } from 'molstar/lib/mol-util/color';
+import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
 
@@ -113,7 +113,7 @@ export type LigandQueryParam = {
 
 
 export namespace LigandView {
-    export function query(ligandViewParams: LigandQueryParam): { core: Expression.Expression, surroundings: Expression.Expression } {
+    export function query(ligandViewParams: LigandQueryParam): { core: Expression, surroundings: Expression } {
         const atomGroupsParams: any = {
             'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
         };
@@ -151,7 +151,7 @@ export namespace LigandView {
 
     }
 
-    export function branchedQuery(params: any): { core: Expression.Expression, surroundings: Expression.Expression } {
+    export function branchedQuery(params: any): { core: Expression, surroundings: Expression } {
         const entityObjArray: any[] = [];
 
         params.atom_site.forEach((param: any) => {
@@ -162,7 +162,7 @@ export namespace LigandView {
             entityObjArray.push(qEntities);
         });
 
-        const atmGroupsQueries: Expression.Expression[] = [];
+        const atmGroupsQueries: Expression[] = [];
 
         entityObjArray.forEach((entityObj: any) => {
             atmGroupsQueries.push(MS.struct.generator.atomGroups(entityObj));
@@ -221,7 +221,7 @@ export type QueryParam = {
 
 export namespace QueryHelper {
 
-    export function getQueryObject(params: QueryParam[], contextData: Structure): Expression.Expression {
+    export function getQueryObject(params: QueryParam[], contextData: Structure): Expression {
         const selections: Partial<AtomsQueryParams>[] = [];
         let siftMappings: SIFTSMappingMapping | undefined;
         let currentAccession: string;
@@ -310,7 +310,7 @@ export namespace QueryHelper {
         return StructureSelection.toLociWithSourceUnits(sel);
     }
 
-    export function getHetLoci(queryExp: Expression.Expression, contextData: Structure) {
+    export function getHetLoci(queryExp: Expression, contextData: Structure) {
         const query = compile<StructureSelection>(queryExp);
         const sel = query(new QueryContext(contextData));
         return StructureSelection.toLociWithSourceUnits(sel);

@@ -1,10 +1,11 @@
-import { OrderedSet } from 'Molstar/mol-data/int';
+import { OrderedSet } from 'molstar/lib/mol-data/int';
+import { SIFTSMappingColorThemeProvider } from 'molstar/lib/mol-model-props/sequence/themes/sifts-mapping';
+import { Loci } from 'molstar/lib/mol-model/loci';
+import { StructureElement } from 'molstar/lib/mol-model/structure';
+import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { SIFTSMapping as BestDatabaseSequenceMappingProp } from './sifts-mapping';
-import { SIFTSMappingColorThemeProvider } from 'Molstar/mol-model-props/sequence/themes/sifts-mapping';
-import { Loci } from 'Molstar/mol-model/loci';
-import { StructureElement } from 'Molstar/mol-model/structure';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { PluginBehavior } from 'Molstar/mol-plugin/behavior';
+
 
 export const PDBeSIFTSMapping = PluginBehavior.create<{ autoAttach: boolean, showTooltip: boolean }>({
     name: 'pdbe-sifts-mapping-prop',

@@ -1,7 +1,7 @@
-import { SymmetryOperator } from 'Molstar/mol-math/geometry';
-import { Mat4 } from 'Molstar/mol-math/linear-algebra';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { StateSelection, StateTransform } from 'Molstar/mol-state';
+import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
+import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
 import { Subject } from 'rxjs';
 import { InitParams } from './spec';
 

@@ -1,14 +1,15 @@
-import { StructureElement } from 'Molstar/mol-model/structure';
-import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
-import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { PluginBehavior } from 'Molstar/mol-plugin/behavior';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import { StateObjectCell, StateSelection, StateTransform } from 'Molstar/mol-state';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { PluginContext } from 'Molstar/mol-plugin/context';
+import { StructureElement } from 'molstar/lib/mol-model/structure';
+import { createStructureRepresentationParams } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
+import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
+import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
+import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
+import { StateObjectCell, StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { lociDetails } from './loci-details';
+
 
 const SuperpositionFocusRepresentationParams = (plugin: PluginContext) => {
     const reprParams = StateTransforms.Representation.StructureRepresentation3D.definition.params!(void 0, plugin) as PD.Params;

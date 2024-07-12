@@ -1,5 +1,5 @@
-import { ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
-import { ColorNames } from 'Molstar/mol-util/color/names';
+import { ViewportControls } from 'molstar/lib/mol-plugin-ui/viewport';
+import { ColorNames } from 'molstar/lib/mol-util/color/names';
 import { normalizeColor } from '../helpers';
 import { PluginCustomState } from '../plugin-custom-state';
 

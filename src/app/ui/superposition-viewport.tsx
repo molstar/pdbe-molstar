@@ -1,8 +1,9 @@
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { LociLabels, StateSnapshotViewportControls, SelectionViewportControls } from 'Molstar/mol-plugin-ui/controls';
-import { BackgroundTaskProgress } from 'Molstar/mol-plugin-ui/task';
-import { Toasts } from 'Molstar/mol-plugin-ui/toast';
-import { Viewport, ViewportControls } from 'Molstar/mol-plugin-ui/viewport';
+import { PluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { LociLabels, SelectionViewportControls, StateSnapshotViewportControls } from 'molstar/lib/mol-plugin-ui/controls';
+import { BackgroundTaskProgress } from 'molstar/lib/mol-plugin-ui/task';
+import { Toasts } from 'molstar/lib/mol-plugin-ui/toast';
+import { Viewport, ViewportControls } from 'molstar/lib/mol-plugin-ui/viewport';
+
 
 export class SuperpostionViewport extends PluginUIComponent {
     render() {

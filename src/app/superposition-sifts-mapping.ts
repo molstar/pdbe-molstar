@@ -1,10 +1,11 @@
-import { Segmentation } from 'Molstar/mol-data/int';
-import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
+import { Segmentation } from 'molstar/lib/mol-data/int';
+import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
+import { Structure } from 'molstar/lib/mol-model/structure';
+import { ElementIndex, ResidueIndex } from 'molstar/lib/mol-model/structure/model/indexing';
+import { StructureElement } from 'molstar/lib/mol-model/structure/structure/element';
+import { Unit } from 'molstar/lib/mol-model/structure/structure/unit';
 import { SIFTSMapping } from './sifts-mapping';
-import { ElementIndex, ResidueIndex } from 'Molstar/mol-model/structure/model/indexing';
-import { StructureElement } from 'Molstar/mol-model/structure/structure/element';
-import { Structure } from 'Molstar/mol-model/structure';
-import { Unit } from 'Molstar/mol-model/structure/structure/unit';
+
 
 export interface AlignmentResultEntry {
     transform: MinimizeRmsd.Result,

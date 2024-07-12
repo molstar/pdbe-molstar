@@ -1,13 +1,14 @@
-import { Model, ResidueIndex, Unit, IndexedCustomProperty } from 'Molstar/mol-model/structure';
-import { StructureElement, Structure } from 'Molstar/mol-model/structure/structure';
-import { PropertyWrapper } from 'Molstar/mol-model-props/common/wrapper';
-import { CustomModelProperty } from 'Molstar/mol-model-props/common/custom-model-property';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { CustomProperty } from 'Molstar/mol-model-props/common/custom-property';
-import { arraySetAdd } from 'Molstar/mol-util/array';
-import { Asset } from 'Molstar/mol-util/assets';
-import { CustomPropertyDescriptor } from 'Molstar/mol-model/custom-property';
-import { ChainIndex } from 'Molstar/mol-model/structure/model/indexing';
+import { CustomModelProperty } from 'molstar/lib/mol-model-props/common/custom-model-property';
+import { CustomProperty } from 'molstar/lib/mol-model-props/common/custom-property';
+import { PropertyWrapper } from 'molstar/lib/mol-model-props/common/wrapper';
+import { CustomPropertyDescriptor } from 'molstar/lib/mol-model/custom-property';
+import { IndexedCustomProperty, Model, ResidueIndex, Unit } from 'molstar/lib/mol-model/structure';
+import { ChainIndex } from 'molstar/lib/mol-model/structure/model/indexing';
+import { Structure, StructureElement } from 'molstar/lib/mol-model/structure/structure';
+import { arraySetAdd } from 'molstar/lib/mol-util/array';
+import { Asset } from 'molstar/lib/mol-util/assets';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+
 
 export { DomainAnnotations };
 type DomainAnnotations = PropertyWrapper<{

@@ -1,10 +1,11 @@
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { PluginBehavior } from 'Molstar/mol-plugin/behavior';
-import { Loci } from 'Molstar/mol-model/loci';
-import { StructureElement, StructureProperties } from 'Molstar/mol-model/structure';
-import { lociLabel } from 'Molstar/mol-theme/label';
-import { LociLabel } from 'Molstar/mol-plugin-state/manager/loci-label';
+import { Loci } from 'molstar/lib/mol-model/loci';
+import { StructureElement, StructureProperties } from 'molstar/lib/mol-model/structure';
+import { LociLabel } from 'molstar/lib/mol-plugin-state/manager/loci-label';
+import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { lociLabel } from 'molstar/lib/mol-theme/label';
 import { PluginCustomState } from './plugin-custom-state';
+
 
 export const PDBeLociLabelProvider = PluginBehavior.create({
     name: 'pdbe-loci-label-provider',

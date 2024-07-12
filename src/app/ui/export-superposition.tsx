@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { CollapsableControls, CollapsableState } from 'Molstar/mol-plugin-ui/base';
-import { Button } from 'Molstar/mol-plugin-ui/controls/common';
-import { GetAppSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { useBehavior } from 'Molstar/mol-plugin-ui/hooks/use-behavior';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import { CollapsableControls, CollapsableState } from 'molstar/lib/mol-plugin-ui/base';
+import { Button } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { GetAppSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { useBehavior } from 'molstar/lib/mol-plugin-ui/hooks/use-behavior';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+import React from 'react';
 import { superpositionExportHierarchy } from '../superposition-export';
+
 
 export class SuperpositionModelExportUI extends CollapsableControls<{}, {}> {
     protected defaultState(): CollapsableState {
@@ -27,8 +28,8 @@ const Params = {
 const DefaultParams = PD.getDefaultValues(Params);
 
 function SuperpositionExportControls({ plugin }: { plugin: PluginContext }) {
-    const [params, setParams] = useState(DefaultParams);
-    const [exporting, setExporting] = useState(false);
+    const [params, setParams] = React.useState(DefaultParams);
+    const [exporting, setExporting] = React.useState(false);
     useBehavior(plugin.managers.structure.hierarchy.behaviors.selection); // triggers UI update
     const isBusy = useBehavior(plugin.behaviors.state.isBusy);
     const hierarchy = plugin.managers.structure.hierarchy.current;

@@ -1,12 +1,12 @@
-import { AssemblySymmetry3D, getRCSBAssemblySymmetryConfig, tryCreateAssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
-import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
-import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { StateSelection } from 'Molstar/mol-state';
-import { Task } from 'Molstar/mol-task';
-import { UUID } from 'Molstar/mol-util';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import { AssemblySymmetry3D, getRCSBAssemblySymmetryConfig, tryCreateAssemblySymmetry } from 'molstar/lib/extensions/rcsb/assembly-symmetry/behavior';
+import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
+import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { StateSelection } from 'molstar/lib/mol-state';
+import { Task } from 'molstar/lib/mol-task';
+import { UUID } from 'molstar/lib/mol-util';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { AnnotationRowControls } from './annotation-row-controls';
 
 

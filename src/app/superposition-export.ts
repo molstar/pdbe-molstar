@@ -1,11 +1,11 @@
-import { utf8ByteCount, utf8Write } from 'Molstar/mol-io/common/utf8';
-import { to_mmCIF, Unit } from 'Molstar/mol-model/structure';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { Task } from 'Molstar/mol-task';
-import { getFormattedTime } from 'Molstar/mol-util/date';
-import { download } from 'Molstar/mol-util/download';
-import { zip } from 'Molstar/mol-util/zip/zip';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
+import { utf8ByteCount, utf8Write } from 'molstar/lib/mol-io/common/utf8';
+import { Unit, to_mmCIF } from 'molstar/lib/mol-model/structure';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { Task } from 'molstar/lib/mol-task';
+import { getFormattedTime } from 'molstar/lib/mol-util/date';
+import { download } from 'molstar/lib/mol-util/download';
+import { zip } from 'molstar/lib/mol-util/zip/zip';
 import { PluginCustomState } from './plugin-custom-state';
 
 
