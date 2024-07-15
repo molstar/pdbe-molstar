@@ -10,13 +10,13 @@
     "rebuild": "npm run clean && npm run build",
     "clean": "node scripts.js clean-all",
     "build-tsc": "tsc --incremental",
-    "build-extra": "cpx 'src/**/*.{scss,html,ico}' lib/",
+    "build-extra": "cpx 'src/app/**/*.{scss,html,ico}' lib/",
     "build-webpack": "webpack --mode production --config ./webpack.config.production.js",
     "watch": "concurrently -c 'green,gray,blue' --names 'tsc,ext,wpc' --kill-others 'npm:watch-tsc' 'npm:watch-extra' 'npm:watch-webpack'",
     "watch-tsc": "tsc --watch --incremental",
-    "watch-extra": "cpx 'src/**/*.{scss,html,ico}' lib/ --watch",
+    "watch-extra": "cpx 'src/app/**/*.{scss,html,ico}' lib/ --watch",
     "watch-webpack": "webpack -w --mode development --stats minimal --config ./webpack.config.development.js",
-    "serve": "http-server -p 1338 -g",
+    "serve": "http-server -p 1338 -g -c-1",
     "bundle-webcomponent": "node scripts.js bundle-webcomponent"
   },
   "files": [
