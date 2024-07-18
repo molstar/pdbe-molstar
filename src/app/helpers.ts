@@ -468,3 +468,15 @@ export const StructureComponentTags = {
     coarse: ['structure-component-static-coarse'],
     maps: ['volume-streaming-info'],
 };
+
+/** Return component type based on the component's PluginStateObject tags */
+export function getComponentTypeFromTags(tags: string[] | undefined): keyof typeof StructureComponentTags | undefined {
+    let type: keyof typeof StructureComponentTags;
+    for (type in StructureComponentTags) {
+        const typeTags = StructureComponentTags[type];
+        if (typeTags.some(tag => tags?.includes(tag))) {
+            return type;
+        }
+    }
+    return undefined;
+}

@@ -44,10 +44,10 @@ import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
-import { AnyColor, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
+import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
@@ -375,7 +375,8 @@ export class PDBeMolstarPlugin {
                     });
                     structRef = this.plugin.state.data.selectQ(q => q.byRef(data.ref).subtree().ofType(PluginStateObject.Molecule.Structure))[0].transform.ref;
                     if (this.initParams.hideStructure.length > 0 || this.initParams.visualStyle) {
-                        this.applyVisualParams();
+                        await this.deleteStructureComponents(structRef, this.initParams.hideStructure);
+                        await this.applyVisualStyles(structRef, this.initParams.visualStyle);
                     }
                 } else {
                     const model = await this.plugin.builders.structure.createModel(trajectory);
@@ -437,25 +438,49 @@ export class PDBeMolstarPlugin {
         // no need to remove ID from this.structRefMap, it will get remove in the next getStructureRefs call
     }
 
-    applyVisualParams = () => {
-        const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-        for (const compGroup of componentGroups) {
-            const compRef = compGroup[compGroup.length - 1];
-            const tag = compRef.key ?? '';
-            const remove = this.initParams.hideStructure.some(type => StructureComponentTags[type]?.includes(tag));
-            if (remove) {
-                this.plugin.managers.structure.hierarchy.remove([compRef]);
+    /** Apply representations to structure components based on `styles`, also removing any existing representations.
+     * Components not included in `styles` will keep their representations.
+     * E.g. `styles={polymer:'putty',nonStandard:'ball-and-stick'}` - apply only putty to polymer, only ball-and-stick to non-standard residues, leave other components untouched.
+     * E.g. `styles='ball-and-stick'` - apply only ball-and-stick to all components. */
+    private async applyVisualStyles(structureRef: string, styles: VisualStylesSpec | undefined) {
+        if (styles === undefined) return;
+        const components = this.plugin.state.data.selectQ(q => q.byRef(structureRef).subtree().withTransformer(StructureComponent));
+        const compStyles = resolveVisualStyleSpec(styles);
+        for (const comp of components) {
+            const compType = getComponentTypeFromTags(comp.obj?.tags);
+            if (compType === undefined) continue;
+            const compStyle = compStyles[compType as keyof typeof compStyles];
+            if (compStyle === undefined) continue;
+            const update = this.plugin.build();
+            const existingReprs = this.plugin.state.data.selectQ(q => q.byValue(comp).subtree().withTransformer(StructureRepresentation3D));
+            for (const repr of existingReprs) {
+                update.delete(repr);
             }
-            if (!remove && this.initParams.visualStyle) {
-                if (compRef && compRef.representations) {
-                    compRef.representations.forEach(rep => {
-                        const currentParams = createStructureRepresentationParams(this.plugin, void 0, { type: this.initParams.visualStyle });
-                        this.plugin.managers.structure.component.updateRepresentations([compRef], rep, currentParams);
-                    });
-                }
+            const newReprProps = createStructureRepresentationParams(this.plugin, comp.obj?.data, { color: this.defaultColorTheme() as any, ...compStyle });
+            const newRepr = await update.to(comp).apply(StructureRepresentation3D, newReprProps).commit();
+            if (newRepr.cell?.params?.values.type.name !== compStyle.type) {
+                await this.plugin.build().delete(newRepr).commit(); // sometimes Molstar applies different repr type than requested (especially for water), we must remove such unwanted reprs
             }
         }
-    };
+    }
+    private defaultColorTheme() {
+        return this.initParams.alphafoldView ? 'plddt-confidence' : 'default';
+    }
+
+    /** Remove all structure components of the given structure which correspond to any component type listed in `deleteComponents`. */
+    private async deleteStructureComponents(structureRef: string, deleteComponents: ComponentType[]) {
+        const comps = this.plugin.state.data.selectQ(q => q.byRef(structureRef).subtree().withTransformer(StructureComponent));
+        const deleteTags = deleteComponents.flatMap(comp => StructureComponentTags[comp] ?? []);
+        const update = this.plugin.build();
+        for (const comp of comps) {
+            const tags = comp.obj?.tags ?? [];
+            const remove = tags.some(tag => deleteTags.includes(tag));
+            if (remove) {
+                update.delete(comp);
+            }
+        }
+        await update.commit();
+    }
 
     /** Get loci corresponding to a selection within a structure.
      * If `params` contains more items, return loci for the union of the selections.
@@ -830,7 +855,7 @@ export class PDBeMolstarPlugin {
             if (params.camera) await PluginCommands.Camera.Reset(this.plugin, { durationMs: 250 });
 
             if (params.theme) {
-                const defaultTheme: any = { color: this.initParams.alphafoldView ? 'plddt-confidence' : 'default' };
+                const defaultTheme = { color: this.defaultColorTheme() as any };
                 const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
                 for (const compGrp of componentGroups) {
                     await this.plugin.managers.structure.component.updateRepresentationsTheme(compGrp, defaultTheme);
