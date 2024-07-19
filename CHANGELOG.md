@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file, following t
 - PDBeMolstarPlugin.extensions.foldseek
 - Added options `leftPanel`, `rightPanel`, `logPanel`
 - All color options accept color names and hexcodes
+- `visualStyle` option allows per-component specification
 
 ## [v3.2.0] - 2024-04-24
 - Mol* core dependency updated to 3.45.0
