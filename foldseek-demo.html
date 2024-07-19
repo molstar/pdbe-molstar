@@ -74,6 +74,12 @@
     </div>
 
     <script>
+        function getJsonParam(paramName) {
+            const paramString = new URL(window.location).searchParams.get(paramName);
+            const param = JSON.parse(paramString);
+            return param ?? undefined;
+        }
+
         const queryAfdbId = 'Q5VSL9';
         const apiData = {
             // real data
@@ -118,6 +124,7 @@
             '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
             '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
         ];
+        const UNIFORM_QUERY_COLOR = '#cccccc';
         const targetColors = {};
         Object.keys(apiData).forEach((targetId, i) => {
             targetColors[targetId] = PALETTE[i % PALETTE.length];
@@ -128,7 +135,7 @@
         const viewerInstance = new PDBeMolstarPlugin();
         const viewerContainer = document.getElementById('myViewer');
 
-        const options = {
+        const defaultOptions = {
             customData: {
                 url: `https://alphafold.ebi.ac.uk/files/AF-${queryAfdbId}-F1-model_v4.cif`,
                 format: 'cif',
@@ -147,6 +154,7 @@
             },
             hideStructure: ['water'],
         };
+        const options = { ...defaultOptions, ...getJsonParam('options') };
 
         // Call render method to display the 3D view
         viewerInstance.render(viewerContainer, options);
@@ -198,7 +206,7 @@
             viewerInstance.visual.clearSelection('main');
         }
         function setQueryColorUniform() {
-            viewerInstance.visual.select({ data: [{ color: '#0053D6' }], structureId: 'main' });
+            viewerInstance.visual.select({ data: [{ color: UNIFORM_QUERY_COLOR }], structureId: 'main' });
         }
 
 
