@@ -33,3 +33,6 @@ export const ChevronLeftSvg = svgIcon('M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83
 
 /** "Next" icon */
 export const ChevronRightSvg = svgIcon('M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z');
+
+/** Empty icon */
+export const EmptyIconSvg = svgIcon('');

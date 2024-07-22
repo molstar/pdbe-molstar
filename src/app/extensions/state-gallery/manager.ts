@@ -1,7 +1,8 @@
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { arrayDistinct } from 'molstar/lib/mol-util/array';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { combineUrl } from '../../helpers';
-import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 
 
 export interface StateGalleryData {
@@ -71,7 +72,7 @@ export class StateGalleryManager {
         public readonly entryId: string,
         public readonly data: StateGalleryData | undefined,
     ) {
-        this.images = removeWithSuffixes(listImages(data), ['_side', '_top']); // TODO allow suffixes by a parameter
+        this.images = removeWithSuffixes(listImages(data, true), ['_side', '_top']); // TODO allow suffixes by a parameter, sort by parameter
     }
 
     static async create(plugin: PluginContext, serverUrl: string, entryId: string) {
@@ -101,8 +102,53 @@ async function getData(plugin: PluginContext, serverUrl: string, entryId: string
     }
 }
 
-function listImages(data: StateGalleryData | undefined): Image[] {
-    return pushImages([], data);
+function listImages(data: StateGalleryData | undefined, byCategory: boolean = false): Image[] {
+    if (byCategory) {
+        const out: Image[] = [];
+
+        // Entry
+        out.push(...data?.entry?.all?.image ?? []);
+        // Validation
+        out.push(...data?.validation?.geometry?.deposited?.image ?? []);
+        // Bfactor
+        out.push(...data?.entry?.bfactor?.image ?? []);
+        // Assembly
+        const assemblies = data?.assembly;
+        for (const ass in assemblies) {
+            out.push(...assemblies[ass].image);
+        }
+        // Entity
+        const entities = data?.entity;
+        for (const entity in entities) {
+            out.push(...entities[entity].image);
+        }
+        // Ligand
+        const ligands = data?.entry?.ligands;
+        for (const ligand in ligands) {
+            out.push(...ligands[ligand].image);
+        }
+        // Modres
+        const modres = data?.entry?.mod_res;
+        for (const res in modres) {
+            out.push(...modres[res].image);
+        }
+        // Domain
+        for (const entity in entities) {
+            const dbs = entities[entity].database;
+            for (const db in dbs) {
+                const domains = dbs[db];
+                for (const domain in domains) {
+                    out.push(...domains[domain].image);
+                }
+            }
+        }
+
+        // Any other potential images not caught in categories above
+        pushImages(out, data);
+        return arrayDistinct(out as any) as any;
+    } else {
+        return pushImages([], data);
+    }
 }
 
 function pushImages(out: Image[], data: any): Image[] {
