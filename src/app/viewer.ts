@@ -44,6 +44,7 @@ import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
+import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
@@ -103,6 +104,7 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.config ??= [];
 
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MolViewSpec));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StateGallery));
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
@@ -938,6 +940,7 @@ export class PDBeMolstarPlugin {
     /** Helper functions related to specific views or use cases */
     static extensions = {
         foldseek: Foldseek,
+        stateGallery: StateGalleryExtensionFunctions,
     };
 }
 

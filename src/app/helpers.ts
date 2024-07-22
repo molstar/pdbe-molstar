@@ -400,6 +400,17 @@ export function getStructureUrl(initParams: InitParams, request: ModelServerRequ
     }
 }
 
+/** Combine URL parts into one URL while avoiding double slashes. Examples:
+ * combineUrl('https://example.org', '1tqn') -> 'https://example.org/1tqn';
+ * combineUrl('https://example.org/', '1tqn') -> 'https://example.org/1tqn'; */
+export function combineUrl(firstPart: string, ...moreParts: string[]): string {
+    let result = firstPart;
+    for (const part of moreParts) {
+        result = result.replace(/\/$/, '') + '/' + part; // removing extra trailing slash
+    }
+    return result;
+}
+
 /** Create a copy of object `object`, fill in missing/undefined keys using `defaults` */
 export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaults: T): T {
     const result: Partial<T> = { ...object };

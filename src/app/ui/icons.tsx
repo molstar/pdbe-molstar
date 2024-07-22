@@ -27,3 +27,9 @@ export const InfoIconSvg = svgIcon('M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7
 
 /** Annotation icon */
 export const TextsmsOutlinedSvg = svgIcon('M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H6l-2 2V4h16zM7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z');
+
+/** "Previous" icon */
+export const ChevronLeftSvg = svgIcon('M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z');
+
+/** "Next" icon */
+export const ChevronRightSvg = svgIcon('M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z');
