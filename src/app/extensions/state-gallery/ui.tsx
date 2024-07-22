@@ -114,7 +114,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.code === 'ArrowLeft') selectPrevious();
         if (e.code === 'ArrowRight') selectNext();
-    }
+    };
     const keyDownTargetRef = React.useRef<HTMLDivElement>(null); // Dummy div to get focus and allow keyboard control
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
 

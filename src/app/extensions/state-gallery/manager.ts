@@ -85,8 +85,18 @@ export class StateGalleryManager {
     }
 
     async load(filename: string): Promise<void> {
-        const url = combineUrl(this.serverUrl, `${filename}.molj`);
-        await PluginCommands.State.Snapshots.OpenUrl(this.plugin, { url, type: 'molj' });
+        const file = await this.getSnapshot(filename);
+        await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
+    }
+    private readonly cache: { [filename: string]: File } = {};
+    private async fetchSnapshot(filename: string): Promise<File> {
+        const fullFilename = `${filename}.molj`;
+        const url = combineUrl(this.serverUrl, fullFilename);
+        const data = await this.plugin.runTask(this.plugin.fetch({ url, type: 'binary' }));
+        return new File([data], fullFilename);
+    }
+    async getSnapshot(filename: string): Promise<File> {
+        return this.cache[filename] ??= await this.fetchSnapshot(filename);
     }
 }
 
