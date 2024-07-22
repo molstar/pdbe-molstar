@@ -105,6 +105,9 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
     const nImages = images.length;
     const [selected, setSelected] = React.useState<number>(0);
+    React.useEffect(() => {
+        props.manager.load(images[selected].filename);
+    }, [selected]);
 
     if (nImages === 0) {
         return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;

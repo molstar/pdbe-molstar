@@ -1,6 +1,7 @@
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { combineUrl } from '../../helpers';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 
 
 export interface StateGalleryData {
@@ -73,7 +74,7 @@ export class StateGalleryManager {
         this.images = removeWithSuffixes(listImages(data), ['_side', '_top']); // TODO allow suffixes by a parameter
     }
 
-    public static async create(plugin: PluginContext, serverUrl: string, entryId: string) {
+    static async create(plugin: PluginContext, serverUrl: string, entryId: string) {
         const data = await getData(plugin, serverUrl, entryId);
         console.log('data:', data);
         if (data === undefined) {
@@ -81,7 +82,13 @@ export class StateGalleryManager {
         }
         return new this(plugin, serverUrl, entryId, data);
     }
+
+    async load(filename: string): Promise<void> {
+        const url = combineUrl(this.serverUrl, `${filename}.molj`);
+        await PluginCommands.State.Snapshots.OpenUrl(this.plugin, { url, type: 'molj' });
+    }
 }
+
 
 async function getData(plugin: PluginContext, serverUrl: string, entryId: string) {
     const url = combineUrl(serverUrl, entryId + '.json');
