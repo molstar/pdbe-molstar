@@ -135,7 +135,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         </ExpandGroup>
         {selected !== undefined &&
             <ExpandGroup header='Description' initiallyExpanded={true}>
-                <div className='state-gallery-legend' style={{ marginTop: 6 }}>
+                <div className='state-gallery-legend' style={{ marginBlock: 6 }}>
                     <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
                         {images[selected].alt}
                     </div>
