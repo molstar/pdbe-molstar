@@ -4,7 +4,8 @@ import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { arrayDistinct } from 'molstar/lib/mol-util/array';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
-import { combineUrl } from '../../helpers';
+import { BehaviorSubject } from 'rxjs';
+import { Refresher, combineUrl } from '../../helpers';
 
 
 export interface StateGalleryData {
@@ -69,6 +70,8 @@ const SPHERE_TOLERANCE = 0.02;
 
 export class StateGalleryManager {
     public readonly images: Image[];
+    public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined);
+    public readonly loadedStateName = new BehaviorSubject<string | undefined>(undefined);
 
     private constructor(
         public readonly plugin: PluginContext,
@@ -88,16 +91,22 @@ export class StateGalleryManager {
         return new this(plugin, serverUrl, entryId, data);
     }
 
-    async load(filename: string): Promise<void> {
+    private async load(filename: string): Promise<void> {
         const file = await this.getSnapshot(filename);
         const oldSphere = getVisibleBoundingSphere(this.plugin);
         await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
         // await this.plugin.managers.snapshot.setStateSnapshot(json.data);
         this.plugin.canvas3d?.commit();
         const newSphere = getVisibleBoundingSphere(this.plugin);
-        if (sphereDelta(oldSphere, newSphere) >= SPHERE_TOLERANCE) {
+        if (sphereDelta(oldSphere, newSphere) >= SPHERE_TOLERANCE) { // TODO doesn't work for manually changed camera
             await PluginCommands.Camera.Reset(this.plugin);
         }
+        this.loadedStateName.next(filename);
+    }
+    private readonly loader = Refresher((filename: string) => this.load(filename));
+    requestLoad(filename: string) {
+        this.requestedStateName.next(filename);
+        this.loader.requestRefresh(filename);
     }
 
     private readonly cache: { [filename: string]: File } = {};

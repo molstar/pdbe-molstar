@@ -10,6 +10,9 @@ function svgIcon(path: string): React.FunctionComponent<{}> {
 
 // Source: https://mui.com/material-ui/material-icons/
 
+/** Empty icon */
+export const EmptyIconSvg = svgIcon('');
+
 /** Image gallery icon */
 export const CollectionsOutlinedSvg = svgIcon('M20 4v12H8V4zm0-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m-8.5 9.67 1.69 2.26 2.48-3.1L19 15H9zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6z');
 
@@ -34,5 +37,5 @@ export const ChevronLeftSvg = svgIcon('M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83
 /** "Next" icon */
 export const ChevronRightSvg = svgIcon('M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z');
 
-/** Empty icon */
-export const EmptyIconSvg = svgIcon('');
+/** "Waiting" icon */
+export const HourglassBottomSvg = svgIcon('m18 22-.01-6L14 12l3.99-4.01L18 2H6v6l4 4-4 3.99V22zM8 7.5V4h8v3.5l-4 4z');

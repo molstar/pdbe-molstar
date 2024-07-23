@@ -16,8 +16,10 @@ import { Task } from 'molstar/lib/mol-task';
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
 import { Color } from 'molstar/lib/mol-util/color';
 import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
+import { sleep } from 'molstar/lib/mol-util/sleep';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
+import { UUID } from 'molstar/lib/mol-util';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -490,4 +492,45 @@ export function getComponentTypeFromTags(tags: string[] | undefined): keyof type
         }
     }
     return undefined;
+}
+
+
+export interface Refresher<X, Y> {
+    requestRefresh: (args: X) => void,
+}
+
+interface Job<X, Y> {
+    id: UUID,
+    args: X,
+}
+
+export function Refresher<X, Y>(refresh: (args: X) => Y | Promise<Y>): Refresher<X, Y> {
+    let requested: Job<X, Y> | undefined = undefined;
+    let running: Job<X, Y> | undefined = undefined;
+    function requestRefresh(args: X): void {
+        if (requested) {
+            // TODO resolve requested promise as skipped
+        }
+        const id = UUID.createv4();
+        requested = { id, args };
+        if (!running) {
+            handleRequests(); // do not await
+        }
+    }
+    async function handleRequests(): Promise<void> {
+        while (requested) {
+            running = requested;
+            requested = undefined;
+            await sleep(0); // let other things happen (this pushes the rest of the function to the end of the queue)
+            try {
+                await refresh(running.args);
+            } catch (err) {
+                console.error(err);
+            }
+            running = undefined;
+        }
+    }
+    return {
+        requestRefresh,
+    };
 }

@@ -61,8 +61,12 @@ svg.pdbe-animated-logo {
 }
 
 
-.pdbemolstar-state-gallery-controls:focus-visible {
-    outline: none;
+.pdbemolstar-state-gallery-controls {
+    overflow-x: hidden;
+    word-wrap: break-word; // necessary for wrapping oligonucleotide sequences
+    &:focus-visible{
+        outline: none;
+    }
 }
 
 .pdbemolstar-state-gallery-legend {

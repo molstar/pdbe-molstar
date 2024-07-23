@@ -4,8 +4,9 @@ import { CheckSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
-import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg } from '../../ui/icons';
+import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
 import { StateGalleryManager } from './manager';
+import { useBehavior } from 'molstar/lib/mol-plugin-ui/hooks/use-behavior';
 
 
 interface StateGalleryControlsState {
@@ -106,8 +107,10 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const nImages = images.length;
     const [selected, setSelected] = React.useState<number>(0);
     React.useEffect(() => {
-        props.manager.load(images[selected].filename);
+        props.manager.requestLoad(images[selected].filename);
     }, [selected]);
+    const loadedState = useBehavior(props.manager.loadedStateName);
+    const isLoading = images[selected].filename !== loadedState;
 
     const selectPrevious = () => setSelected(old => (old - 1 + nImages) % nImages);
     const selectNext = () => setSelected(old => (old + 1) % nImages);
@@ -126,7 +129,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         <ExpandGroup header='States' initiallyExpanded={true}>
             {images.map((img, i) =>
                 <Button key={i} className='msp-action-menu-button' onClick={() => setSelected(i)} title={img.filename}
-                    icon={i === selected ? CheckSvg : EmptyIconSvg}
+                    icon={i === selected ? (isLoading ? HourglassBottomSvg : CheckSvg) : EmptyIconSvg}
                     style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: i === selected ? 'bold' : undefined }}>
                     {img.filename}
                 </Button>
