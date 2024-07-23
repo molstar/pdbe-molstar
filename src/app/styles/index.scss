@@ -60,7 +60,12 @@ svg.pdbe-animated-logo {
     max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
 }
 
-.state-gallery-legend {
+
+.pdbemolstar-state-gallery-controls:focus-visible {
+    outline: none;
+}
+
+.pdbemolstar-state-gallery-legend {
     .image_legend_li {
         margin-left: 16px;
     }

@@ -44,7 +44,8 @@ import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
-import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery';
+import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
+import { StateGalleryControls } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
@@ -104,7 +105,10 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.config ??= [];
 
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MolViewSpec));
-        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StateGallery));
+
+        if (this.initParams.galleryView) {
+            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StateGallery));
+        }
 
         if (!this.initParams.ligandView && !this.initParams.superposition && this.initParams.selectInteraction) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StructureFocusRepresentation));
@@ -150,10 +154,13 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: this.initParams.superposition ? SuperpostionViewport : void 0
+                view: this.initParams.superposition ? SuperpostionViewport : undefined,
             },
             remoteState: 'none',
-            structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools : this.initParams.ligandView ? PDBeLigandViewStructureTools : PDBeStructureTools
+            structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools
+                : this.initParams.ligandView ? PDBeLigandViewStructureTools
+                    : this.initParams.galleryView ? StateGalleryControls
+                        : PDBeStructureTools,
         };
 
         if (this.initParams.alphafoldView) {

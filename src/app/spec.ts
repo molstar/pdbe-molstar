@@ -128,6 +128,8 @@ export interface InitParams {
     },
     /** Specify parts of the structure to highlight with different colors */
     selection?: { data: QueryParam[], nonSelectedColor?: AnyColor },
+    /** Display 3D State Gallery */
+    galleryView: boolean,
 
     // APPEARANCE
     /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */
@@ -210,6 +212,7 @@ export const DefaultParams: InitParams = {
     superposition: false,
     superpositionParams: undefined,
     selection: undefined,
+    galleryView: false,
 
     visualStyle: undefined,
     hideStructure: [],

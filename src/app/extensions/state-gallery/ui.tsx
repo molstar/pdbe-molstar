@@ -115,15 +115,14 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         if (e.code === 'ArrowLeft') selectPrevious();
         if (e.code === 'ArrowRight') selectNext();
     };
-    const keyDownTargetRef = React.useRef<HTMLDivElement>(null); // Dummy div to get focus and allow keyboard control
+    const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
 
     if (nImages === 0) {
         return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
     }
 
-    return <div onKeyDown={handleKeyDown}>
-        <div ref={keyDownTargetRef} tabIndex={0} />
+    return <div className='pdbemolstar-state-gallery-controls' onKeyDown={handleKeyDown} tabIndex={-1} ref={keyDownTargetRef} >
         <ExpandGroup header='States' initiallyExpanded={true}>
             {images.map((img, i) =>
                 <Button key={i} className='msp-action-menu-button' onClick={() => setSelected(i)} title={img.filename}
@@ -135,7 +134,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         </ExpandGroup>
         {selected !== undefined &&
             <ExpandGroup header='Description' initiallyExpanded={true}>
-                <div className='state-gallery-legend' style={{ marginBlock: 6 }}>
+                <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
                     <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
                         {images[selected].alt}
                     </div>
