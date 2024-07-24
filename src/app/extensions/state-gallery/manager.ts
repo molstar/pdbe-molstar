@@ -5,7 +5,7 @@ import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { arrayDistinct } from 'molstar/lib/mol-util/array';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { BehaviorSubject } from 'rxjs';
-import { Refresher, combineUrl } from '../../helpers';
+import { PreemptiveQueue, combineUrl } from '../../helpers';
 
 
 export interface StateGalleryData {
@@ -91,7 +91,7 @@ export class StateGalleryManager {
         return new this(plugin, serverUrl, entryId, data);
     }
 
-    private async load(filename: string): Promise<void> {
+    private async _load(filename: string): Promise<string> {
         const file = await this.getSnapshot(filename);
         const oldSphere = getVisibleBoundingSphere(this.plugin);
         await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
@@ -102,11 +102,12 @@ export class StateGalleryManager {
             await PluginCommands.Camera.Reset(this.plugin);
         }
         this.loadedStateName.next(filename);
+        return filename;
     }
-    private readonly loader = Refresher((filename: string) => this.load(filename));
-    requestLoad(filename: string) {
+    private readonly loader = new PreemptiveQueue((filename: string) => this._load(filename));
+    async load(filename: string) {
         this.requestedStateName.next(filename);
-        this.loader.requestRefresh(filename);
+        return await this.loader.requestRun(filename);
     }
 
     private readonly cache: { [filename: string]: File } = {};

@@ -19,7 +19,6 @@ import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
-import { UUID } from 'molstar/lib/mol-util';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
@@ -495,42 +494,66 @@ export function getComponentTypeFromTags(tags: string[] | undefined): keyof type
 }
 
 
-export interface Refresher<X, Y> {
-    requestRefresh: (args: X) => void,
-}
+/** `{ status: 'completed', result: result }` means the job completed and returned/resolved to `result`.
+* `{ status: 'cancelled' }` means the job started but another jobs got enqueued before its completion.
+* `{ status: 'skipped' }` means the job did not start because another jobs got enqueued. */
+type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' }
 
-interface Job<X, Y> {
-    id: UUID,
+interface PreemptiveQueueJob<X, Y> {
     args: X,
+    callbacks: {
+        resolve: (result: PreemptiveQueueResult<Y>) => void,
+        reject: (reason: any) => void,
+    },
+    cancelled?: boolean,
 }
 
-export function Refresher<X, Y>(refresh: (args: X) => Y | Promise<Y>): Refresher<X, Y> {
-    let requested: Job<X, Y> | undefined = undefined;
-    let running: Job<X, Y> | undefined = undefined;
-    function requestRefresh(args: X): void {
-        if (requested) {
-            // TODO resolve requested promise as skipped
+/** Queue for running jobs where enqueued jobs get discarded when a new job is enqueued.
+ * (Discarded jobs may or may not actually be executed, but their result is not accessible anyway.) */
+export class PreemptiveQueue<X, Y> {
+    private running?: PreemptiveQueueJob<X, Y>;
+    private queuing?: PreemptiveQueueJob<X, Y>;
+
+    constructor(private readonly run: (args: X) => Y | Promise<Y>) { }
+
+    /** Enqueue a job which will execute `run(args)`.
+     * Return a promise that either resolves to `{ status: 'completed', result }` where `result` is `await run(args)`,
+     * or resolves to `{ status: 'cancelled' }` if the job starts being executed but another jobs gets enqueued before its completion,
+     * or resolves to `{ status: 'skipped' }` if the job does not even start before another jobs gets enqueued,
+     * or rejects if the job is completed but throws an error.  */
+    public requestRun(args: X): Promise<PreemptiveQueueResult<Y>> {
+        if (this.running) {
+            this.running.cancelled = true;
+            this.running.callbacks.resolve({ status: 'cancelled' });
         }
-        const id = UUID.createv4();
-        requested = { id, args };
-        if (!running) {
-            handleRequests(); // do not await
+        if (this.queuing) {
+            this.queuing.callbacks.resolve({ status: 'skipped' });
         }
+        const promise = new Promise<PreemptiveQueueResult<Y>>((resolve, reject) => {
+            this.queuing = { args, callbacks: { resolve, reject } };
+        });
+        if (!this.running) {
+            this.handleRequests(); // do not await
+        }
+        return promise;
     }
-    async function handleRequests(): Promise<void> {
-        while (requested) {
-            running = requested;
-            requested = undefined;
+    /** Request handling loop. Resolves when there are no more requests. Not to be awaited, should run in the background.  */
+    private async handleRequests(): Promise<void> {
+        while (this.queuing) {
+            this.running = this.queuing;
+            this.queuing = undefined;
             await sleep(0); // let other things happen (this pushes the rest of the function to the end of the queue)
             try {
-                await refresh(running.args);
-            } catch (err) {
-                console.error(err);
+                const result = await this.run(this.running.args);
+                if (!this.running.cancelled) {
+                    this.running.callbacks.resolve({ status: 'completed', result });
+                }
+            } catch (error) {
+                if (!this.running.cancelled) {
+                    this.running.callbacks.reject(error);
+                }
             }
-            running = undefined;
+            this.running = undefined;
         }
     }
-    return {
-        requestRefresh,
-    };
 }
