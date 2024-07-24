@@ -1,11 +1,12 @@
-import { Sphere3D } from 'molstar/lib/mol-math/geometry';
-import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { arrayDistinct } from 'molstar/lib/mol-util/array';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { BehaviorSubject } from 'rxjs';
 import { PreemptiveQueue, combineUrl } from '../../helpers';
+
+
+const LOAD_CAMERA_ORIENTATION = true;
 
 
 export interface StateGalleryData {
@@ -66,8 +67,6 @@ interface Image {
 }
 
 
-const SPHERE_TOLERANCE = 0.02;
-
 export class StateGalleryManager {
     public readonly images: Image[];
     public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined);
@@ -84,7 +83,6 @@ export class StateGalleryManager {
 
     static async create(plugin: PluginContext, serverUrl: string, entryId: string) {
         const data = await getData(plugin, serverUrl, entryId);
-        console.log('data:', data);
         if (data === undefined) {
             console.error(`StateGalleryManager failed to get data for entry ${entryId}`);
         }
@@ -92,13 +90,13 @@ export class StateGalleryManager {
     }
 
     private async _load(filename: string): Promise<string> {
-        const file = await this.getSnapshot(filename);
-        const oldSphere = getVisibleBoundingSphere(this.plugin);
+        let snapshot = await this.getSnapshot(filename);
+        snapshot = removeDataFromSnapshot(snapshot, { removeBackground: true, removeCamera: !LOAD_CAMERA_ORIENTATION });
+        const file = new File([snapshot], `${filename}.molj`);
         await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
-        // await this.plugin.managers.snapshot.setStateSnapshot(json.data);
-        this.plugin.canvas3d?.commit();
-        const newSphere = getVisibleBoundingSphere(this.plugin);
-        if (sphereDelta(oldSphere, newSphere) >= SPHERE_TOLERANCE) { // TODO doesn't work for manually changed camera
+        // await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(data));
+        if (!LOAD_CAMERA_ORIENTATION) {
+            this.plugin.canvas3d?.commit();
             await PluginCommands.Camera.Reset(this.plugin);
         }
         this.loadedStateName.next(filename);
@@ -107,18 +105,21 @@ export class StateGalleryManager {
     private readonly loader = new PreemptiveQueue((filename: string) => this._load(filename));
     async load(filename: string) {
         this.requestedStateName.next(filename);
-        return await this.loader.requestRun(filename);
+        this.loadedStateName.next(undefined);
+        const result = await this.loader.requestRun(filename);
+        if (result.status === 'completed') {
+            this.loadedStateName.next(filename);
+        }
+        return result;
     }
 
-    private readonly cache: { [filename: string]: File } = {};
-    private async fetchSnapshot(filename: string): Promise<File> {
-        const fullFilename = `${filename}.molj`;
-        const url = combineUrl(this.serverUrl, fullFilename);
-        let data = await this.plugin.runTask(this.plugin.fetch({ url, type: 'string' }));
-        data = mutilateSnapshot(data, { removeBackground: true, removeCamera: true });
-        return new File([data], fullFilename);
+    private readonly cache: { [filename: string]: string } = {};
+    private async fetchSnapshot(filename: string): Promise<string> {
+        const url = combineUrl(this.serverUrl, `${filename}.molj`);
+        const data = await this.plugin.runTask(this.plugin.fetch({ url, type: 'string' }));
+        return data;
     }
-    async getSnapshot(filename: string): Promise<File> {
+    async getSnapshot(filename: string): Promise<string> {
         return this.cache[filename] ??= await this.fetchSnapshot(filename);
     }
 }
@@ -202,7 +203,7 @@ function removeWithSuffixes(images: Image[], suffixes: string[]): Image[] {
     return images.filter(img => !suffixes.some(suffix => img.filename.endsWith(suffix)));
 }
 
-function mutilateSnapshot(snapshot: string, options: { removeBackground?: boolean, removeCamera?: boolean }) {
+function removeDataFromSnapshot(snapshot: string, options: { removeBackground?: boolean, removeCamera?: boolean }) {
     const json = JSON.parse(snapshot);
     if (json.entries) {
         for (const entry of json.entries) {
@@ -213,22 +214,4 @@ function mutilateSnapshot(snapshot: string, options: { removeBackground?: boolea
         }
     }
     return JSON.stringify(json);
-}
-
-/** Arbitrary measure of difference between two spheres, scale-invariant. */
-function sphereDelta(a: Sphere3D | undefined, b: Sphere3D | undefined): number {
-    if (!a || !b) return Infinity;
-    const deltaCenter = Vec3.distance(a.center, b.center);
-    const deltaRadius = Math.abs(a.radius - b.radius);
-    return (deltaCenter + deltaRadius) / (a.radius + b.radius);
-}
-
-/** Return a deep copy of bounding sphere of current visible scene. */
-function getVisibleBoundingSphere(plugin: PluginContext): Sphere3D | undefined {
-    const sphere = plugin.canvas3d?.boundingSphereVisible;
-    if (sphere === undefined) return undefined;
-    return {
-        center: Vec3.copy(Vec3(), sphere.center),
-        radius: sphere.radius,
-    };
 }

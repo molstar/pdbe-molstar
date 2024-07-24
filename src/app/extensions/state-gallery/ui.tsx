@@ -1,8 +1,7 @@
 import { CollapsableControls, CollapsableState } from 'molstar/lib/mol-plugin-ui/base';
 import { Button, ExpandGroup } from 'molstar/lib/mol-plugin-ui/controls/common';
-import { CheckSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { CheckSvg, ErrorSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
-import { useBehavior } from 'molstar/lib/mol-plugin-ui/hooks/use-behavior';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
@@ -106,12 +105,18 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
     const nImages = images.length;
     const [selected, setSelected] = React.useState<number>(0);
+    const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
+
     React.useEffect(() => {
-        props.manager.load(images[selected].filename);
+        setStatus('loading');
+        props.manager.load(images[selected].filename)
+            .then(r => { if (r.status === 'completed') setStatus('ready'); })
+            .catch(() => setStatus('error'));
     }, [selected]);
 
-    const loadedState = useBehavior(props.manager.loadedStateName);
-    const isLoading = images[selected].filename !== loadedState;
+    const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => keyDownTargetRef.current?.focus(), []);
+    const selectedStateIcon = (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
 
     const selectPrevious = () => setSelected(old => (old - 1 + nImages) % nImages);
     const selectNext = () => setSelected(old => (old + 1) % nImages);
@@ -119,8 +124,6 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         if (e.code === 'ArrowLeft') selectPrevious();
         if (e.code === 'ArrowRight') selectNext();
     };
-    const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
-    React.useEffect(() => keyDownTargetRef.current?.focus(), []);
 
     if (nImages === 0) {
         return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
@@ -130,7 +133,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         <ExpandGroup header='States' initiallyExpanded={true}>
             {images.map((img, i) =>
                 <Button key={i} className='msp-action-menu-button' onClick={() => setSelected(i)} title={img.filename}
-                    icon={i === selected ? (isLoading ? HourglassBottomSvg : CheckSvg) : EmptyIconSvg}
+                    icon={i === selected ? selectedStateIcon : EmptyIconSvg}
                     style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: i === selected ? 'bold' : undefined }}>
                     {img.filename}
                 </Button>
