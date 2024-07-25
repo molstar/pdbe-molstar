@@ -17,7 +17,7 @@ export interface FoldseekApiData {
     tend: number,
     qaln: string,
     taln: string,
-    database: 'pdb' | 'afdb',
+    database: 'pdb' | 'afdb50',
 }
 
 /** Load target structure as defined by `apiData`
@@ -32,11 +32,13 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targe
         [tEntryId, tAuthAsymId] = apiData.target.split('_');
         const pdbeUrl = viewer.initParams.pdbeUrl.replace(/\/$/, '');
         // const url = `${pdbeUrl}/entry-files/download/${tEntryId}_updated.cif`;
-        const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?auth_asym_id=${tAuthAsymId}`;
+        const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?auth_asym_id=${tAuthAsymId}&encoding=bcif`;
+        await viewer.load({ url, format: 'mmcif', isBinary: true, id: targetStructId }, false);
+    } else if (apiData.database === 'afdb50') {
+        tEntryId = apiData.target;
+        tAuthAsymId = 'A'; // TODO is this a valid assumption?
+        const url = `https://alphafold.ebi.ac.uk/files/AF-${tEntryId}-F1-model_v4.cif`;
         await viewer.load({ url, format: 'mmcif', isBinary: false, id: targetStructId }, false);
-    } else if (apiData.database === 'afdb') {
-        // TODO assign tEntryId, tAuthAsymId and download structure from AFDB
-        throw new Error('NotImplementedError');
     } else {
         throw new Error(`Unknown database: ${apiData.database}`);
     }
