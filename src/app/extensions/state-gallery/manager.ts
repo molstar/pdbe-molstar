@@ -1,9 +1,8 @@
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { arrayDistinct } from 'molstar/lib/mol-util/array';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { BehaviorSubject } from 'rxjs';
-import { PreemptiveQueue, combineUrl } from '../../helpers';
+import { PreemptiveQueue, combineUrl, distinct } from '../../helpers';
 
 
 const LOAD_CAMERA_ORIENTATION = true;
@@ -58,12 +57,16 @@ export interface StateGalleryData {
     image_suffix?: string[],
     last_modification?: string,
 }
+const ImageCategory = ['Entry', 'Assemblies', 'Entities', 'Ligands', 'Modified residues', 'Domains', 'Miscellaneous'] as const;
+type ImageCategory = typeof ImageCategory[number]
 
-interface Image {
+export interface Image {
     filename: string,
     alt: string,
     description: string,
     clean_description: string,
+    category?: ImageCategory,
+    simple_title?: string,
 }
 
 
@@ -141,30 +144,61 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         const out: Image[] = [];
 
         // Entry
-        out.push(...data?.entry?.all?.image ?? []);
+        // out.push(...data?.entry?.all?.image ?? []);
+        for (const img of data?.entry?.all?.image ?? []) {
+            const title = img.filename.includes('_chemically_distinct_molecules')
+                ? 'Deposited model (color by entity)'
+                : img.filename.includes('_chain')
+                    ? 'Deposited model (color by chain)'
+                    : undefined;
+            out.push({ ...img, category: 'Entry', simple_title: title });
+        }
         // Validation
-        out.push(...data?.validation?.geometry?.deposited?.image ?? []);
+        // out.push(...data?.validation?.geometry?.deposited?.image ?? []);
+        for (const img of data?.validation?.geometry?.deposited?.image ?? []) {
+            out.push({ ...img, category: 'Entry', simple_title: 'Geometry validation' });
+        }
         // Bfactor
-        out.push(...data?.entry?.bfactor?.image ?? []);
+        // out.push(...data?.entry?.bfactor?.image ?? []);
+        for (const img of data?.entry?.bfactor?.image ?? []) {
+            out.push({ ...img, category: 'Entry', simple_title: 'B-factor' });
+        }
         // Assembly
         const assemblies = data?.assembly;
         for (const ass in assemblies) {
-            out.push(...assemblies[ass].image);
+            // out.push(...assemblies[ass].image);
+            for (const img of assemblies[ass].image ?? []) {
+                const title = img.filename.includes('_chemically_distinct_molecules')
+                    ? `Assembly ${ass} (color by entity)`
+                    : img.filename.includes('_chain')
+                        ? `Assembly ${ass} (color by chain)`
+                        : undefined;
+                out.push({ ...img, category: 'Assemblies', simple_title: title });
+            }
         }
         // Entity
         const entities = data?.entity;
         for (const entity in entities) {
-            out.push(...entities[entity].image);
+            // out.push(...entities[entity].image);
+            for (const img of entities[entity].image ?? []) {
+                out.push({ ...img, category: 'Entities', simple_title: `Entity ${entity}` });
+            }
         }
         // Ligand
         const ligands = data?.entry?.ligands;
         for (const ligand in ligands) {
-            out.push(...ligands[ligand].image);
+            // out.push(...ligands[ligand].image);
+            for (const img of ligands[ligand].image ?? []) {
+                out.push({ ...img, category: 'Ligands', simple_title: `Ligand environment for ${ligand}` });
+            }
         }
         // Modres
         const modres = data?.entry?.mod_res;
         for (const res in modres) {
-            out.push(...modres[res].image);
+            // out.push(...modres[res].image);
+            for (const img of modres[res].image ?? []) {
+                out.push({ ...img, category: 'Modified residues', simple_title: `Modified residue ${res}` });
+            }
         }
         // Domain
         for (const entity in entities) {
@@ -172,14 +206,17 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
             for (const db in dbs) {
                 const domains = dbs[db];
                 for (const domain in domains) {
-                    out.push(...domains[domain].image);
+                    // out.push(...domains[domain].image);
+                    for (const img of domains[domain].image ?? []) {
+                        out.push({ ...img, category: 'Domains', simple_title: `${db} ${domain} in entity ${entity}` });
+                    }
                 }
             }
         }
 
         // Any other potential images not caught in categories above
         pushImages(out, data);
-        return arrayDistinct(out as any) as any;
+        return distinct(out, img => img.filename);
     } else {
         return pushImages([], data);
     }

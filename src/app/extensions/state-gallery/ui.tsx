@@ -4,6 +4,7 @@ import { CheckSvg, ErrorSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
+import { createIndex, groupElements, nonnegativeModulo } from '../../helpers';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
 import { StateGalleryManager } from './manager';
 
@@ -103,13 +104,15 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
 
 function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
+    const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
+    const imageIndex = React.useMemo(() => createIndex(images), [images]);
     const nImages = images.length;
-    const [selected, setSelected] = React.useState<number>(0);
+    const [selected, setSelected] = React.useState(images[0]);
     const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
 
     React.useEffect(() => {
         setStatus('loading');
-        props.manager.load(images[selected].filename)
+        props.manager.load(selected.filename)
             .then(r => { if (r.status === 'completed') setStatus('ready'); })
             .catch(() => setStatus('error'));
     }, [selected]);
@@ -118,8 +121,13 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
     const selectedStateIcon = (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
 
-    const selectPrevious = () => setSelected(old => (old - 1 + nImages) % nImages);
-    const selectNext = () => setSelected(old => (old + 1) % nImages);
+    const shift = (x: number) => setSelected(old => {
+        const oldIndex = imageIndex.get(old) ?? 0;
+        const newIndex = nonnegativeModulo(oldIndex + x, nImages);
+        return images[newIndex];
+    });
+    const selectPrevious = () => shift(-1);
+    const selectNext = () => shift(1);
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.code === 'ArrowLeft') selectPrevious();
         if (e.code === 'ArrowRight') selectNext();
@@ -130,25 +138,27 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     }
 
     return <div className='pdbemolstar-state-gallery-controls' onKeyDown={handleKeyDown} tabIndex={-1} ref={keyDownTargetRef} >
-        <ExpandGroup header='States' initiallyExpanded={true}>
-            {images.map((img, i) =>
-                <Button key={i} className='msp-action-menu-button' onClick={() => setSelected(i)} title={img.filename}
-                    icon={i === selected ? selectedStateIcon : EmptyIconSvg}
-                    style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: i === selected ? 'bold' : undefined }}>
-                    {img.filename}
-                </Button>
+        <ExpandGroup header='States' initiallyExpanded={true} key='states'>
+            {categories.groups.map(cat =>
+                <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
+                    {categories.members.get(cat)?.map(img =>
+                        <Button key={img.filename} className='msp-action-menu-button' onClick={() => setSelected(img)} title={img.simple_title ?? img.filename}
+                            icon={img === selected ? selectedStateIcon : EmptyIconSvg}
+                            style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: img === selected ? 'bold' : undefined }}>
+                            {img.category ?? 'Miscellaneous'}: {img.simple_title ?? img.filename}
+                        </Button>
+                    )}
+                </ExpandGroup>
             )}
         </ExpandGroup>
-        {selected !== undefined &&
-            <ExpandGroup header='Description' initiallyExpanded={true}>
-                <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
-                        {images[selected].alt}
-                    </div>
-                    <div dangerouslySetInnerHTML={{ __html: images[selected].description }} />
+        <ExpandGroup header='Description' initiallyExpanded={true} key='description'>
+            <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
+                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
+                    {selected.alt}
                 </div>
-            </ExpandGroup>
-        }
+                <div dangerouslySetInnerHTML={{ __html: selected.description }} />
+            </div>
+        </ExpandGroup>
         <div className='msp-flex-row' >
             <Button icon={ChevronLeftSvg} title='Previous state' onClick={selectPrevious}></Button>
             <Button icon={ChevronRightSvg} title='Next state' onClick={selectNext} ></Button>

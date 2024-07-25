@@ -493,6 +493,55 @@ export function getComponentTypeFromTags(tags: string[] | undefined): keyof type
     return undefined;
 }
 
+/** Return a new array containing `values` without duplicates (only first occurrence will be kept).
+ * Values v1, v2 are considered duplicates when `key(v1)===key(v2)`. */
+export function distinct<T>(values: T[], key: ((value: T) => unknown) = (value => value)): T[] {
+    const out: T[] = [];
+    const seenKeys = new Set<unknown>();
+    for (const value of values) {
+        const theKey = key(value);
+        if (!seenKeys.has(theKey)) {
+            out.push(value);
+            seenKeys.add(theKey);
+        }
+    }
+    return out;
+}
+
+/** Group elements by result of `groupFunction` applied to them */
+export function groupElements<T, G>(elements: T[], groupFunction: (elem: T) => G) {
+    const groups: G[] = [];
+    const members = new Map<G, T[]>();
+    for (const elem of elements) {
+        const g = groupFunction(elem);
+        if (members.has(g)) {
+            members.get(g)!.push(elem);
+        } else {
+            groups.push(g);
+            members.set(g, [elem]);
+        }
+    }
+    return {
+        /** Groups (results of `groupFunction`) in order as they first appeared in `elements` */
+        groups,
+        /** Mapping of groups to lists of they members */
+        members,
+    };
+}
+
+/** Return a mapping of elements to their index in the `elements` array */
+export function createIndex<T>(elements: T[]) {
+    const index = new Map<T, number>();
+    elements.forEach((elem, i) => index.set(elem, i));
+    return index;
+}
+
+/** Return modulo of two numbers (a % b) within range [0, b) */
+export function nonnegativeModulo(a: number, b: number) {
+    const modulo = a % b;
+    return (modulo < 0) ? modulo + b : modulo;
+}
+
 
 /** `{ status: 'completed', result: result }` means the job completed and returned/resolved to `result`.
 * `{ status: 'cancelled' }` means the job started but another jobs got enqueued before its completion.
