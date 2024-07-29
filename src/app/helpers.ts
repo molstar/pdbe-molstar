@@ -546,7 +546,7 @@ export function nonnegativeModulo(a: number, b: number) {
 /** `{ status: 'completed', result: result }` means the job completed and returned/resolved to `result`.
 * `{ status: 'cancelled' }` means the job started but another jobs got enqueued before its completion.
 * `{ status: 'skipped' }` means the job did not start because another jobs got enqueued. */
-type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' }
+export type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' }
 
 interface PreemptiveQueueJob<X, Y> {
     args: X,

@@ -1,11 +1,18 @@
+import { Camera } from 'molstar/lib/mol-canvas3d/camera';
+import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
+import { PluginStateSnapshotManager } from 'molstar/lib/mol-plugin-state/manager/snapshots';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
+import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject } from 'rxjs';
-import { PreemptiveQueue, combineUrl, distinct } from '../../helpers';
+import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, distinct } from '../../helpers';
 
 
-const LOAD_CAMERA_ORIENTATION = true;
+const LOAD_BACKGROUND = false; // TODO put to config+param
+const LOAD_CAMERA_ORIENTATION = true; // TODO put to config+param
+const CAMERA_PRE_TRANSITION_MS = 100; // TODO put to config+param
+const CAMERA_TRANSITION_MS = 400; // TODO put to config+param
 
 
 export interface StateGalleryData {
@@ -74,6 +81,7 @@ export class StateGalleryManager {
     public readonly images: Image[];
     public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined);
     public readonly loadedStateName = new BehaviorSubject<string | undefined>(undefined);
+    private firstLoaded = false;
 
     private constructor(
         public readonly plugin: PluginContext,
@@ -92,21 +100,30 @@ export class StateGalleryManager {
         return new this(plugin, serverUrl, entryId, data);
     }
 
-    private async _load(filename: string): Promise<string> {
+    private async _load(filename: string): Promise<void> {
+        if (!this.plugin.canvas3d) throw new Error('plugin.canvas3d is not defined');
+
         let snapshot = await this.getSnapshot(filename);
-        snapshot = removeDataFromSnapshot(snapshot, { removeBackground: true, removeCamera: !LOAD_CAMERA_ORIENTATION });
+        const oldCamera = getCurrentCamera(this.plugin);
+        const incomingCamera = getCameraFromSnapshot(snapshot); // Camera position from the MOLJ file, which may be incorrectly zoomed if viewport width < height
+        const newCamera: Camera.Snapshot = { ...oldCamera, ...refocusCameraSnapshot(this.plugin.canvas3d.camera, incomingCamera) };
+        snapshot = modifySnapshot(snapshot, {
+            removeBackground: !LOAD_BACKGROUND,
+            replaceCamera: {
+                camera: (LOAD_CAMERA_ORIENTATION && !this.firstLoaded) ? newCamera : oldCamera,
+                transitionDurationInMs: 0,
+            }
+        });
         const file = new File([snapshot], `${filename}.molj`);
         await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
         // await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(data));
-        if (!LOAD_CAMERA_ORIENTATION) {
-            this.plugin.canvas3d?.commit();
-            await PluginCommands.Camera.Reset(this.plugin);
-        }
-        this.loadedStateName.next(filename);
-        return filename;
+        await sleep(this.firstLoaded ? CAMERA_PRE_TRANSITION_MS : 0); // it is necessary to sleep even for 0 ms here, to get animation
+        await PluginCommands.Camera.Reset(this.plugin, { snapshot: LOAD_CAMERA_ORIENTATION ? newCamera : undefined, durationMs: this.firstLoaded ? CAMERA_TRANSITION_MS : 0 });
+
+        this.firstLoaded = true;
     }
     private readonly loader = new PreemptiveQueue((filename: string) => this._load(filename));
-    async load(filename: string) {
+    async load(filename: string): Promise<PreemptiveQueueResult<void>> {
         this.requestedStateName.next(filename);
         this.loadedStateName.next(undefined);
         const result = await this.loader.requestRun(filename);
@@ -240,15 +257,39 @@ function removeWithSuffixes(images: Image[], suffixes: string[]): Image[] {
     return images.filter(img => !suffixes.some(suffix => img.filename.endsWith(suffix)));
 }
 
-function removeDataFromSnapshot(snapshot: string, options: { removeBackground?: boolean, removeCamera?: boolean }) {
-    const json = JSON.parse(snapshot);
-    if (json.entries) {
-        for (const entry of json.entries) {
-            if (entry.snapshot) {
-                if (options.removeBackground) delete entry.snapshot.canvas3d;
-                if (options.removeCamera) delete entry.snapshot.camera;
+function modifySnapshot(snapshot: string, options: { removeBackground?: boolean, replaceCamera?: { camera: Camera.Snapshot, transitionDurationInMs: number } }) {
+    const json = JSON.parse(snapshot) as PluginStateSnapshotManager.StateSnapshot;
+    for (const entry of json.entries ?? []) {
+        if (entry.snapshot) {
+            if (options.removeBackground) {
+                delete entry.snapshot.canvas3d;
+            }
+            if (options.replaceCamera) {
+                const { camera, transitionDurationInMs } = options.replaceCamera;
+                entry.snapshot.camera = {
+                    current: camera,
+                    transitionStyle: transitionDurationInMs > 0 ? 'animate' : 'instant',
+                    transitionDurationInMs: transitionDurationInMs > 0 ? transitionDurationInMs : undefined,
+                };
             }
         }
     }
     return JSON.stringify(json);
+}
+
+function getCameraFromSnapshot(snapshot: string): Camera.Snapshot | undefined {
+    const json = JSON.parse(snapshot);
+    return json?.entries?.[0]?.snapshot?.camera?.current;
+}
+
+function refocusCameraSnapshot(camera: Camera, snapshot: Camera.Snapshot | undefined) {
+    if (snapshot === undefined) return undefined;
+    const dir = Vec3.sub(Vec3(), snapshot.target, snapshot.position);
+    return camera.getInvariantFocus(snapshot.target, snapshot.radius, snapshot.up, dir);
+}
+
+function getCurrentCamera(plugin: PluginContext): Camera.Snapshot {
+    if (!plugin.canvas3d) return Camera.createDefaultSnapshot();
+    plugin.canvas3d.commit();
+    return plugin.canvas3d.camera.getSnapshot();
 }
