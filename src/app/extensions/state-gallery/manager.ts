@@ -7,12 +7,7 @@ import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject } from 'rxjs';
 import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, distinct } from '../../helpers';
-
-
-const LOAD_BACKGROUND = false; // TODO put to config+param
-const LOAD_CAMERA_ORIENTATION = true; // TODO put to config+param
-const CAMERA_PRE_TRANSITION_MS = 100; // TODO put to config+param
-const CAMERA_TRANSITION_MS = 400; // TODO put to config+param
+import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
 
 
 export interface StateGalleryData {
@@ -81,23 +76,26 @@ export class StateGalleryManager {
     public readonly images: Image[];
     public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined);
     public readonly loadedStateName = new BehaviorSubject<string | undefined>(undefined);
+    /** True if at least one state has been loaded (this is to skip animation on the first load) */
     private firstLoaded = false;
 
     private constructor(
         public readonly plugin: PluginContext,
-        public readonly serverUrl: string,
         public readonly entryId: string,
         public readonly data: StateGalleryData | undefined,
+        public readonly options: StateGalleryConfigValues,
     ) {
-        this.images = removeWithSuffixes(listImages(data, true), ['_side', '_top']); // TODO allow suffixes by a parameter, sort by parameter
+        const allImages = listImages(data, true);
+        this.images = removeWithSuffixes(allImages, ['_side', '_top']); // removing images in different orientation than 'front'
     }
 
-    static async create(plugin: PluginContext, serverUrl: string, entryId: string) {
-        const data = await getData(plugin, serverUrl, entryId);
+    static async create(plugin: PluginContext, entryId: string, options?: Partial<StateGalleryConfigValues>) {
+        const fullOptions = { ...getStateGalleryConfig(plugin), ...options };
+        const data = await getData(plugin, fullOptions.ServerUrl, entryId);
         if (data === undefined) {
             console.error(`StateGalleryManager failed to get data for entry ${entryId}`);
         }
-        return new this(plugin, serverUrl, entryId, data);
+        return new this(plugin, entryId, data, fullOptions);
     }
 
     private async _load(filename: string): Promise<void> {
@@ -108,17 +106,18 @@ export class StateGalleryManager {
         const incomingCamera = getCameraFromSnapshot(snapshot); // Camera position from the MOLJ file, which may be incorrectly zoomed if viewport width < height
         const newCamera: Camera.Snapshot = { ...oldCamera, ...refocusCameraSnapshot(this.plugin.canvas3d.camera, incomingCamera) };
         snapshot = modifySnapshot(snapshot, {
-            removeBackground: !LOAD_BACKGROUND,
+            removeCanvasProps: !this.options.LoadCanvasProps,
             replaceCamera: {
-                camera: (LOAD_CAMERA_ORIENTATION && !this.firstLoaded) ? newCamera : oldCamera,
+                camera: (this.options.LoadCameraOrientation && !this.firstLoaded) ? newCamera : oldCamera,
                 transitionDurationInMs: 0,
             }
         });
-        const file = new File([snapshot], `${filename}.molj`);
-        await PluginCommands.State.Snapshots.OpenFile(this.plugin, { file });
-        // await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(data));
-        await sleep(this.firstLoaded ? CAMERA_PRE_TRANSITION_MS : 0); // it is necessary to sleep even for 0 ms here, to get animation
-        await PluginCommands.Camera.Reset(this.plugin, { snapshot: LOAD_CAMERA_ORIENTATION ? newCamera : undefined, durationMs: this.firstLoaded ? CAMERA_TRANSITION_MS : 0 });
+        await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(snapshot));
+        await sleep(this.firstLoaded ? this.options.CameraPreTransitionMs : 0); // it is necessary to sleep even for 0 ms here, to get animation
+        await PluginCommands.Camera.Reset(this.plugin, {
+            snapshot: this.options.LoadCameraOrientation ? newCamera : undefined,
+            durationMs: this.firstLoaded ? this.options.CameraTransitionMs : 0,
+        });
 
         this.firstLoaded = true;
     }
@@ -135,7 +134,7 @@ export class StateGalleryManager {
 
     private readonly cache: { [filename: string]: string } = {};
     private async fetchSnapshot(filename: string): Promise<string> {
-        const url = combineUrl(this.serverUrl, `${filename}.molj`);
+        const url = combineUrl(this.options.ServerUrl, `${filename}.molj`);
         const data = await this.plugin.runTask(this.plugin.fetch({ url, type: 'string' }));
         return data;
     }
@@ -145,7 +144,7 @@ export class StateGalleryManager {
 }
 
 
-async function getData(plugin: PluginContext, serverUrl: string, entryId: string) {
+async function getData(plugin: PluginContext, serverUrl: string, entryId: string): Promise<StateGalleryData | undefined> {
     const url = combineUrl(serverUrl, entryId + '.json');
     try {
         const text = await plugin.runTask(plugin.fetch(url));
@@ -161,7 +160,6 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         const out: Image[] = [];
 
         // Entry
-        // out.push(...data?.entry?.all?.image ?? []);
         for (const img of data?.entry?.all?.image ?? []) {
             const title = img.filename.includes('_chemically_distinct_molecules')
                 ? 'Deposited model (color by entity)'
@@ -171,19 +169,16 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
             out.push({ ...img, category: 'Entry', simple_title: title });
         }
         // Validation
-        // out.push(...data?.validation?.geometry?.deposited?.image ?? []);
         for (const img of data?.validation?.geometry?.deposited?.image ?? []) {
             out.push({ ...img, category: 'Entry', simple_title: 'Geometry validation' });
         }
         // Bfactor
-        // out.push(...data?.entry?.bfactor?.image ?? []);
         for (const img of data?.entry?.bfactor?.image ?? []) {
             out.push({ ...img, category: 'Entry', simple_title: 'B-factor' });
         }
         // Assembly
         const assemblies = data?.assembly;
         for (const ass in assemblies) {
-            // out.push(...assemblies[ass].image);
             for (const img of assemblies[ass].image ?? []) {
                 const title = img.filename.includes('_chemically_distinct_molecules')
                     ? `Assembly ${ass} (color by entity)`
@@ -196,7 +191,6 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         // Entity
         const entities = data?.entity;
         for (const entity in entities) {
-            // out.push(...entities[entity].image);
             for (const img of entities[entity].image ?? []) {
                 out.push({ ...img, category: 'Entities', simple_title: `Entity ${entity}` });
             }
@@ -204,7 +198,6 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         // Ligand
         const ligands = data?.entry?.ligands;
         for (const ligand in ligands) {
-            // out.push(...ligands[ligand].image);
             for (const img of ligands[ligand].image ?? []) {
                 out.push({ ...img, category: 'Ligands', simple_title: `Ligand environment for ${ligand}` });
             }
@@ -212,7 +205,6 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         // Modres
         const modres = data?.entry?.mod_res;
         for (const res in modres) {
-            // out.push(...modres[res].image);
             for (const img of modres[res].image ?? []) {
                 out.push({ ...img, category: 'Modified residues', simple_title: `Modified residue ${res}` });
             }
@@ -223,9 +215,8 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
             for (const db in dbs) {
                 const domains = dbs[db];
                 for (const domain in domains) {
-                    // out.push(...domains[domain].image);
                     for (const img of domains[domain].image ?? []) {
-                        out.push({ ...img, category: 'Domains', simple_title: `${db} ${domain} in entity ${entity}` });
+                        out.push({ ...img, category: 'Domains', simple_title: `${db} ${domain} (entity ${entity})` });
                     }
                 }
             }
@@ -257,12 +248,12 @@ function removeWithSuffixes(images: Image[], suffixes: string[]): Image[] {
     return images.filter(img => !suffixes.some(suffix => img.filename.endsWith(suffix)));
 }
 
-function modifySnapshot(snapshot: string, options: { removeBackground?: boolean, replaceCamera?: { camera: Camera.Snapshot, transitionDurationInMs: number } }) {
+function modifySnapshot(snapshot: string, options: { removeCanvasProps?: boolean, replaceCamera?: { camera: Camera.Snapshot, transitionDurationInMs: number } }) {
     const json = JSON.parse(snapshot) as PluginStateSnapshotManager.StateSnapshot;
     for (const entry of json.entries ?? []) {
         if (entry.snapshot) {
-            if (options.removeBackground) {
-                delete entry.snapshot.canvas3d;
+            if (options.removeCanvasProps && entry.snapshot.canvas3d) {
+                delete entry.snapshot.canvas3d.props;
             }
             if (options.replaceCamera) {
                 const { camera, transitionDurationInMs } = options.replaceCamera;

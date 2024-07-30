@@ -7,6 +7,7 @@ import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hie
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
 import { CreateVolumeStreamingInfo } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginConfigItem } from 'molstar/lib/mol-plugin/config';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
 import { Expression } from 'molstar/lib/mol-script/language/expression';
@@ -604,5 +605,18 @@ export class PreemptiveQueue<X, Y> {
             }
             this.running = undefined;
         }
+    }
+}
+
+
+export namespace PluginConfigUtils {
+    export type ConfigFor<T> = { [key in keyof T]: PluginConfigItem<T[key]> }
+
+    export function getConfigValues<T>(plugin: PluginContext | undefined, configItems: { [name in keyof T]: PluginConfigItem<T[name]> }, defaults: T): T {
+        const values = {} as T;
+        for (const name in configItems) {
+            values[name] = plugin?.config.get(configItems[name]) ?? defaults[name];
+        }
+        return values;
     }
 }

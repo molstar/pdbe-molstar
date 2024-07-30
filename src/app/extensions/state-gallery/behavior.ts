@@ -1,7 +1,6 @@
-import { Model, Structure } from 'molstar/lib/mol-model/structure';
 import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
-import { StateGalleryControls } from './ui';
 import { StateGalleryManager } from './manager';
+import { StateGalleryControls } from './ui';
 
 
 /** All public functions provided by the StateGallery extension  */
@@ -60,9 +59,3 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
     //     serverUrl: PD.Text(AssemblySymmetryData.DefaultServerUrl)
     // })
 });
-
-
-// TODO move elsewhere
-export function isApplicable(structure?: Structure): boolean {
-    return !!structure && structure.models.length === 1 && Model.hasPdbId(structure.models[0]);
-}

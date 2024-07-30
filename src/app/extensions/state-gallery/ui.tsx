@@ -6,7 +6,7 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
 import { createIndex, groupElements, nonnegativeModulo } from '../../helpers';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
-import { StateGalleryManager } from './manager';
+import { Image, StateGalleryManager } from './manager';
 
 
 interface StateGalleryControlsState {
@@ -79,7 +79,7 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
     };
     private load = async () => {
         this.setState({ isLoading: true, description: undefined });
-        const manager = await StateGalleryManager.create(this.plugin, 'https://www.ebi.ac.uk/pdbe/static/entry', this.state.entryId);
+        const manager = await StateGalleryManager.create(this.plugin, this.state.entryId);
         this.setState({ manager, isLoading: false, description: this.state.entryId.toUpperCase() });
     };
     private onChangeValues = (values: Values) => {
@@ -104,10 +104,15 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
 
 function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
-    const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
-    const imageIndex = React.useMemo(() => createIndex(images), [images]);
     const nImages = images.length;
-    const [selected, setSelected] = React.useState(images[0]);
+
+    if (nImages === 0) {
+        return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
+    }
+
+    const imageIndex = React.useMemo(() => createIndex(images), [images]);
+    const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
+    const [selected, setSelected] = React.useState<Image>(images[0]);
     const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
 
     React.useEffect(() => {
@@ -119,7 +124,6 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
 
     const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
-    const selectedStateIcon = (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
 
     const shift = (x: number) => setSelected(old => {
         const oldIndex = imageIndex.get(old) ?? 0;
@@ -133,20 +137,12 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         if (e.code === 'ArrowRight') selectNext();
     };
 
-    if (nImages === 0) {
-        return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
-    }
-
     return <div className='pdbemolstar-state-gallery-controls' onKeyDown={handleKeyDown} tabIndex={-1} ref={keyDownTargetRef} >
         <ExpandGroup header='States' initiallyExpanded={true} key='states'>
             {categories.groups.map(cat =>
                 <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
                     {categories.members.get(cat)?.map(img =>
-                        <Button key={img.filename} className='msp-action-menu-button' onClick={() => setSelected(img)} title={img.simple_title ?? img.filename}
-                            icon={img === selected ? selectedStateIcon : EmptyIconSvg}
-                            style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: img === selected ? 'bold' : undefined }}>
-                            {img.category ?? 'Miscellaneous'}: {img.simple_title ?? img.filename}
-                        </Button>
+                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => setSelected(img)} />
                     )}
                 </ExpandGroup>
             )}
@@ -164,4 +160,18 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
             <Button icon={ChevronRightSvg} title='Next state' onClick={selectNext} ></Button>
         </div >
     </div>;
+}
+
+function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' | 'loading' | 'error', onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+    const { img, isSelected, status, onClick } = props;
+    const icon = !isSelected ? EmptyIconSvg : (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
+    const title = img.simple_title ?? img.filename;
+    const errorMsg = (isSelected && status === 'error') ? '[Failed to load] ' : '';
+    return <Button className='msp-action-menu-button'
+        icon={icon}
+        onClick={onClick}
+        title={`${errorMsg}${title}`}
+        style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSelected ? 'bold' : undefined }}>
+        {title}
+    </Button>;
 }
