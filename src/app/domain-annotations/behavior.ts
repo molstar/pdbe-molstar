@@ -17,13 +17,12 @@ export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean
         private provider = DomainAnnotationsProvider;
 
         private labelDomainAnnotations = {
-            label: (loci: Loci): string | undefined => void 0
+            label: (loci: Loci): string | undefined => undefined
         };
 
         register(): void {
             this.ctx.customModelProperties.register(this.provider, this.params.autoAttach);
             this.ctx.managers.lociLabels.addProvider(this.labelDomainAnnotations);
-
             this.ctx.representation.structure.themes.colorThemeRegistry.add(DomainAnnotationsColorThemeProvider);
         }
 
@@ -43,6 +42,6 @@ export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean
     },
     params: () => ({
         autoAttach: PD.Boolean(false),
-        showTooltip: PD.Boolean(true)
+        showTooltip: PD.Boolean(true),
     })
 });

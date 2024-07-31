@@ -105,6 +105,14 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.config ??= [];
 
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MolViewSpec));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: false, showTooltip: false }));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, { autoAttach: false, showTooltip: false }));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
+        pdbePluginSpec.config.push(
+            [RCSBAssemblySymmetryConfig.DefaultServerType, 'pdbe'],
+            [RCSBAssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
+            [RCSBAssemblySymmetryConfig.ApplyColors, false],
+        );
 
         if (this.initParams.galleryView) {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(StateGallery));
@@ -118,21 +126,6 @@ export class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(SuperpositionFocusRepresentation), PluginSpec.Behavior(MAQualityAssessment, { autoAttach: true, showTooltip: true }));
         }
 
-        // Add custom properties
-        if (this.initParams.domainAnnotation) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, { autoAttach: true, showTooltip: false }));
-        }
-        if (this.initParams.validationAnnotation) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: true, showTooltip: false }));
-        }
-        if (this.initParams.symmetryAnnotation) {
-            pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
-            pdbePluginSpec.config.push(
-                [RCSBAssemblySymmetryConfig.DefaultServerType, 'pdbe'],
-                [RCSBAssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
-                [RCSBAssemblySymmetryConfig.ApplyColors, false],
-            );
-        }
 
         pdbePluginSpec.layout = {
             initial: {
@@ -210,13 +203,16 @@ export class PDBeMolstarPlugin {
         (this.targetElement as any).viewerInstance = this;
 
         // Create/ Initialise Plugin
-        this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec);
-        PluginCustomState(this.plugin).initParams = { ...this.initParams };
-        PluginCustomState(this.plugin).events = {
-            segmentUpdate: this._ev<boolean>(),
-            superpositionInit: this._ev<boolean>(),
-            isBusy: this._ev<boolean>()
-        };
+        this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, {
+            onBeforeUIRender: plugin => {
+                PluginCustomState(plugin).initParams = { ...this.initParams };
+                PluginCustomState(plugin).events = {
+                    segmentUpdate: this._ev<boolean>(),
+                    superpositionInit: this._ev<boolean>(),
+                    isBusy: this._ev<boolean>()
+                };
+            },
+        });
 
         // Set background colour
         if (this.initParams.bgColor || this.initParams.lighting) {

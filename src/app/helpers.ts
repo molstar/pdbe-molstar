@@ -413,7 +413,8 @@ export function combineUrl(firstPart: string, ...moreParts: string[]): string {
     return result;
 }
 
-/** Create a copy of object `object`, fill in missing/undefined keys using `defaults` */
+/** Create a copy of object `object`, fill in missing/undefined keys using `defaults`.
+ * This is similar to {...defaults,...object} but `undefined` in `object` will not override a value from `defaults`. */
 export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaults: T): T {
     const result: Partial<T> = { ...object };
     for (const key in defaults) {

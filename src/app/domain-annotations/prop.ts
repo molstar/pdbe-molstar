@@ -43,7 +43,7 @@ namespace DomainAnnotations {
     }
 
     const _emptyArray: string[] = [];
-    export function getDomains(e: StructureElement.Location) {
+    export function getDomains(e: StructureElement.Location): string[] {
         if (!Unit.isAtomic(e.unit)) return _emptyArray;
         const prop = DomainAnnotationsProvider.get(e.unit.model).value;
         if (!prop || !prop.data) return _emptyArray;
@@ -51,17 +51,17 @@ namespace DomainAnnotations {
         return prop.data.domains.has(rI) ? prop.data.domains.get(rI)! : _emptyArray;
     }
 
-    export function getDomainTypes(structure?: Structure) {
+    export function getDomainTypes(structure?: Structure): string[] {
         if (!structure) return _emptyArray;
         const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
         if (!prop || !prop.data) return _emptyArray;
         return prop.data.domainTypes;
     }
 
-    export function getDomainNames(structure?: Structure) {
-        if (!structure) return _emptyArray;
+    export function getDomainNames(structure?: Structure): string[][] {
+        if (!structure) return [];
         const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
-        if (!prop || !prop.data) return _emptyArray;
+        if (!prop || !prop.data) return [];
         return prop.data.domainNames;
     }
 }

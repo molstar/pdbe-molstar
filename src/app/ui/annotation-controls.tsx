@@ -1,16 +1,19 @@
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe/structure-quality-report/behavior';
 import { StructureQualityReportColorThemeProvider } from 'molstar/lib/extensions/pdbe/structure-quality-report/color';
+import { Structure } from 'molstar/lib/mol-model/structure';
 import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
+import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
 import { Button } from 'molstar/lib/mol-plugin-ui/controls/common';
 import { ArrowDropDownSvg, ArrowRightSvg, Icon } from 'molstar/lib/mol-plugin-ui/controls/icons';
-import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { StateObject, StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
 import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
 import { PluginCustomState } from '../plugin-custom-state';
 import { AnnotationRowControls } from './annotation-row-controls';
-import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } from './symmetry-annotation-controls';
 import { TextsmsOutlinedSvg } from './icons';
+import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } from './symmetry-annotation-controls';
 
 
 type AnnotationType = 'validation' | 'domains' | 'symmetry'
@@ -41,7 +44,15 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
     };
 
     componentDidMount() {
+        const initParams = PluginCustomState(this.plugin).initParams;
+        if (!initParams?.validationAnnotation && !initParams?.domainAnnotation && !initParams?.symmetryAnnotation) return;
+
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, () => {
+            this.initOptionParams();
+            this.forceUpdate();
+        });
+        this.subscribe(this.plugin.state.events.cell.stateUpdated, (s) => {
+            if (s.cell.transform.transformer.id !== StructureRepresentation3D.id) return;
             this.initOptionParams();
             this.forceUpdate();
         });
@@ -57,42 +68,36 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         const symmetryAnnotationCtrl = !!initParams?.symmetryAnnotation && isAssemblySymmetryAnnotationApplicable(this.plugin);
         this.setState({ showSymmetryAnnotation: symmetryAnnotationCtrl });
 
-        if ((validationAnnotationCtrl && !this.state.validationParams) || (domainAnnotationCtrl && !this.state.domainsParams)) {
+        const structure = this.getStructure()?.data;
+        if (!structure) return;
 
-            const structure = this.getStructure()?.data;
-            if (structure) {
-                const themeDataCtx = { structure };
+        const themeDataCtx = { structure };
 
-                if (validationAnnotationCtrl && !this.state.validationParams) {
-                    const validationActionsParams = StructureQualityReportColorThemeProvider.getParams(themeDataCtx);
-                    if (validationActionsParams) {
-                        this.setState({
-                            validationParams: {
-                                params: validationActionsParams,
-                                values: { type: validationActionsParams.type.defaultValue }
-                            }
-                        });
-                    }
-                }
+        if (validationAnnotationCtrl) {
+            const validationActionsParams = StructureQualityReportColorThemeProvider.getParams(themeDataCtx);
+            this.setState(old => ({
+                validationParams: {
+                    params: validationActionsParams,
+                    values: old.validationParams?.values ?? PD.getDefaultValues(validationActionsParams),
+                },
+            })); // TODO maybe try way to skip render on non-changed params?
+        }
 
-                if (domainAnnotationCtrl && !this.state.domainsParams) {
-                    const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
-                    if (domainActionsParams) {
-                        this.setState({
-                            domainsParams: {
-                                params: domainActionsParams,
-                                values: { type: domainActionsParams.type.defaultValue }
-                            }
-                        });
-                    }
-                }
-
-            }
+        if (domainAnnotationCtrl) {
+            const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
+            this.setState(old => ({
+                domainsParams: {
+                    params: domainActionsParams,
+                    values: old.domainsParams?.values ?? PD.getDefaultValues(domainActionsParams),
+                    // TODO auto-switch from off to the first domain when data fetched
+                },
+            }));
         }
     };
+
     getStructure = () => {
         const groupRef = StateSelection.findTagInSubtree(this.plugin.state.data.tree, StateTransform.RootRef, 'structure-component-static-polymer');
-        return groupRef ? this.plugin.state.data.select(groupRef)[0]?.obj : undefined;
+        return groupRef ? this.plugin.state.data.select(groupRef)[0]?.obj as StateObject<Structure> : undefined;
     };
 
     toggleCollapsed = () => {

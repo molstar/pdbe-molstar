@@ -8,34 +8,50 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { DomainAnnotations, DomainAnnotationsProvider } from './prop';
 
 
-const DomainColors = [
-    Color.fromRgb(170, 170, 170), // not applicable
-    Color.fromRgb(255, 112, 3)
-];
-
-export const DomainAnnotationsColorThemeParams = {
-    type: PD.MappedStatic('', {
-        '': PD.EmptyGroup()
-    })
+const DomainColors = {
+    /** Applied to a part of structure which is not included in the domain */
+    outside: Color.fromRgb(170, 170, 170),
+    /** Applied to a part of structure which is included in the domain */
+    inside: Color.fromRgb(255, 112, 3),
 };
 
-type Params = any; // typeof DomainAnnotationsColorThemeParams
+function makeDomainAnnotationsColorThemeParams(domainTypes: string[], domainNames: string[][]) {
+    const map = {} as Record<string, PD.Group<{ kind: string }>>;
+    let defaultType: string | undefined = undefined; // will be assigned to first database with non-empty list of domains
+    domainTypes.forEach((tp, index) => {
+        if (domainNames[index].length > 0) {
+            defaultType ??= tp;
+            map[tp] = PD.Group({
+                kind: PD.Select(domainNames[index][0], PD.arrayToOptions(domainNames[index]))
+            }, { isFlat: true });
+        }
+    });
+    map['Off'] = PD.Group({
+        kind: PD.Select('', [['', '']], { isHidden: true }), // this is to keep the same shape of props but `kind` param will not be displayed
+    });
+    return {
+        type: PD.MappedStatic(defaultType ?? 'Off', map, { options: Object.keys(map).map(type => [type, type]) }) // `options` is to keep case-sensitive database names in UI
+    };
+}
+/** DomainAnnotationsColorThemeParams for when the data are not available (yet or at all) */
+const DummyDomainAnnotationsColorThemeParams = makeDomainAnnotationsColorThemeParams([], []);
 
-export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: PD.Values<Params>): ColorTheme<Params> {
+export type DomainAnnotationsColorThemeParams = typeof DummyDomainAnnotationsColorThemeParams
+export type DomainAnnotationsColorThemeProps = PD.Values<DomainAnnotationsColorThemeParams>
+
+export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: DomainAnnotationsColorThemeProps): ColorTheme<DomainAnnotationsColorThemeParams> {
     let color: LocationColor;
 
-    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor)) {
-        const getDomains = DomainAnnotations.getDomains;
-
-        const issue = props.type.params.kind;
+    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor) && props.type.name !== 'Off') {
+        const domainName = props.type.params.kind;
         color = (location: Location) => {
-            if (StructureElement.Location.is(location) && getDomains(location).indexOf(issue) >= 0) {
-                return DomainColors[1];
+            if (StructureElement.Location.is(location) && DomainAnnotations.getDomains(location).includes(domainName)) { // TODO check if this works when domain from different sources have the same name
+                return DomainColors.inside;
             }
-            return DomainColors[0];
+            return DomainColors.outside;
         };
     } else {
-        color = () => DomainColors[0];
+        color = () => DomainColors.outside;
     }
 
     return {
@@ -43,49 +59,26 @@ export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: PD.Val
         granularity: 'group',
         color: color,
         props: props,
-        description: 'Highlights Sequnece and Structure Domain Annotations. Data obtained via PDBe.',
+        description: 'Highlights Sequence and Structure Domain Annotations. Data obtained via PDBe.',
     };
 }
 
-export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<Params, 'pdbe-domain-annotations'> = {
+export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<DomainAnnotationsColorThemeParams, 'pdbe-domain-annotations'> = {
     name: 'pdbe-domain-annotations',
     label: 'Domain annotations',
     category: ColorTheme.Category.Misc,
     factory: DomainAnnotationsColorTheme,
     getParams: ctx => {
-
-        const domainNames = DomainAnnotations.getDomainNames(ctx.structure);
         const domainTypes = DomainAnnotations.getDomainTypes(ctx.structure);
-
-        const optionObj: any = {};
-        domainTypes.forEach((tp, index) => {
-            if (domainNames[index].length > 0) {
-                optionObj[tp as string] = PD.Group({
-                    kind: PD.Select(domainNames[index][0] as string, PD.arrayToOptions(domainNames[index] as string[]))
-                }, { isFlat: true });
-            }
-        });
-
-        if (Object.keys(optionObj).length > 0) {
-            return {
-                type: PD.MappedStatic(optionObj[0], optionObj)
-            };
-
-        } else {
-            return {
-                type: PD.MappedStatic('', {
-                    '': PD.EmptyGroup()
-                })
-            };
-        }
-
+        const domainNames = DomainAnnotations.getDomainNames(ctx.structure);
+        return makeDomainAnnotationsColorThemeParams(domainTypes, domainNames);
     },
-    defaultValues: PD.getDefaultValues(DomainAnnotationsColorThemeParams),
+    defaultValues: PD.getDefaultValues(DummyDomainAnnotationsColorThemeParams),
     isApplicable: (ctx: ThemeDataContext) => DomainAnnotations.isApplicable(ctx.structure?.models[0]),
     ensureCustomProperties: {
         attach: (ctx: CustomProperty.Context, data: ThemeDataContext) => {
-            return data.structure ? DomainAnnotationsProvider.attach(ctx, data.structure.models[0], void 0, true) : Promise.resolve();
+            return data.structure ? DomainAnnotationsProvider.attach(ctx, data.structure.models[0], undefined, true) : Promise.resolve();
         },
-        detach: (data) => data.structure && data.structure.models[0].customProperties.reference(DomainAnnotationsProvider.descriptor, false)
+        detach: (data) => data.structure && DomainAnnotationsProvider.ref(data.structure.models[0], false),
     }
 };
