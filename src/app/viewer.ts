@@ -181,21 +181,22 @@ export class PDBeMolstarPlugin {
         }
 
         if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
-        if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
-        if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
+        if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
+        if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
+        if (this.initParams.hideCanvasControls.includes('trajectory')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
 
         // override default event bindings
         if (this.initParams.selectBindings) {
             pdbePluginSpec.behaviors.push(
-                PluginSpec.Behavior(SelectLoci, { bindings: this.initParams.selectBindings })
+                PluginSpec.Behavior(SelectLoci, { bindings: this.initParams.selectBindings }),
             );
         }
 
         if (this.initParams.focusBindings) {
             pdbePluginSpec.behaviors.push(
-                PluginSpec.Behavior(FocusLoci, { bindings: this.initParams.focusBindings })
+                PluginSpec.Behavior(FocusLoci, { bindings: this.initParams.focusBindings }),
             );
         }
 
@@ -209,7 +210,7 @@ export class PDBeMolstarPlugin {
                 PluginCustomState(plugin).events = {
                     segmentUpdate: this._ev<boolean>(),
                     superpositionInit: this._ev<boolean>(),
-                    isBusy: this._ev<boolean>()
+                    isBusy: this._ev<boolean>(),
                 };
             },
         });
@@ -910,10 +911,11 @@ export class PDBeMolstarPlugin {
 
             // Show/hide buttons in the viewport control panel
             this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
-            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
             this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
             this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
+            this.plugin.config.set(PluginConfig.Viewport.ShowTrajectoryControls, !this.initParams.hideCanvasControls.includes('trajectory'));
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
