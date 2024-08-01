@@ -1,15 +1,17 @@
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe/structure-quality-report/behavior';
-import { StructureQualityReportColorThemeProvider } from 'molstar/lib/extensions/pdbe/structure-quality-report/color';
+import { StructureQualityReportColorThemeParams, StructureQualityReportColorThemeProvider } from 'molstar/lib/extensions/pdbe/structure-quality-report/color';
+import { StructureQualityReportProvider } from 'molstar/lib/extensions/pdbe/structure-quality-report/prop';
 import { Structure } from 'molstar/lib/mol-model/structure';
 import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
-import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
+import { StructureComponentRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
 import { Button } from 'molstar/lib/mol-plugin-ui/controls/common';
 import { ArrowDropDownSvg, ArrowRightSvg, Icon } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { StateObject, StateSelection, StateTransform } from 'molstar/lib/mol-state';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
-import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
+import { DomainAnnotationsColorThemeParams, DomainAnnotationsColorThemeProps, DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
+import { DomainAnnotationsProvider } from '../domain-annotations/prop';
 import { PluginCustomState } from '../plugin-custom-state';
 import { AnnotationRowControls } from './annotation-row-controls';
 import { TextsmsOutlinedSvg } from './icons';
@@ -18,27 +20,31 @@ import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } fr
 
 type AnnotationType = 'validation' | 'domains' | 'symmetry'
 
+type StructureQualityReportColorThemeParams = typeof StructureQualityReportColorThemeParams;
+type StructureQualityReportColorThemeProps = PD.Values<StructureQualityReportColorThemeParams>
+
 interface AnnotationsComponentControlsState {
     isCollapsed: boolean,
     validationApplied: boolean,
-    validationOptions: boolean,
-    validationParams: any,
+    validationParams?: {
+        params: StructureQualityReportColorThemeParams,
+        values: StructureQualityReportColorThemeProps,
+    },
     domainsApplied: boolean,
-    domainsOptions: boolean,
-    domainsParams: any,
+    domainsParams?: {
+        params: DomainAnnotationsColorThemeParams,
+        values: DomainAnnotationsColorThemeProps,
+    },
     showSymmetryAnnotation: boolean,
     description?: string,
 }
-
 
 export class AnnotationsComponentControls extends PurePluginUIComponent<{}, AnnotationsComponentControlsState> {
     state: AnnotationsComponentControlsState = {
         isCollapsed: false,
         validationApplied: false,
-        validationOptions: false,
         validationParams: undefined,
         domainsApplied: false,
-        domainsOptions: false,
         domainsParams: undefined,
         showSymmetryAnnotation: false,
     };
@@ -49,16 +55,8 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
 
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, () => {
             this.initOptionParams();
-            this.forceUpdate();
+            this.setState({ description: StructureHierarchyManager.getSelectedStructuresDescription(this.plugin) });
         });
-        this.subscribe(this.plugin.state.events.cell.stateUpdated, (s) => {
-            if (s.cell.transform.transformer.id !== StructureRepresentation3D.id) return;
-            this.initOptionParams();
-            this.forceUpdate();
-        });
-        this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, c => this.setState({
-            description: StructureHierarchyManager.getSelectedStructuresDescription(this.plugin)
-        }));
     }
 
     initOptionParams = () => {
@@ -85,13 +83,18 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
 
         if (domainAnnotationCtrl) {
             const domainActionsParams = DomainAnnotationsColorThemeProvider.getParams(themeDataCtx);
-            this.setState(old => ({
-                domainsParams: {
-                    params: domainActionsParams,
-                    values: old.domainsParams?.values ?? PD.getDefaultValues(domainActionsParams),
-                    // TODO auto-switch from off to the first domain when data fetched
-                },
-            }));
+            let updateProps: DomainAnnotationsColorThemeProps; // this is to force props to change once custom property has been loaded and params have changed
+            this.setState(old => {
+                if (old.domainsParams && old.domainsParams.params.source.defaultValue.name !== domainActionsParams.source.defaultValue.name) {
+                    updateProps = PD.getDefaultValues(domainActionsParams);
+                }
+                return {
+                    domainsParams: {
+                        params: domainActionsParams,
+                        values: old.domainsParams?.values ?? PD.getDefaultValues(domainActionsParams),
+                    },
+                };
+            }, () => { if (updateProps) this.updateDomainParams(updateProps); });
         }
     };
 
@@ -104,23 +107,21 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
         this.setState({ isCollapsed: !this.state.isCollapsed });
     };
 
-    applyAnnotation = (type: 'validation' | 'domains', visibleState: boolean, params?: any) => {
+    applyAnnotation = (type: 'validation' | 'domains', visibleState: boolean, params?: StructureQualityReportColorThemeProps | DomainAnnotationsColorThemeProps) => {
         // Defaults
-        let themeName: any = 'chain-id';
+        let themeName = 'chain-id';
         let themePropsToAdd = PDBeStructureQualityReport;
-        let themePropsToRemove = this.state.domainsParams ? PDBeDomainAnnotations : void 0;
+        let themePropsToRemove = this.state.domainsParams ? PDBeDomainAnnotations : undefined;
 
         // Set Theme Params
         if (type === 'validation') {
-            if (visibleState) {
-                themeName = 'pdbe-structure-quality-report';
-            }
+            if (visibleState) themeName = StructureQualityReportColorThemeProvider.name;
             this.setState({ validationApplied: visibleState });
             this.setState({ domainsApplied: false });
         } else if (type === 'domains') {
             themePropsToAdd = PDBeDomainAnnotations;
-            themePropsToRemove = this.state.validationParams ? PDBeStructureQualityReport : void 0;
-            if (visibleState) themeName = 'pdbe-domain-annotations';
+            themePropsToRemove = this.state.validationParams ? PDBeStructureQualityReport : undefined;
+            if (visibleState) themeName = DomainAnnotationsColorThemeProvider.name;
             this.setState({ domainsApplied: visibleState });
             this.setState({ validationApplied: false });
         }
@@ -136,51 +137,55 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
             }
         }
 
-        let polymerGroup: any;
+        let polymerGroup: StructureComponentRef[] | undefined;
         const componentGroups = this.plugin.managers.structure.hierarchy.currentComponentGroups;
-        componentGroups.forEach((compGrp) => {
+        componentGroups.forEach(compGrp => {
             if (compGrp[0].key === 'structure-component-static-polymer') polymerGroup = compGrp;
         });
         if (polymerGroup) {
-            this.plugin.managers.structure.component.updateRepresentationsTheme(polymerGroup, { color: themeName, colorParams: params ? params : void 0 });
+            this.plugin.managers.structure.component.updateRepresentationsTheme(polymerGroup, { color: themeName as any, colorParams: params });
         }
     };
 
     toggleAnnotation = (type: AnnotationType) => {
-        if (type === 'validation') this.applyAnnotation('validation', !this.state.validationApplied, this.state.validationParams.values);
-        if (type === 'domains') this.applyAnnotation('domains', !this.state.domainsApplied, this.state.domainsParams.values);
+        if (type === 'validation') this.applyAnnotation('validation', !this.state.validationApplied, this.state.validationParams?.values);
+        if (type === 'domains') this.applyAnnotation('domains', !this.state.domainsApplied, this.state.domainsParams?.values);
     };
 
-    updateValidationParams = (val: any) => {
+    updateValidationParams = (values: StructureQualityReportColorThemeProps) => {
+        if (!this.state.validationParams) return;
         const updatedParams = { ...this.state.validationParams };
-        updatedParams.values = val;
+        updatedParams.values = values;
         this.setState({ validationParams: updatedParams });
-        if (this.state.validationApplied) this.applyAnnotation('validation', this.state.validationApplied, val);
+        if (this.state.validationApplied) this.applyAnnotation('validation', this.state.validationApplied, values);
     };
-    updateDomainParams = (val: any) => {
-        const updatedParams = { ...this.state.domainsParams };
-        updatedParams.values = val;
-        this.setState({ domainsParams: updatedParams });
-        if (this.state.domainsApplied) this.applyAnnotation('domains', this.state.domainsApplied, val);
+    updateDomainParams = (values?: DomainAnnotationsColorThemeProps) => {
+        if (!this.state.domainsParams) return;
+        if (values) {
+            const updatedParams = { ...this.state.domainsParams, values };
+            this.setState({ domainsParams: updatedParams });
+        } else {
+            values = this.state.domainsParams.values;
+        }
+        if (this.state.domainsApplied) this.applyAnnotation('domains', this.state.domainsApplied, values);
     };
 
     render() {
         if (!this.state.validationParams && !this.state.domainsParams && !this.state.showSymmetryAnnotation) return <></>;
 
-        const brand = {
-            accent: 'green',
-            svg: TextsmsOutlinedSvg
-        };
+        const brand = { accent: 'green', svg: TextsmsOutlinedSvg };
 
         const wrapClass = this.state.isCollapsed
             ? 'msp-transform-wrapper msp-transform-wrapper-collapsed'
             : 'msp-transform-wrapper';
 
+        const validationDataReady = this.getStructure()?.data.model.customProperties.has(StructureQualityReportProvider.descriptor);
+        const domainDataReady = this.getStructure()?.data.model.customProperties.has(DomainAnnotationsProvider.descriptor);
+
         return <div className={wrapClass}>
             <div className='msp-transform-header'>
-                <Button icon={brand ? void 0 : this.state.isCollapsed ? ArrowRightSvg : ArrowDropDownSvg} noOverflow onClick={this.toggleCollapsed}
-                    className={brand ? `msp-transform-header-brand msp-transform-header-brand-${brand.accent}` : void 0} title={`Click to ${this.state.isCollapsed ? 'expand' : 'collapse'}`}>
-                    {/* {brand && <div className={`msp-accent-bg-${brand.accent}`}>{brand.name}</div>} */}
+                <Button icon={brand ? undefined : this.state.isCollapsed ? ArrowRightSvg : ArrowDropDownSvg} noOverflow onClick={this.toggleCollapsed}
+                    className={brand ? `msp-transform-header-brand msp-transform-header-brand-${brand.accent}` : undefined} title={`Click to ${this.state.isCollapsed ? 'expand' : 'collapse'}`}>
                     <Icon svg={brand?.svg} inline />
                     Annotations
                     <small style={{ margin: '0 6px' }}>{this.state.isCollapsed ? '' : this.state.description}</small>
@@ -188,14 +193,21 @@ export class AnnotationsComponentControls extends PurePluginUIComponent<{}, Anno
             </div>
 
             {!this.state.isCollapsed && <>
-                <AnnotationRowControls title='Validation'
-                    params={this.state.validationParams?.params} values={this.state.validationParams?.values} onChangeValues={this.updateValidationParams}
-                    applied={this.state.validationApplied} onChangeApplied={() => this.toggleAnnotation('validation')} />
-                <AnnotationRowControls title='Domain Annotations' shortTitle='Domains'
-                    params={this.state.domainsParams?.params} values={this.state.domainsParams?.values} onChangeValues={this.updateDomainParams}
-                    applied={this.state.domainsApplied} onChangeApplied={() => this.toggleAnnotation('domains')} />
+                {this.state.validationParams &&
+                    <AnnotationRowControls title='Validation'
+                        params={this.state.validationParams.params} values={this.state.validationParams.values} onChangeValues={this.updateValidationParams}
+                        applied={this.state.validationApplied} onChangeApplied={() => this.toggleAnnotation('validation')}
+                        errorMessage={validationDataReady ? undefined : 'First activate annotation to show options'} />
+                }
+                {this.state.domainsParams &&
+                    <AnnotationRowControls title='Domain Annotations' shortTitle='Domains'
+                        params={this.state.domainsParams.params} values={this.state.domainsParams.values} onChangeValues={this.updateDomainParams}
+                        applied={this.state.domainsApplied} onChangeApplied={() => this.toggleAnnotation('domains')}
+                        errorMessage={domainDataReady ? undefined : 'First activate annotation to show options'} />
+                }
                 {this.state.showSymmetryAnnotation &&
-                    <SymmetryAnnotationControls />}
+                    <SymmetryAnnotationControls />
+                }
             </>}
         </div>;
     }

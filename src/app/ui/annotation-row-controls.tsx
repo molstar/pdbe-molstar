@@ -10,6 +10,7 @@ type AnnotationRowControlsProps<P extends PD.Params> = ParameterControlsProps<P>
     title: string,
     applied?: boolean,
     onChangeApplied?: (applied: boolean) => void,
+    errorMessage?: string,
 }
 
 type AnnotationRowControlsState = {
@@ -21,12 +22,6 @@ type AnnotationRowControlsState = {
 /** UI controls for a single annotation source (row) in Annotations section */
 export class AnnotationRowControls<P extends PD.Params> extends React.PureComponent<AnnotationRowControlsProps<P>, AnnotationRowControlsState> {
     state = { applied: false, optionsExpanded: false };
-
-    // componentDidMount() {
-    //     this.subscribe(this.plugin.state.events.cell.stateUpdated, e => {
-    //         if (State.ObjectEvent.isCell(e, this.pivot.cell)) this.forceUpdate();
-    //     });
-    // }
 
     isApplied() {
         return this.props.applied ?? this.state.applied;
@@ -58,7 +53,7 @@ export class AnnotationRowControls<P extends PD.Params> extends React.PureCompon
             </div>
             {this.state.optionsExpanded &&
                 <div style={{ marginBottom: '6px' }}>
-                    <div className="msp-accent-offset">
+                    <div className='msp-accent-offset'>
                         <div className='msp-representation-entry'>
                             {this.renderOptions()}
                         </div>
@@ -69,6 +64,9 @@ export class AnnotationRowControls<P extends PD.Params> extends React.PureCompon
     }
 
     renderOptions() {
+        if (this.props.errorMessage) {
+            return <div className='msp-row-text'><div>{this.props.errorMessage}</div></div>;
+        }
         return <ParameterControls params={this.props.params} onChange={this.props.onChange} values={this.props.values} onChangeValues={this.props.onChangeValues} onEnter={this.props.onEnter} />;
     }
 }

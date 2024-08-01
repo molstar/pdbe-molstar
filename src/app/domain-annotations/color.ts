@@ -15,22 +15,25 @@ const DomainColors = {
     inside: Color.fromRgb(255, 112, 3),
 };
 
-function makeDomainAnnotationsColorThemeParams(domainTypes: string[], domainNames: string[][]) {
-    const map = {} as Record<string, PD.Group<{ kind: string }>>;
-    let defaultType: string | undefined = undefined; // will be assigned to first database with non-empty list of domains
-    domainTypes.forEach((tp, index) => {
-        if (domainNames[index].length > 0) {
-            defaultType ??= tp;
-            map[tp] = PD.Group({
-                kind: PD.Select(domainNames[index][0], PD.arrayToOptions(domainNames[index]))
+function makeDomainAnnotationsColorThemeParams(domainSources: string[], domainNames: string[][]) {
+    const map = {} as Record<string, PD.Group<{ domain: string }>>;
+    let defaultSource: string | undefined = undefined; // will be assigned to the first source with non-empty list of domains
+    const nSources = domainSources.length;
+    for (let i = 0; i < nSources; i++) {
+        const source = domainSources[i];
+        const domains = domainNames[i];
+        if (domains.length > 0) {
+            defaultSource ??= source;
+            map[source] = PD.Group({
+                domain: PD.Select(domains[0], PD.arrayToOptions(domains)),
             }, { isFlat: true });
         }
-    });
-    map['Off'] = PD.Group({
-        kind: PD.Select('', [['', '']], { isHidden: true }), // this is to keep the same shape of props but `kind` param will not be displayed
-    });
+    }
+    map['None'] = PD.Group({
+        domain: PD.Select('None', [['None', 'None']], { isHidden: true }), // this is to keep the same shape of props but `domain` param will not be displayed in UI
+    }, { isFlat: true });
     return {
-        type: PD.MappedStatic(defaultType ?? 'Off', map, { options: Object.keys(map).map(type => [type, type]) }) // `options` is to keep case-sensitive database names in UI
+        source: PD.MappedStatic(defaultSource ?? 'None', map, { options: Object.keys(map).map(source => [source, source]) }) // `options` is to keep case-sensitive database names in UI
     };
 }
 /** DomainAnnotationsColorThemeParams for when the data are not available (yet or at all) */
@@ -42,8 +45,8 @@ export type DomainAnnotationsColorThemeProps = PD.Values<DomainAnnotationsColorT
 export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: DomainAnnotationsColorThemeProps): ColorTheme<DomainAnnotationsColorThemeParams> {
     let color: LocationColor;
 
-    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor) && props.type.name !== 'Off') {
-        const domainName = props.type.params.kind;
+    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor) && props.source.name !== 'None') {
+        const domainName = props.source.params.domain;
         color = (location: Location) => {
             if (StructureElement.Location.is(location) && DomainAnnotations.getDomains(location).includes(domainName)) { // TODO check if this works when domain from different sources have the same name
                 return DomainColors.inside;
@@ -80,5 +83,5 @@ export const DomainAnnotationsColorThemeProvider: ColorTheme.Provider<DomainAnno
             return data.structure ? DomainAnnotationsProvider.attach(ctx, data.structure.models[0], undefined, true) : Promise.resolve();
         },
         detach: (data) => data.structure && DomainAnnotationsProvider.ref(data.structure.models[0], false),
-    }
+    },
 };
