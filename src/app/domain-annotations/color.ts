@@ -25,7 +25,7 @@ function makeDomainAnnotationsColorThemeParams(domainSources: string[], domainNa
         if (domains.length > 0) {
             defaultSource ??= source;
             map[source] = PD.Group({
-                domain: PD.Select(domains[0], PD.arrayToOptions(domains)),
+                domain: PD.Select(domains[0], domains.map(dom => [dom, dom])),
             }, { isFlat: true });
         }
     }
@@ -45,10 +45,12 @@ export type DomainAnnotationsColorThemeProps = PD.Values<DomainAnnotationsColorT
 export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: DomainAnnotationsColorThemeProps): ColorTheme<DomainAnnotationsColorThemeParams> {
     let color: LocationColor;
 
-    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor) && props.source.name !== 'None') {
-        const domainName = props.source.params.domain;
+    const domainSource = props.source.name;
+    const domainName = props.source.params.domain;
+
+    if (ctx.structure && !ctx.structure.isEmpty && ctx.structure.models[0].customProperties.has(DomainAnnotationsProvider.descriptor) && domainSource !== 'None') {
         color = (location: Location) => {
-            if (StructureElement.Location.is(location) && DomainAnnotations.getDomains(location).includes(domainName)) { // TODO check if this works when domain from different sources have the same name
+            if (StructureElement.Location.is(location) && DomainAnnotations.isInDomain(location, domainSource, domainName)) {
                 return DomainColors.inside;
             }
             return DomainColors.outside;
