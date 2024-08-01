@@ -1,10 +1,10 @@
-import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe/structure-quality-report/behavior';
-import { StructureQualityReportColorThemeProvider } from 'Molstar/extensions/pdbe/structure-quality-report/color';
-import { StructureHierarchyManager } from 'Molstar/mol-plugin-state/manager/structure/hierarchy';
-import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { Button } from 'Molstar/mol-plugin-ui/controls/common';
-import { ArrowDropDownSvg, ArrowRightSvg, Icon } from 'Molstar/mol-plugin-ui/controls/icons';
-import { StateSelection, StateTransform } from 'Molstar/mol-state';
+import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe/structure-quality-report/behavior';
+import { StructureQualityReportColorThemeProvider } from 'molstar/lib/extensions/pdbe/structure-quality-report/color';
+import { StructureHierarchyManager } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy';
+import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { Button } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { ArrowDropDownSvg, ArrowRightSvg, Icon } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
 import { PDBeDomainAnnotations } from '../domain-annotations/behavior';
 import { DomainAnnotationsColorThemeProvider } from '../domain-annotations/color';
 import { PluginCustomState } from '../plugin-custom-state';

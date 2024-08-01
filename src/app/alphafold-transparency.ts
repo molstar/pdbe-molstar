@@ -1,15 +1,15 @@
-import { Structure, StructureElement } from 'Molstar/mol-model/structure';
-import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { StateBuilder, StateObjectCell, StateSelection, StateTransform } from 'Molstar/mol-state';
-import { StructureComponentRef, StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { isEmptyLoci, Loci } from 'Molstar/mol-model/loci';
-import { Transparency } from 'Molstar/mol-theme/transparency';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import { QualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/prop';
-import { compile } from 'Molstar/mol-script/runtime/query/compiler';
-import { StructureSelection, QueryContext } from 'Molstar/mol-model/structure';
+import { QualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/prop';
+import { Loci, isEmptyLoci } from 'molstar/lib/mol-model/loci';
+import { QueryContext, Structure, StructureElement, StructureSelection } from 'molstar/lib/mol-model/structure';
+import { StructureComponentRef, StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
+import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
+import { compile } from 'molstar/lib/mol-script/runtime/query/compiler';
+import { StateBuilder, StateObjectCell, StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { Transparency } from 'molstar/lib/mol-theme/transparency';
+
 
 type TransparencyEachReprCallback = (update: StateBuilder.Root, repr: StateObjectCell<PluginStateObject.Molecule.Structure.Representation3D, StateTransform<typeof StateTransforms.Representation.StructureRepresentation3D>>, transparency?: StateObjectCell<any, StateTransform<typeof StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle>>) => Promise<void>
 const TransparencyManagerTag = 'transparency-controls';

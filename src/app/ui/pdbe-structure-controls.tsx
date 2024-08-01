@@ -1,16 +1,16 @@
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { StructureComponentControls } from 'Molstar/mol-plugin-ui/structure/components';
-import { StructureMeasurementsControls } from 'Molstar/mol-plugin-ui/structure/measurements';
-import { StructureSourceControls } from 'Molstar/mol-plugin-ui/structure/source';
-import { VolumeStreamingControls, VolumeSourceControls } from 'Molstar/mol-plugin-ui/structure/volume';
+import { PluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { StructureComponentControls } from 'molstar/lib/mol-plugin-ui/structure/components';
+import { StructureMeasurementsControls } from 'molstar/lib/mol-plugin-ui/structure/measurements';
+import { StructureSourceControls } from 'molstar/lib/mol-plugin-ui/structure/source';
+import { VolumeStreamingControls, VolumeSourceControls } from 'molstar/lib/mol-plugin-ui/structure/volume';
 import { AnnotationsComponentControls } from './annotation-controls';
-import { Icon, BuildSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { Icon, BuildSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { SuperpositionComponentControls } from './superposition-components';
-import { StructureQuickStylesControls } from 'Molstar/mol-plugin-ui/structure/quick-styles';
+import { StructureQuickStylesControls } from 'molstar/lib/mol-plugin-ui/structure/quick-styles';
 import { AlphafoldPaeControls, AlphafoldSuperpositionControls } from './alphafold-superposition';
 import { SuperpositionModelExportUI } from './export-superposition';
 import { AlphafoldTransparencyControls } from './alphafold-tranparency';
-import { AssemblySymmetry } from 'Molstar/extensions/rcsb/assembly-symmetry/prop';
+import { AssemblySymmetry } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
 
 
 export class PDBeStructureTools extends PluginUIComponent {

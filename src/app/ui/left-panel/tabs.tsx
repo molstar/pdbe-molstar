@@ -1,19 +1,19 @@
-import { Canvas3DParams } from 'Molstar/mol-canvas3d/canvas3d';
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { IconButton, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
-import { AccountTreeOutlinedSvg, DeleteOutlinedSvg, HelpOutlineSvg, HomeOutlinedSvg, SaveOutlinedSvg, TuneSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { StateObjectActions } from 'Molstar/mol-plugin-ui/state/actions';
-import { RemoteStateSnapshots, StateSnapshots } from 'Molstar/mol-plugin-ui/state/snapshots';
-import { StateTree } from 'Molstar/mol-plugin-ui/state/tree';
-import { HelpContent, HelpGroup, HelpText } from 'Molstar/mol-plugin-ui/viewport/help';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { StateTransform } from 'Molstar/mol-state';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import * as React from 'react';
+import { Canvas3DParams } from 'molstar/lib/mol-canvas3d/canvas3d';
+import { PluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { IconButton, SectionHeader } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { AccountTreeOutlinedSvg, DeleteOutlinedSvg, HelpOutlineSvg, HomeOutlinedSvg, SaveOutlinedSvg, TuneSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { StateObjectActions } from 'molstar/lib/mol-plugin-ui/state/actions';
+import { RemoteStateSnapshots, StateSnapshots } from 'molstar/lib/mol-plugin-ui/state/snapshots';
+import { StateTree } from 'molstar/lib/mol-plugin-ui/state/tree';
+import { HelpContent, HelpGroup, HelpText } from 'molstar/lib/mol-plugin-ui/viewport/help';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { StateTransform } from 'molstar/lib/mol-state';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+import React from 'react';
 import { PluginCustomState } from '../../plugin-custom-state';
-import { SegmentTree } from '../segment-tree';
 import { TabSpec } from './core';
+import { SegmentTree } from '../segment-tree';
 
 
 const _WavesIcon = <svg width='24px' height='24px' viewBox='0 0 24 24'><path d="M17 16.99c-1.35 0-2.2.42-2.95.8-.65.33-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.95c1.35 0 2.2-.42 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.42 2.95-.8c.65-.33 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm0-4.45c-1.35 0-2.2.43-2.95.8-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.32-1.17.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.35 1.15-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.58.8 2.95.8v-1.95c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8zm2.95-8.08c-.75-.38-1.58-.8-2.95-.8s-2.2.42-2.95.8c-.65.32-1.18.6-2.05.6-.9 0-1.4-.25-2.05-.6-.75-.37-1.57-.8-2.95-.8s-2.2.42-2.95.8c-.65.33-1.17.6-2.05.6v1.93c1.35 0 2.2-.43 2.95-.8.65-.33 1.17-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V5.04c-.9 0-1.4-.25-2.05-.58zM17 8.09c-1.35 0-2.2.43-2.95.8-.65.35-1.15.6-2.05.6s-1.4-.25-2.05-.6c-.75-.38-1.57-.8-2.95-.8s-2.2.43-2.95.8c-.65.35-1.15.6-2.05.6v1.95c1.35 0 2.2-.43 2.95-.8.65-.32 1.18-.6 2.05-.6s1.4.25 2.05.6c.75.38 1.57.8 2.95.8s2.2-.43 2.95-.8c.65-.32 1.18-.6 2.05-.6.9 0 1.4.25 2.05.6.75.38 1.58.8 2.95.8V9.49c-.9 0-1.4-.25-2.05-.6-.75-.38-1.6-.8-2.95-.8z" /></svg>;
@@ -68,7 +68,7 @@ class RemoveAllButton extends PluginUIComponent<{}> {
     }
 }
 
-function HelpSection(props: { header: string }) { // copypaste of private HelpSection from Molstar/mol-plugin-ui/viewport/help.tsx
+function HelpSection(props: { header: string }) { // copypaste of private HelpSection from molstar/lib/mol-plugin-ui/viewport/help.tsx
     return <div className='msp-simple-help-section'>{props.header}</div>;
 }
 
@@ -110,7 +110,7 @@ class PDBeHelpContent extends PluginUIComponent<{}, { tab: string }> {
 }
 
 /** Body of 'setting' tab in the left panel (excluding Behaviors) */
-class FullSettings extends PluginUIComponent { // modification of private FullSettings from Molstar/mol-plugin-ui/left-panel.tsx
+class FullSettings extends PluginUIComponent { // modification of private FullSettings from molstar/lib/mol-plugin-ui/left-panel.tsx
     private setSettings = (p: { param: PD.Base<any>, name: string, value: any }) => {
         PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { [p.name]: p.value } });
     };

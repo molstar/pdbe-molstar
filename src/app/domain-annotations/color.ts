@@ -1,11 +1,12 @@
+import { CustomProperty } from 'molstar/lib/mol-model-props/common/custom-property';
+import { Location } from 'molstar/lib/mol-model/location';
+import { StructureElement } from 'molstar/lib/mol-model/structure';
+import { ColorTheme, LocationColor } from 'molstar/lib/mol-theme/color';
+import { ThemeDataContext } from 'molstar/lib/mol-theme/theme';
+import { Color } from 'molstar/lib/mol-util/color';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { DomainAnnotations, DomainAnnotationsProvider } from './prop';
-import { Location } from 'Molstar/mol-model/location';
-import { StructureElement } from 'Molstar/mol-model/structure';
-import { ColorTheme, LocationColor } from 'Molstar/mol-theme/color';
-import { ThemeDataContext } from 'Molstar/mol-theme/theme';
-import { Color } from 'Molstar/mol-util/color';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { CustomProperty } from 'Molstar/mol-model-props/common/custom-property';
+
 
 const DomainColors = [
     Color.fromRgb(170, 170, 170), // not applicable

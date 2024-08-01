@@ -1,24 +1,23 @@
-import { Mat4 } from 'Molstar/mol-math/linear-algebra';
-import { StructureComponentRef, StructureRepresentationRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { PluginUIComponent, PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { ActionMenu } from 'Molstar/mol-plugin-ui/controls/action-menu';
-import { Button, ExpandGroup, IconButton, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
-import { ArrowDropDownSvg, ArrowRightSvg, CheckSvg, CloseSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { UpdateTransformControl } from 'Molstar/mol-plugin-ui/state/update-transform';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { MolScriptBuilder as MS } from 'Molstar/mol-script/language/builder';
-import { State, StateObjectRef, StateSelection } from 'Molstar/mol-state';
-import { Color } from 'Molstar/mol-util/color';
-import { ColorLists } from 'Molstar/mol-util/color/lists';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import * as React from 'react';
+import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
+import { StructureComponentRef, StructureRepresentationRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
+import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
+import { PluginUIComponent, PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { ActionMenu } from 'molstar/lib/mol-plugin-ui/controls/action-menu';
+import { Button, ExpandGroup, IconButton, SectionHeader } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { ArrowDropDownSvg, ArrowRightSvg, CheckSvg, CloseSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { UpdateTransformControl } from 'molstar/lib/mol-plugin-ui/state/update-transform';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
+import { State, StateObjectRef, StateSelection } from 'molstar/lib/mol-state';
+import { Color } from 'molstar/lib/mol-util/color';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
+import React from 'react';
 import { Subject } from 'rxjs';
 import { debounceTime, filter } from 'rxjs/operators';
 import { ClusterMember, PluginCustomState, Segment } from '../plugin-custom-state';
-import { renderSuperposition, superposeAf } from '../superposition';
+import { getNextColor, renderSuperposition, superposeAf } from '../superposition';
 
 
 const SuperpositionTag = 'SuperpositionTransform';
@@ -574,26 +573,8 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
         return StateSelection.findUniqueTagsInSubtree(tree, this.modelCell!.transform.ref, TagSet);
     };
 
-    getRandomColor() {
-        const clList: any = ColorLists;
-        const spState = PluginCustomState(this.plugin).superpositionState;
-        if (!spState) throw new Error('customState.superpositionState has not been initialized');
-        let palleteIndex = spState.colorState[this.props.segmentIndex].palleteIndex;
-        let colorIndex = spState.colorState[this.props.segmentIndex].colorIndex;
-        if (clList[spState.colorPalette[palleteIndex]].list[colorIndex + 1]) {
-            colorIndex += 1;
-        } else {
-            colorIndex = 0;
-            palleteIndex = spState.colorPalette[palleteIndex + 1] ? palleteIndex + 1 : 0;
-        }
-        const palleteName = spState.colorPalette[palleteIndex];
-        spState.colorState[this.props.segmentIndex].palleteIndex = palleteIndex;
-        spState.colorState[this.props.segmentIndex].colorIndex = colorIndex;
-        return clList[palleteName].list[colorIndex];
-    }
-
     async addChainRepr() {
-        const uniformColor1 = this.getRandomColor();
+        const uniformColor1 = getNextColor(this.plugin, this.props.segmentIndex);
         const strInstance = this.plugin.state.data.select(this.ref!)[0];
         const query = MS.struct.generator.atomGroups({
             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), this.props.structure.struct_asym_id])

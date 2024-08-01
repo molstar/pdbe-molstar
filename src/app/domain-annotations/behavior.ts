@@ -1,8 +1,9 @@
-import { DomainAnnotationsProvider } from './prop';
+import { Loci } from 'molstar/lib/mol-model/loci';
+import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { DomainAnnotationsColorThemeProvider } from './color';
-import { Loci } from 'Molstar/mol-model/loci';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
-import { PluginBehavior } from 'Molstar/mol-plugin/behavior';
+import { DomainAnnotationsProvider } from './prop';
+
 
 export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean, showTooltip: boolean }>({
     name: 'pdbe-domain-annotations-prop',

@@ -1,7 +1,7 @@
 
-import { PluginReactContext } from 'Molstar/mol-plugin-ui/base';
-import { PluginUIContext } from 'Molstar/mol-plugin-ui/context';
-import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
+import { PluginReactContext } from 'molstar/lib/mol-plugin-ui/base';
+import { PluginUIContext } from 'molstar/lib/mol-plugin-ui/context';
+import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { ComponentProps, JSXElementConstructor, createElement, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DefaultPluginUISpec } from '../../spec';

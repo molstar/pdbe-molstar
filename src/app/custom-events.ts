@@ -1,5 +1,5 @@
-import { InteractivityManager } from 'Molstar/mol-plugin-state/manager/interactivity';
-import { PluginContext } from 'Molstar/mol-plugin/context';
+import { InteractivityManager } from 'molstar/lib/mol-plugin-state/manager/interactivity';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { debounceTime } from 'rxjs/operators';
 import { EventDetail, lociDetails } from './loci-details';
 

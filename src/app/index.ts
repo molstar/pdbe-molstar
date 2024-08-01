@@ -1,53 +1,52 @@
-import { GeometryExport } from 'Molstar/extensions/geo-export';
-import { MAQualityAssessment } from 'Molstar/extensions/model-archive/quality-assessment/behavior';
-import { Mp4Export } from 'Molstar/extensions/mp4-export';
-import { MolViewSpec } from 'Molstar/extensions/mvs/behavior';
-import { CustomTooltipsProps, CustomTooltipsProvider } from 'Molstar/extensions/mvs/components/custom-tooltips-prop';
-import { PDBeStructureQualityReport } from 'Molstar/extensions/pdbe';
-import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'Molstar/extensions/rcsb/assembly-symmetry/behavior';
-import { Canvas3DProps } from 'Molstar/mol-canvas3d/canvas3d';
-import { EmptyLoci, Loci } from 'Molstar/mol-model/loci';
-import { StructureElement } from 'Molstar/mol-model/structure';
-import { AnimateAssemblyUnwind } from 'Molstar/mol-plugin-state/animation/built-in/assembly-unwind';
-import { AnimateCameraRock } from 'Molstar/mol-plugin-state/animation/built-in/camera-rock';
-import { AnimateCameraSpin } from 'Molstar/mol-plugin-state/animation/built-in/camera-spin';
-import { AnimateModelIndex } from 'Molstar/mol-plugin-state/animation/built-in/model-index';
-import { AnimateStructureSpin } from 'Molstar/mol-plugin-state/animation/built-in/spin-structure';
-import { AnimateStateInterpolation } from 'Molstar/mol-plugin-state/animation/built-in/state-interpolation';
-import { AnimateStateSnapshots } from 'Molstar/mol-plugin-state/animation/built-in/state-snapshots';
-import { BuiltInTrajectoryFormat } from 'Molstar/mol-plugin-state/formats/trajectory';
-import { clearStructureOverpaint } from 'Molstar/mol-plugin-state/helpers/structure-overpaint';
-import { createStructureRepresentationParams } from 'Molstar/mol-plugin-state/helpers/structure-representation-params';
-import { StructureRef } from 'Molstar/mol-plugin-state/manager/structure/hierarchy-state';
-import { PluginStateObject } from 'Molstar/mol-plugin-state/objects';
-import { StateTransforms } from 'Molstar/mol-plugin-state/transforms';
-import { CustomStructureProperties, StructureComponent } from 'Molstar/mol-plugin-state/transforms/model';
-import { StructureRepresentation3D } from 'Molstar/mol-plugin-state/transforms/representation';
-import { createPluginUI } from 'Molstar/mol-plugin-ui/react18';
-import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
-import { FocusLoci } from 'Molstar/mol-plugin/behavior/dynamic/camera';
-import { SelectLoci } from 'Molstar/mol-plugin/behavior/dynamic/representation';
-import { StructureFocusRepresentation } from 'Molstar/mol-plugin/behavior/dynamic/selection/structure-focus-representation';
-import { InitVolumeStreaming } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { PluginConfig } from 'Molstar/mol-plugin/config';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { PluginLayoutStateParams } from 'Molstar/mol-plugin/layout';
-import { PluginSpec } from 'Molstar/mol-plugin/spec';
-import { Representation } from 'Molstar/mol-repr/representation';
-import { StateSelection, StateTransform } from 'Molstar/mol-state';
-import { ElementSymbolColorThemeParams } from 'Molstar/mol-theme/color/element-symbol';
-import { Overpaint } from 'Molstar/mol-theme/overpaint';
-import { Asset } from 'Molstar/mol-util/assets';
-import { Color } from 'Molstar/mol-util/color/color';
-import { ColorName, ColorNames } from 'Molstar/mol-util/color/names';
-import { RxEventHelper } from 'Molstar/mol-util/rx-event-helper';
+import { GeometryExport } from 'molstar/lib/extensions/geo-export';
+import { MAQualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/behavior';
+import { Mp4Export } from 'molstar/lib/extensions/mp4-export';
+import { MolViewSpec } from 'molstar/lib/extensions/mvs/behavior';
+import { CustomTooltipsProps, CustomTooltipsProvider } from 'molstar/lib/extensions/mvs/components/custom-tooltips-prop';
+import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe';
+import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'molstar/lib/extensions/rcsb/assembly-symmetry/behavior';
+import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
+import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci';
+import { StructureElement } from 'molstar/lib/mol-model/structure';
+import { AnimateAssemblyUnwind } from 'molstar/lib/mol-plugin-state/animation/built-in/assembly-unwind';
+import { AnimateCameraRock } from 'molstar/lib/mol-plugin-state/animation/built-in/camera-rock';
+import { AnimateCameraSpin } from 'molstar/lib/mol-plugin-state/animation/built-in/camera-spin';
+import { AnimateModelIndex } from 'molstar/lib/mol-plugin-state/animation/built-in/model-index';
+import { AnimateStructureSpin } from 'molstar/lib/mol-plugin-state/animation/built-in/spin-structure';
+import { AnimateStateInterpolation } from 'molstar/lib/mol-plugin-state/animation/built-in/state-interpolation';
+import { AnimateStateSnapshots } from 'molstar/lib/mol-plugin-state/animation/built-in/state-snapshots';
+import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
+import { clearStructureOverpaint } from 'molstar/lib/mol-plugin-state/helpers/structure-overpaint';
+import { createStructureRepresentationParams } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
+import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
+import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
+import { CustomStructureProperties, StructureComponent } from 'molstar/lib/mol-plugin-state/transforms/model';
+import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
+import { createPluginUI } from 'molstar/lib/mol-plugin-ui/react18';
+import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
+import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
+import { SelectLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/representation';
+import { StructureFocusRepresentation } from 'molstar/lib/mol-plugin/behavior/dynamic/selection/structure-focus-representation';
+import { InitVolumeStreaming } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginConfig } from 'molstar/lib/mol-plugin/config';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { PluginLayoutStateParams } from 'molstar/lib/mol-plugin/layout';
+import { PluginSpec } from 'molstar/lib/mol-plugin/spec';
+import { Representation } from 'molstar/lib/mol-repr/representation';
+import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { ElementSymbolColorThemeParams } from 'molstar/lib/mol-theme/color/element-symbol';
+import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
+import { Asset } from 'molstar/lib/mol-util/assets';
+import { Color } from 'molstar/lib/mol-util/color/color';
+import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
-import { ColorParams, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
+import { AnyColor, DefaultParams, DefaultPluginUISpec, InitParams, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
@@ -59,7 +58,7 @@ import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 
-import 'Molstar/mol-plugin-ui/skin/dark.scss';
+import 'molstar/lib/mol-plugin-ui/skin/dark.scss';
 import './overlay.scss';
 
 
@@ -520,16 +519,7 @@ export class PDBeMolstarPlugin {
     }
 
     normalizeColor(colorVal: AnyColor | null | undefined, defaultColor: Color = Color.fromRgb(170, 170, 170)): Color {
-        try {
-            if (colorVal === undefined || colorVal === null) return defaultColor;
-            if (typeof colorVal === 'number') return Color(colorVal);
-            if (typeof colorVal === 'string' && colorVal[0] === '#') return Color(Number(`0x${colorVal.substring(1)}`));
-            if (typeof colorVal === 'string' && colorVal in ColorNames) return ColorNames[colorVal as ColorName];
-            if (typeof colorVal === 'object') return Color.fromRgb(colorVal.r ?? 0, colorVal.g ?? 0, colorVal.b ?? 0);
-        } catch {
-            // do nothing
-        }
-        return defaultColor;
+        return normalizeColor(colorVal, defaultColor);
     }
 
     /** Get structure ref for a structure with given `structureNumberOrId`.
@@ -582,12 +572,12 @@ export class PDBeMolstarPlugin {
             PluginCommands.Layout.Update(this.plugin, { state: { isExpanded: isExpanded } });
         },
 
-        applySettings: async (settings?: { color?: { r: number, g: number, b: number }, lighting?: string }) => {
+        applySettings: async (settings?: { color?: AnyColor, lighting?: string }) => {
             if (!settings) return;
             if (!this.plugin.canvas3d) return;
             const renderer = { ...this.plugin.canvas3d.props.renderer };
             if (settings.color) {
-                renderer.backgroundColor = Color.fromRgb(settings.color.r, settings.color.g, settings.color.b);
+                renderer.backgroundColor = normalizeColor(settings.color);
             }
             if (settings.lighting) {
                 (renderer as any).style = { name: settings.lighting }; // I don't think this does anything and I don't see how it could ever have worked
@@ -664,7 +654,7 @@ export class PDBeMolstarPlugin {
          * (this will look the same as when the user hovers over a part of the structure).
          * If `focus`, also zoom on the highlighted part.
          * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
-        highlight: async (params: { data: QueryParam[], color?: ColorParams, focus?: boolean, structureNumber?: number }) => {
+        highlight: async (params: { data: QueryParam[], color?: AnyColor, focus?: boolean, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureNumber);
             if (Loci.isEmpty(loci)) return;
             if (params.color) {
@@ -687,7 +677,7 @@ export class PDBeMolstarPlugin {
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: any, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
+        select: async (params: { data: QueryParam[], nonSelectedColor?: AnyColor, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
             const structureNumberOrId = params.structureId ?? params.structureNumber;
             await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
@@ -719,7 +709,7 @@ export class PDBeMolstarPlugin {
                     .filter(s => s.param.color !== null)
                     .map(s => ({
                         bundle: s.bundle,
-                        color: s.param.color ? this.normalizeColor(s.param.color) : DefaultSelectColor,
+                        color: s.param.color ? normalizeColor(s.param.color) : DefaultSelectColor,
                         clear: false,
                     }));
                 if (params.nonSelectedColor) {
@@ -727,7 +717,7 @@ export class PDBeMolstarPlugin {
                     if (wholeStructBundle) {
                         overpaintLayers.unshift({
                             bundle: wholeStructBundle,
-                            color: this.normalizeColor(params.nonSelectedColor),
+                            color: normalizeColor(params.nonSelectedColor),
                             clear: false,
                         });
                     }
@@ -740,7 +730,7 @@ export class PDBeMolstarPlugin {
                     if (!bundle) continue;
                     const overpaintLayers: Overpaint.BundleLayer[] = selections.filter(s => s.param.representationColor).map(s => ({
                         bundle: s.bundle,
-                        color: this.normalizeColor(s.param.representationColor!),
+                        color: normalizeColor(s.param.representationColor!),
                         clear: false,
                     }));
                     await this.plugin.build()
@@ -832,19 +822,19 @@ export class PDBeMolstarPlugin {
         /** Set highlight and/or selection color.
          * Highlight color is used when the user hovers over a part of the structure or when applying the `highlight` method.
          * Selection color is used when creating selections with Selection Mode (the mouse cursor icon) and is not related to the color used by the `select` method. */
-        setColor: async (params: { highlight?: ColorParams, select?: ColorParams }) => {
+        setColor: async (params: { highlight?: AnyColor, select?: AnyColor }) => {
             if (!this.plugin.canvas3d) return;
             if (!params.highlight && !params.select) return;
             const renderer = { ...this.plugin.canvas3d.props.renderer };
             const marking = { ...this.plugin.canvas3d.props.marking };
             if (params.highlight) {
-                renderer.highlightColor = this.normalizeColor(params.highlight);
-                marking.highlightEdgeColor = Color.darken(this.normalizeColor(params.highlight), 1);
+                renderer.highlightColor = normalizeColor(params.highlight);
+                marking.highlightEdgeColor = Color.darken(normalizeColor(params.highlight), 1);
                 this.isHighlightColorUpdated = true;
             }
             if (params.select) {
-                renderer.selectColor = this.normalizeColor(params.select);
-                marking.selectEdgeColor = Color.darken(this.normalizeColor(params.select), 1);
+                renderer.selectColor = normalizeColor(params.select);
+                marking.selectEdgeColor = Color.darken(normalizeColor(params.select), 1);
                 this.isSelectedColorUpdated = true;
             }
             await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
@@ -950,9 +940,6 @@ export class PDBeMolstarPlugin {
     /** Components for building custom UI layouts */
     static UIComponents = UIComponents;
 }
-
-
-type AnyColor = ColorParams | string | number
 
 
 (window as any).PDBeMolstarPlugin = PDBeMolstarPlugin;

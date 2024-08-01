@@ -1,4 +1,4 @@
-import { PurePluginUIComponent } from 'Molstar/mol-plugin-ui/base';
+import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
 import { ComponentClass, JSXElementConstructor } from 'react';
 import { PluginCustomState } from '../plugin-custom-state';
 

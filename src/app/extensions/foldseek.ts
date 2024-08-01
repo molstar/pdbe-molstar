@@ -1,9 +1,9 @@
 /** Helper functions to allow visualizing Foldseek results and superposing them on the query structure */
 
-import { exportHierarchy } from 'Molstar/extensions/model-export/export';
-import { Mat4 } from 'Molstar/mol-math/linear-algebra';
-import { MinimizeRmsd } from 'Molstar/mol-math/linear-algebra/3d/minimize-rmsd';
-import { ElementIndex, ResidueIndex, Structure } from 'Molstar/mol-model/structure';
+import { exportHierarchy } from 'molstar/lib/extensions/model-export/export';
+import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
+import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
+import { ElementIndex, ResidueIndex, Structure } from 'molstar/lib/mol-model/structure';
 import { PDBeMolstarPlugin } from '..';
 import { transform } from '../superposition';
 

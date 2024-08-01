@@ -1,9 +1,10 @@
-import { Column } from 'Molstar/mol-data/db';
-import { MmcifFormat } from 'Molstar/mol-model-formats/structure/mmcif';
-import { CustomPropertyDescriptor } from 'Molstar/mol-model/custom-property';
-import { Model } from 'Molstar/mol-model/structure';
-import { StructureElement } from 'Molstar/mol-model/structure/structure';
-import { CustomModelProperty } from 'Molstar/mol-model-props/common/custom-model-property';
+import { Column } from 'molstar/lib/mol-data/db';
+import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
+import { CustomModelProperty } from 'molstar/lib/mol-model-props/common/custom-model-property';
+import { CustomPropertyDescriptor } from 'molstar/lib/mol-model/custom-property';
+import { Model } from 'molstar/lib/mol-model/structure';
+import { StructureElement } from 'molstar/lib/mol-model/structure/structure';
+
 
 export { SIFTSMapping as SIFTSMapping };
 

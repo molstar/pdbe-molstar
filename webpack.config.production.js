@@ -59,9 +59,6 @@ const molstarConfig = {
             path: require.resolve('path-browserify'),
             stream: require.resolve('stream-browserify'),
         },
-        alias: {
-            Molstar: 'molstar/lib',
-        },
     },
     watchOptions: {
         aggregateTimeout: 750,

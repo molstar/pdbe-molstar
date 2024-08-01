@@ -1,4 +1,4 @@
-import { DefaultViewport } from 'Molstar/mol-plugin-ui/plugin';
+import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
 import { WithLoadingOverlay } from './overlay';
 
 

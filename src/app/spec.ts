@@ -1,13 +1,13 @@
-import { Loci } from 'Molstar/mol-model/loci';
-import { StateActions } from 'Molstar/mol-plugin-state/actions';
-import { VolumeStreamingCustomControls } from 'Molstar/mol-plugin-ui/custom/volume';
-import { PluginUISpec } from 'Molstar/mol-plugin-ui/spec';
-import { PluginBehaviors } from 'Molstar/mol-plugin/behavior';
-import { DefaultFocusLociBindings } from 'Molstar/mol-plugin/behavior/dynamic/camera';
-import { DefaultSelectLociBindings } from 'Molstar/mol-plugin/behavior/dynamic/representation';
-import { CreateVolumeStreamingBehavior } from 'Molstar/mol-plugin/behavior/dynamic/volume-streaming/transformers';
-import { PluginConfig } from 'Molstar/mol-plugin/config';
-import { PluginSpec } from 'Molstar/mol-plugin/spec';
+import { Loci } from 'molstar/lib/mol-model/loci';
+import { StateActions } from 'molstar/lib/mol-plugin-state/actions';
+import { VolumeStreamingCustomControls } from 'molstar/lib/mol-plugin-ui/custom/volume';
+import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
+import { PluginBehaviors } from 'molstar/lib/mol-plugin/behavior';
+import { DefaultFocusLociBindings } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
+import { DefaultSelectLociBindings } from 'molstar/lib/mol-plugin/behavior/dynamic/representation';
+import { CreateVolumeStreamingBehavior } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { PluginConfig } from 'molstar/lib/mol-plugin/config';
+import { PluginSpec } from 'molstar/lib/mol-plugin/spec';
 import { LigandQueryParam, MapParams, QueryParam } from './helpers';
 import { PDBeLociLabelProvider } from './labels';
 import { PDBeSIFTSMapping } from './sifts-mappings-behaviour';
@@ -51,6 +51,10 @@ export const DefaultPluginUISpec = (): PluginUISpec => ({
 /** RGB color (r, g, b values 0-255) */
 export interface ColorParams { r: number, g: number, b: number }
 
+/** Color name (e.g. 'yellow') or hexcode (e.g. '#ffff00') or Molstar color encoding (e.g. 16776960) or RGB color object (e.g. { r: 255, g: 255, b: 0 }) */
+export type AnyColor = ColorParams | string | number
+
+
 export const Preset = ['default', 'unitcell', 'all-models', 'supercell'] as const;
 export type Preset = (typeof Preset)[number]
 
@@ -91,10 +95,10 @@ export interface InitParams {
         superposeCompleteCluster?: boolean,
         ligandView?: boolean,
         superposeAll?: boolean,
-        ligandColor?: ColorParams,
+        ligandColor?: AnyColor,
     },
     /** Specify parts of the structure to highlight with different colors */
-    selection?: { data: QueryParam[], nonSelectedColor?: ColorParams },
+    selection?: { data: QueryParam[], nonSelectedColor?: AnyColor },
 
     // APPEARANCE
     /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */
@@ -106,11 +110,11 @@ export interface InitParams {
     /** Customize map style (opacity and solid/wireframe) */
     mapSettings?: MapParams,
     /** Canvas background color */
-    bgColor: ColorParams,
+    bgColor: AnyColor,
     /** Color appearing on mouse-over */
-    highlightColor?: ColorParams,
+    highlightColor?: AnyColor,
     /** Color for marking the selected part of structure (when Selection Mode is active) */
-    selectColor?: ColorParams,
+    selectColor?: AnyColor,
     /** Default lighting (I don't think it really works) */
     lighting?: Lighting,
 

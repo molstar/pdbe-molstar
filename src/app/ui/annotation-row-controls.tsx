@@ -1,7 +1,7 @@
-import { Button, IconButton } from 'Molstar/mol-plugin-ui/controls/common';
-import { MoreHorizSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'Molstar/mol-plugin-ui/controls/icons';
-import { ParameterControls, ParameterControlsProps } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { ParamDefinition as PD } from 'Molstar/mol-util/param-definition';
+import { Button, IconButton } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { MoreHorizSvg, VisibilityOffOutlinedSvg, VisibilityOutlinedSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls, ParameterControlsProps } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
 
 

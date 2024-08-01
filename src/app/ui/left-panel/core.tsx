@@ -1,8 +1,8 @@
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { IconButton, SectionHeader } from 'Molstar/mol-plugin-ui/controls/common';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { sleep } from 'Molstar/mol-util/sleep';
+import { PluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { IconButton, SectionHeader } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject, Subject } from 'rxjs';
 
 

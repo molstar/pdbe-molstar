@@ -1,5 +1,5 @@
-import { ControlsWrapper, Log } from 'Molstar/mol-plugin-ui/plugin';
-import { SequenceView } from 'Molstar/mol-plugin-ui/sequence';
+import { ControlsWrapper, Log } from 'molstar/lib/mol-plugin-ui/plugin';
+import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 import { JSXElementConstructor } from 'react';
 import { PDBeViewport } from '../pdbe-viewport';
 import { DefaultLeftPanelControls, PDBeLeftPanelControls } from '../left-panel/pdbe-left-panel';

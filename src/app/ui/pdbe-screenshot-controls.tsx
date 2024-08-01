@@ -1,12 +1,13 @@
-import * as React from 'react';
-import { PluginContext } from 'Molstar/mol-plugin/context';
-import { ParameterControls } from 'Molstar/mol-plugin-ui/controls/parameters';
-import { PluginUIComponent } from 'Molstar/mol-plugin-ui/base';
-import { ScreenshotPreview } from 'Molstar/mol-plugin-ui/controls/screenshot';
-import { Button, ToggleButton } from 'Molstar/mol-plugin-ui/controls/common';
-import { PluginCommands } from 'Molstar/mol-plugin/commands';
-import { useBehavior } from 'Molstar/mol-plugin-ui/hooks/use-behavior';
-import { GetAppSvg, CopySvg, CropOrginalSvg, CropSvg, CropFreeSvg } from 'Molstar/mol-plugin-ui/controls/icons';
+import { PluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
+import { Button, ToggleButton } from 'molstar/lib/mol-plugin-ui/controls/common';
+import { CopySvg, CropFreeSvg, CropOrginalSvg, CropSvg, GetAppSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
+import { ScreenshotPreview } from 'molstar/lib/mol-plugin-ui/controls/screenshot';
+import { useBehavior } from 'molstar/lib/mol-plugin-ui/hooks/use-behavior';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import React from 'react';
+
 
 interface ImageControlsState {
     showPreview: boolean,
