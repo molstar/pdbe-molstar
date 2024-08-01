@@ -1,5 +1,6 @@
 import { Loci } from 'molstar/lib/mol-model/loci';
 import { StateActions } from 'molstar/lib/mol-plugin-state/actions';
+import { StructureRepresentationBuiltInProps } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
 import { VolumeStreamingCustomControls } from 'molstar/lib/mol-plugin-ui/custom/volume';
 import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { PluginBehaviors } from 'molstar/lib/mol-plugin/behavior';
@@ -61,9 +62,37 @@ export type Preset = (typeof Preset)[number]
 export const Lighting = ['flat', 'matte', 'glossy', 'metallic', 'plastic'] as const;
 export type Lighting = (typeof Lighting)[number]
 
+/** Structure component type ('het' includes Molstar types 'ligand' and 'ion') */
+export const ComponentType = ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'] as const;
+export type ComponentType = (typeof ComponentType)[number]
+
+/** Structure representation type */
 export const VisualStyle = ['cartoon', 'ball-and-stick', 'carbohydrate', 'ellipsoid', 'gaussian-surface', 'molecular-surface', 'point', 'putty', 'spacefill'] as const;
 export type VisualStyle = (typeof VisualStyle)[number]
+/** Specification of visual style for a single component visual, e.g. `'cartoon'` or `{type: 'putty', size: 'uniform'}` */
+type ComponentVisualStyleSpec = VisualStyle | StructureRepresentationBuiltInProps
+/** Specification of visual styles for individual component types, e.g. `'cartoon'` (all components as cartoon) or `{polymer: {type: 'putty', size: 'uniform'}, ligand: 'ball-and-stick'}` */
+export type VisualStylesSpec = ComponentVisualStyleSpec | { [component in ComponentType]?: ComponentVisualStyleSpec }
 
+/** Normalize a `VisualStylesSpec` to a form {polymer?:{...},het?:{...},...} */
+export function resolveVisualStyleSpec(spec: VisualStylesSpec): { [component in ComponentType]?: StructureRepresentationBuiltInProps } {
+    if (spec === undefined) {
+        return {};
+    }
+    if (typeof spec === 'string' || 'type' in spec) {
+        const commonStyle = resolveComponentVisualStyleSpec(spec);
+        return Object.fromEntries(ComponentType.map(type => [type, commonStyle]));
+    }
+    return Object.fromEntries(Object.entries(spec).map(([type, compSpec]) => [type, resolveComponentVisualStyleSpec(compSpec)]));
+}
+function resolveComponentVisualStyleSpec(spec: ComponentVisualStyleSpec): StructureRepresentationBuiltInProps | undefined {
+    if (spec === undefined) return undefined;
+    if (typeof spec === 'string') return { type: spec };
+    if ('type' in spec) return spec;
+    throw new Error('TypeError');
+}
+
+/** Structure file format */
 export const Encoding = ['cif', 'bcif'] as const;
 export type Encoding = (typeof Encoding)[number]
 
@@ -99,10 +128,12 @@ export interface InitParams {
     },
     /** Specify parts of the structure to highlight with different colors */
     selection?: { data: QueryParam[], nonSelectedColor?: AnyColor },
+    /** Display 3D State Gallery */
+    galleryView: boolean,
 
     // APPEARANCE
     /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */
-    visualStyle?: VisualStyle,
+    visualStyle?: VisualStylesSpec,
     /** Molstar renders multiple visuals (polymer, ligand, water...) visuals by default. This option is to exclude any of these default visuals */
     hideStructure: ('polymer' | 'het' | 'water' | 'carbs' | 'nonStandard' | 'coarse')[],
     /** Load electron density (or EM) maps from Volume Server if value is set to true */
@@ -149,7 +180,7 @@ export interface InitParams {
     /** Hide all control panels by default (can be shown by the Toggle Controls Panel button (wrench icon)) */
     hideControls: boolean,
     /** Hide individual icon buttons in the top-right corner of the canvas */
-    hideCanvasControls: ('expand' | 'selection' | 'animation' | 'controlToggle' | 'controlInfo')[],
+    hideCanvasControls: ('expand' | 'controlToggle' | 'controlInfo' | 'selection' | 'animation' | 'trajectory')[],
     /** Display Sequence panel */
     sequencePanel: boolean,
     /** Display Left control panel */
@@ -181,6 +212,7 @@ export const DefaultParams: InitParams = {
     superposition: false,
     superpositionParams: undefined,
     selection: undefined,
+    galleryView: false,
 
     visualStyle: undefined,
     hideStructure: [],

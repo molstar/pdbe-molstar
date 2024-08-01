@@ -7,6 +7,7 @@ import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hie
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
 import { CreateVolumeStreamingInfo } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { PluginConfigItem } from 'molstar/lib/mol-plugin/config';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
 import { Expression } from 'molstar/lib/mol-script/language/expression';
@@ -16,6 +17,7 @@ import { Task } from 'molstar/lib/mol-task';
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
 import { Color } from 'molstar/lib/mol-util/color';
 import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
+import { sleep } from 'molstar/lib/mol-util/sleep';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
 
@@ -400,7 +402,19 @@ export function getStructureUrl(initParams: InitParams, request: ModelServerRequ
     }
 }
 
-/** Create a copy of object `object`, fill in missing/undefined keys using `defaults` */
+/** Combine URL parts into one URL while avoiding double slashes. Examples:
+ * combineUrl('https://example.org', '1tqn') -> 'https://example.org/1tqn';
+ * combineUrl('https://example.org/', '1tqn') -> 'https://example.org/1tqn'; */
+export function combineUrl(firstPart: string, ...moreParts: string[]): string {
+    let result = firstPart;
+    for (const part of moreParts) {
+        result = result.replace(/\/$/, '') + '/' + part; // removing extra trailing slash
+    }
+    return result;
+}
+
+/** Create a copy of object `object`, fill in missing/undefined keys using `defaults`.
+ * This is similar to {...defaults,...object} but `undefined` in `object` will not override a value from `defaults`. */
 export function addDefaults<T extends {}>(object: Partial<T> | undefined, defaults: T): T {
     const result: Partial<T> = { ...object };
     for (const key in defaults) {
@@ -468,3 +482,142 @@ export const StructureComponentTags = {
     coarse: ['structure-component-static-coarse'],
     maps: ['volume-streaming-info'],
 };
+
+/** Return component type based on the component's PluginStateObject tags */
+export function getComponentTypeFromTags(tags: string[] | undefined): keyof typeof StructureComponentTags | undefined {
+    let type: keyof typeof StructureComponentTags;
+    for (type in StructureComponentTags) {
+        const typeTags = StructureComponentTags[type];
+        if (typeTags.some(tag => tags?.includes(tag))) {
+            return type;
+        }
+    }
+    return undefined;
+}
+
+/** Return a new array containing `values` without duplicates (only first occurrence will be kept).
+ * Values v1, v2 are considered duplicates when `key(v1)===key(v2)`. */
+export function distinct<T>(values: T[], key: ((value: T) => unknown) = (value => value)): T[] {
+    const out: T[] = [];
+    const seenKeys = new Set<unknown>();
+    for (const value of values) {
+        const theKey = key(value);
+        if (!seenKeys.has(theKey)) {
+            out.push(value);
+            seenKeys.add(theKey);
+        }
+    }
+    return out;
+}
+
+/** Group elements by result of `groupFunction` applied to them */
+export function groupElements<T, G>(elements: T[], groupFunction: (elem: T) => G) {
+    const groups: G[] = [];
+    const members = new Map<G, T[]>();
+    for (const elem of elements) {
+        const g = groupFunction(elem);
+        if (members.has(g)) {
+            members.get(g)!.push(elem);
+        } else {
+            groups.push(g);
+            members.set(g, [elem]);
+        }
+    }
+    return {
+        /** Groups (results of `groupFunction`) in order as they first appeared in `elements` */
+        groups,
+        /** Mapping of groups to lists of they members */
+        members,
+    };
+}
+
+/** Return a mapping of elements to their index in the `elements` array */
+export function createIndex<T>(elements: T[]) {
+    const index = new Map<T, number>();
+    elements.forEach((elem, i) => index.set(elem, i));
+    return index;
+}
+
+/** Return modulo of two numbers (a % b) within range [0, b) */
+export function nonnegativeModulo(a: number, b: number) {
+    const modulo = a % b;
+    return (modulo < 0) ? modulo + b : modulo;
+}
+
+
+/** `{ status: 'completed', result: result }` means the job completed and returned/resolved to `result`.
+* `{ status: 'cancelled' }` means the job started but another jobs got enqueued before its completion.
+* `{ status: 'skipped' }` means the job did not start because another jobs got enqueued. */
+export type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' }
+
+interface PreemptiveQueueJob<X, Y> {
+    args: X,
+    callbacks: {
+        resolve: (result: PreemptiveQueueResult<Y>) => void,
+        reject: (reason: any) => void,
+    },
+    cancelled?: boolean,
+}
+
+/** Queue for running jobs where enqueued jobs get discarded when a new job is enqueued.
+ * (Discarded jobs may or may not actually be executed, but their result is not accessible anyway.) */
+export class PreemptiveQueue<X, Y> {
+    private running?: PreemptiveQueueJob<X, Y>;
+    private queuing?: PreemptiveQueueJob<X, Y>;
+
+    constructor(private readonly run: (args: X) => Y | Promise<Y>) { }
+
+    /** Enqueue a job which will execute `run(args)`.
+     * Return a promise that either resolves to `{ status: 'completed', result }` where `result` is `await run(args)`,
+     * or resolves to `{ status: 'cancelled' }` if the job starts being executed but another jobs gets enqueued before its completion,
+     * or resolves to `{ status: 'skipped' }` if the job does not even start before another jobs gets enqueued,
+     * or rejects if the job is completed but throws an error.  */
+    public requestRun(args: X): Promise<PreemptiveQueueResult<Y>> {
+        if (this.running) {
+            this.running.cancelled = true;
+            this.running.callbacks.resolve({ status: 'cancelled' });
+        }
+        if (this.queuing) {
+            this.queuing.callbacks.resolve({ status: 'skipped' });
+        }
+        const promise = new Promise<PreemptiveQueueResult<Y>>((resolve, reject) => {
+            this.queuing = { args, callbacks: { resolve, reject } };
+        });
+        if (!this.running) {
+            this.handleRequests(); // do not await
+        }
+        return promise;
+    }
+    /** Request handling loop. Resolves when there are no more requests. Not to be awaited, should run in the background.  */
+    private async handleRequests(): Promise<void> {
+        while (this.queuing) {
+            this.running = this.queuing;
+            this.queuing = undefined;
+            await sleep(0); // let other things happen (this pushes the rest of the function to the end of the queue)
+            try {
+                const result = await this.run(this.running.args);
+                if (!this.running.cancelled) {
+                    this.running.callbacks.resolve({ status: 'completed', result });
+                }
+            } catch (error) {
+                if (!this.running.cancelled) {
+                    this.running.callbacks.reject(error);
+                }
+            }
+            this.running = undefined;
+        }
+    }
+}
+
+
+export namespace PluginConfigUtils {
+    export type ConfigFor<T> = { [key in keyof T]: PluginConfigItem<T[key]> }
+
+    export function getConfigValues<T>(plugin: PluginContext | undefined, configItems: { [name in keyof T]: PluginConfigItem<T[name]> }, defaults: T): T {
+        const values = {} as T;
+        for (const name in configItems) {
+            values[name] = plugin?.config.get(configItems[name]) ?? defaults[name];
+        }
+        return values;
+    }
+}

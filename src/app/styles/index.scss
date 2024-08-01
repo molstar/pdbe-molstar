@@ -75,3 +75,20 @@ svg.pdbe-animated-logo {
     text-wrap: nowrap;
     text-overflow: ellipsis;
 }
+
+.pdbemolstar-state-gallery-controls {
+    overflow-x: hidden;
+    word-wrap: break-word; // necessary for wrapping oligonucleotide sequences
+    &:focus-visible {
+        outline: none;
+    }
+}
+
+.pdbemolstar-state-gallery-legend {
+    .image_legend_li {
+        margin-left: 16px;
+    }
+    .highlight {
+        font-weight: bold;
+    }
+}

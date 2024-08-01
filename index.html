@@ -216,9 +216,9 @@
 
     <script>
         function getJsonParam(paramName) {
-            const optionsString = new URL(window.location).searchParams.get(paramName);
-            const options = JSON.parse(optionsString);
-            return options ?? undefined;
+            const paramString = new URL(window.location).searchParams.get(paramName);
+            const param = JSON.parse(paramString);
+            return param ?? undefined;
         }
         /** Load CSS with a different skin (theme) */
         function loadSkin(skin) {

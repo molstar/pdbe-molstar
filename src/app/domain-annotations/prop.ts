@@ -43,25 +43,30 @@ namespace DomainAnnotations {
     }
 
     const _emptyArray: string[] = [];
-    export function getDomains(e: StructureElement.Location) {
+    /** Return a list of domainSource:domainName strings for a particular location (e.g. ['CATH:Globin']) */
+    export function getDomains(e: StructureElement.Location): string[] {
         if (!Unit.isAtomic(e.unit)) return _emptyArray;
         const prop = DomainAnnotationsProvider.get(e.unit.model).value;
         if (!prop || !prop.data) return _emptyArray;
         const rI = e.unit.residueIndex[e.element];
         return prop.data.domains.has(rI) ? prop.data.domains.get(rI)! : _emptyArray;
     }
+    /** Decide whether a structure location belongs to a domain */
+    export function isInDomain(e: StructureElement.Location, domainSource: string, domainName: string): boolean {
+        return getDomains(e).includes(domainKey(domainSource, domainName));
+    }
 
-    export function getDomainTypes(structure?: Structure) {
+    export function getDomainTypes(structure?: Structure): string[] {
         if (!structure) return _emptyArray;
         const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
         if (!prop || !prop.data) return _emptyArray;
         return prop.data.domainTypes;
     }
 
-    export function getDomainNames(structure?: Structure) {
-        if (!structure) return _emptyArray;
+    export function getDomainNames(structure?: Structure): string[][] {
+        if (!structure) return [];
         const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
-        if (!prop || !prop.data) return _emptyArray;
+        if (!prop || !prop.data) return [];
         return prop.data.domainNames;
     }
 }
@@ -109,33 +114,31 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
     const ret = new Map<ResidueIndex, string[]>();
     const defaultDomains = ['Pfam', 'InterPro', 'CATH', 'SCOP'];
 
-    for (const db_name of Object.keys(data)) {
-        if (defaultDomains.indexOf(db_name) === -1) continue;
+    for (const db_name in data) {
+        if (!defaultDomains.includes(db_name)) continue;
         const tempDomains: string[] = [];
-        domainTypes.push(db_name);
         const db = data[db_name];
-        for (const db_code of Object.keys(db)) {
+        for (const db_code in db) {
             const domain = db[db_code];
-            for (const map of domain.mappings) {
-
+            for (const mapping of domain.mappings) {
                 arraySetAdd(tempDomains, domain.identifier);
 
                 const indexData = modelData.atomicHierarchy.index as any;
                 const indexMap = indexData.map;
-                for (let i = map.start.residue_number; i <= map.end.residue_number; i++) {
-                    const seq_id = i;
-                    const idx = findResidue(modelData, indexMap, map.entity_id + '', map.chain_id, seq_id);
-                    let addVal: string[] = [domain.identifier];
+                for (let seq_id = mapping.start.residue_number; seq_id <= mapping.end.residue_number; seq_id++) {
+                    const idx = findResidue(modelData, indexMap, `${mapping.entity_id}`, mapping.chain_id, seq_id);
+                    const key = domainKey(db_name, domain.identifier);
                     const prevVal = ret.get(idx);
                     if (prevVal) {
-                        prevVal.push(domain.identifier);
-                        addVal = prevVal;
+                        prevVal.push(key);
+                    } else {
+                        ret.set(idx, [key]);
                     }
-                    ret.set(idx, addVal);
                 }
 
             }
         }
+        domainTypes.push(db_name);
         domainNames.push(tempDomains);
     }
 
@@ -144,4 +147,9 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
         domainNames,
         domainTypes
     };
+}
+
+/** Return string used for indexing domains (e.g. `domainKey('CATH', 'Globin') -> 'CATH:Globin'`) */
+function domainKey(domainSource: string, domainName: string) {
+    return `${domainSource}:${domainName}`;
 }
