@@ -10,12 +10,12 @@ import { StructureQuickStylesControls } from 'molstar/lib/mol-plugin-ui/structur
 import { AlphafoldPaeControls, AlphafoldSuperpositionControls } from './alphafold-superposition';
 import { SuperpositionModelExportUI } from './export-superposition';
 import { AlphafoldTransparencyControls } from './alphafold-tranparency';
-import { AssemblySymmetry } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
+import { AssemblySymmetryData } from 'molstar/lib/extensions/assembly-symmetry/prop';
 
 
 export class PDBeStructureTools extends PluginUIComponent {
     render() {
-        const AssemblySymmetryKey = AssemblySymmetry.Tag.Representation;
+        const AssemblySymmetryKey = AssemblySymmetryData.Tag.Representation;
         return <>
             <div className='msp-section-header'><Icon svg={BuildSvg} />Structure Tools</div>
 

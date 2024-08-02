@@ -127,7 +127,6 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
 
     return compList.join(', ');
 }
-
 async function getAfUrl(plugin: PluginContext, accession: string) {
     let apiResponse: any;
     let apiData: any;

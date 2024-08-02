@@ -1,5 +1,5 @@
-import { AssemblySymmetry3D, getRCSBAssemblySymmetryConfig, tryCreateAssemblySymmetry } from 'molstar/lib/extensions/rcsb/assembly-symmetry/behavior';
-import { AssemblySymmetry, AssemblySymmetryDataProps, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'molstar/lib/extensions/rcsb/assembly-symmetry/prop';
+import { AssemblySymmetry3D, getAssemblySymmetryConfig, tryCreateAssemblySymmetry } from 'molstar/lib/extensions/assembly-symmetry/behavior';
+import { AssemblySymmetryData, AssemblySymmetryDataProps, AssemblySymmetryDataProvider, AssemblySymmetryParams, AssemblySymmetryProps, AssemblySymmetryProvider } from 'molstar/lib/extensions/assembly-symmetry/prop';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
@@ -137,7 +137,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
     hasAssemblySymmetry3D(): boolean {
         const struct = this.getPivotStructure();
         const state = struct?.cell.parent;
-        return state !== undefined && !!StateSelection.findTagInSubtree(state.tree, struct!.cell.transform.ref, AssemblySymmetry.Tag.Representation);
+        return state !== undefined && !!StateSelection.findTagInSubtree(state.tree, struct!.cell.transform.ref, AssemblySymmetryData.Tag.Representation);
     }
 
     /** Run changes needed to set visibility on or off, and set UI accordingly */
@@ -192,7 +192,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
             try {
                 const propCtx = { runtime: ctx, assetManager: this.plugin.managers.asset };
 
-                const config = getRCSBAssemblySymmetryConfig(this.plugin);
+                const config = getAssemblySymmetryConfig(this.plugin);
                 const symmetryDataProps: AssemblySymmetryDataProps = {
                     serverType: config.DefaultServerType,
                     serverUrl: config.DefaultServerUrl,
@@ -200,7 +200,7 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
                 await AssemblySymmetryDataProvider.attach(propCtx, data, symmetryDataProps);
 
                 const assemblySymmetryData = AssemblySymmetryDataProvider.get(data).value;
-                const symmetryIndex = initialSymmetryIndex ?? (assemblySymmetryData ? AssemblySymmetry.firstNonC1(assemblySymmetryData) : -1);
+                const symmetryIndex = initialSymmetryIndex ?? (assemblySymmetryData ? AssemblySymmetryData.firstNonC1(assemblySymmetryData) : -1);
                 const symmetryProps: AssemblySymmetryProps = { ...symmetryDataProps, symmetryIndex };
                 await AssemblySymmetryProvider.attach(propCtx, data, symmetryProps);
             } catch (e) {
@@ -242,7 +242,7 @@ function getPivotStructure(plugin: PluginContext): StructureRef | undefined {
 export function isAssemblySymmetryAnnotationApplicable(plugin: PluginContext) {
     const struct = getPivotStructure(plugin);
     const isAssembly = struct?.cell.obj?.data?.units[0].conformation.operator.assembly !== undefined;
-    return isAssembly && AssemblySymmetry.isApplicable(struct?.cell.obj?.data);
+    return isAssembly && AssemblySymmetryData.isApplicable(struct?.cell.obj?.data);
     // It would be nice to disable the default `AssemblySymmetry.isApplicable` behavior
     // (i.e. hiding Assembly Symmetry controls for non-biological assemblies, e.g. 1smv assembly 3)
     // by `AssemblySymmetry.isApplicable = struct => struct?.units[0].conformation.operator.assembly !== undefined;`

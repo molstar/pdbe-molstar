@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "declaration": true,
-        "target": "es5",
+        "target": "es2015",
         "alwaysStrict": true,
         "noImplicitAny": true,
         "noImplicitThis": true,
@@ -16,7 +16,7 @@
         "noEmitHelpers": true,
         "allowSyntheticDefaultImports": true,
         "jsx": "react-jsx",
-        "lib": [ "es6", "dom", "esnext.asynciterable", "es2016" ],
+        "lib": ["es2018", "dom"],
         "rootDir": "src/app",
         "outDir": "lib",
         "composite": true, // required if we want to set "tsBuildInfoFile"

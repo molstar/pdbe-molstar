@@ -1,10 +1,10 @@
+import { AssemblySymmetry, AssemblySymmetryConfig } from 'molstar/lib/extensions/assembly-symmetry/behavior';
 import { GeometryExport } from 'molstar/lib/extensions/geo-export';
 import { MAQualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/behavior';
 import { Mp4Export } from 'molstar/lib/extensions/mp4-export';
 import { MolViewSpec } from 'molstar/lib/extensions/mvs/behavior';
 import { CustomTooltipsProps, CustomTooltipsProvider } from 'molstar/lib/extensions/mvs/components/custom-tooltips-prop';
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe';
-import { RCSBAssemblySymmetry, RCSBAssemblySymmetryConfig } from 'molstar/lib/extensions/rcsb/assembly-symmetry/behavior';
 import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
 import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci';
 import { StructureElement } from 'molstar/lib/mol-model/structure';
@@ -23,7 +23,7 @@ import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
 import { CustomStructureProperties, StructureComponent } from 'molstar/lib/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
-import { createPluginUI } from 'molstar/lib/mol-plugin-ui/react18';
+import { createPluginUI } from 'molstar/lib/mol-plugin-ui/index';
 import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
 import { SelectLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/representation';
@@ -58,7 +58,7 @@ import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStru
 import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
-import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
+import { LayoutSpec, createPluginSplitUI, renderReact18, resolveHTMLElement } from './ui/split-ui/split-ui';
 
 
 export class PDBeMolstarPlugin {
@@ -109,11 +109,11 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(MolViewSpec));
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: false, showTooltip: false }));
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, { autoAttach: false, showTooltip: false }));
-        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(RCSBAssemblySymmetry));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(AssemblySymmetry));
         pdbePluginSpec.config.push(
-            [RCSBAssemblySymmetryConfig.DefaultServerType, 'pdbe'],
-            [RCSBAssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
-            [RCSBAssemblySymmetryConfig.ApplyColors, false],
+            [AssemblySymmetryConfig.DefaultServerType, 'pdbe'],
+            [AssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
+            [AssemblySymmetryConfig.ApplyColors, false],
         );
 
         if (this.initParams.galleryView) {
@@ -227,7 +227,7 @@ export class PDBeMolstarPlugin {
             }
         } else {
             this.targetElement = resolveHTMLElement(target);
-            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, { onBeforeUIRender });
+            this.plugin = await createPluginUI({ target: this.targetElement, spec: pdbePluginSpec, onBeforeUIRender, render: renderReact18 });
             (this.targetElement as any).viewerInstance = this;
         }
 
