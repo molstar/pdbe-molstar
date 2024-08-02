@@ -2,7 +2,7 @@
 
 .pdbemolstar-overlay {
     z-index: 1000;
-    position: fixed;
+    position: absolute;
     top: 0px;
     bottom: 0px;
     left: 0px;
@@ -44,6 +44,7 @@ svg.pdbe-animated-logo {
     }
 }
 
+
 .msp-plugin ::-webkit-scrollbar-thumb {
     background-color: #80808080;
     border-radius: 10px;
@@ -51,6 +52,9 @@ svg.pdbe-animated-logo {
     background-clip: content-box;
 }
 
+.msp-plugin .msp-plugin-init-error {
+    color: #808080;
+}
 
 .msp-plugin .msp-layout-static {
     container-type: size; // define container to reference in .msp-viewport-controls-panel-controls
@@ -60,6 +64,17 @@ svg.pdbe-animated-logo {
     max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
 }
 
+// Avoid wraping headers in left panel help 
+.msp-plugin .msp-simple-help-section {
+    overflow: hidden;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+.msp-plugin .msp-control-group-header button {
+    overflow: hidden;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
 
 .pdbemolstar-state-gallery-controls {
     overflow-x: hidden;

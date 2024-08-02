@@ -47,21 +47,23 @@ import * as Foldseek from './extensions/foldseek';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
-import { LoadingOverlay } from './overlay';
 import { PluginCustomState } from './plugin-custom-state';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
 import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
-import { PDBeLeftPanelControls } from './ui/pdbe-left-panel';
+import { PDBeLeftPanelControls } from './ui/left-panel/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
+import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
-import { SuperpostionViewport } from './ui/superposition-viewport';
+import { UIComponents } from './ui/split-ui/components';
+import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 
 
 export class PDBeMolstarPlugin {
 
+    /** Helper for creating events (e.g. RxJS Subjects) */
     private _ev = RxEventHelper.create();
 
     readonly events = {
@@ -86,7 +88,7 @@ export class PDBeMolstarPlugin {
         return initParamsFromHtmlAttributes(element);
     }
 
-    async render(target: string | HTMLElement, options: Partial<InitParams>) {
+    async render(target: string | HTMLElement | LayoutSpec, options: Partial<InitParams>) {
         console.debug('Rendering PDBeMolstarPlugin instance with options:', options);
         // Validate options
         if (!options) {
@@ -147,7 +149,7 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: this.initParams.superposition ? SuperpostionViewport : undefined,
+                view: PDBeViewport,
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools
@@ -200,20 +202,34 @@ export class PDBeMolstarPlugin {
             );
         }
 
-        this.targetElement = typeof target === 'string' ? document.getElementById(target)! : target;
-        (this.targetElement as any).viewerInstance = this;
-
         // Create/ Initialise Plugin
-        this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, {
-            onBeforeUIRender: plugin => {
-                PluginCustomState(plugin).initParams = { ...this.initParams };
-                PluginCustomState(plugin).events = {
-                    segmentUpdate: this._ev<boolean>(),
-                    superpositionInit: this._ev<boolean>(),
-                    isBusy: this._ev<boolean>(),
-                };
-            },
-        });
+        const onBeforeUIRender = (plugin: PluginContext) => {
+            // This needs to run after the plugin is created but before the UI is rendered
+            PluginCustomState(plugin).initParams = { ...this.initParams };
+            PluginCustomState(plugin).events = {
+                segmentUpdate: this._ev<boolean>(),
+                superpositionInit: this._ev<boolean>(),
+                isBusy: this._ev<boolean>(),
+            };
+        };
+
+        if (Array.isArray(target)) {
+            this.targetElement = resolveHTMLElement(target[0].target);
+            this.plugin = await createPluginSplitUI({
+                layout: target,
+                spec: pdbePluginSpec,
+                onBeforeUIRender,
+            });
+            for (const comp of target) {
+                try {
+                    (resolveHTMLElement(comp.target) as any).viewerInstance = this;
+                } catch { /* some of the target elements missing, ignore */ }
+            }
+        } else {
+            this.targetElement = resolveHTMLElement(target);
+            this.plugin = await createPluginUI(this.targetElement, pdbePluginSpec, { onBeforeUIRender });
+            (this.targetElement as any).viewerInstance = this;
+        }
 
         // Set background colour
         if (this.initParams.bgColor || this.initParams.lighting) {
@@ -239,22 +255,12 @@ export class PDBeMolstarPlugin {
             this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
 
             // Initialise superposition
-            if (this.initParams.loadingOverlay) {
-                new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-            }
             initSuperposition(this.plugin, this.events.loadComplete);
 
         } else {
-            // Set left panel tab to none (collapses the panel if visible)
-            this.plugin.behaviors.layout.leftPanelTabName.next('none');
-
-
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();
             if (dataSource) {
-                if (this.initParams.loadingOverlay) {
-                    new LoadingOverlay(this.targetElement, { resize: this.plugin?.canvas3d?.resized, hide: this.events.loadComplete }).show();
-                }
                 this.load({
                     url: dataSource.url,
                     format: dataSource.format as BuiltInTrajectoryFormat,
@@ -265,12 +271,12 @@ export class PDBeMolstarPlugin {
                 });
             }
 
-            // Binding to other PDB Component events
+            // Subscribe to events from other PDB Component
             if (this.initParams.subscribeEvents) {
                 subscribeToComponentEvents(this);
             }
 
-            // Event handling
+            // Emit events for other PDB Components
             CustomEvents.add(this.plugin, this.targetElement);
 
         }
@@ -360,6 +366,7 @@ export class PDBeMolstarPlugin {
         await runWithProgressMessage(this.plugin, progressMessage, async () => {
             let success = false;
             try {
+                PluginCustomState(this.plugin).events?.isBusy.next(true);
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
                 let downloadOptions: any = void 0;
@@ -422,6 +429,7 @@ export class PDBeMolstarPlugin {
                 success = true;
             } finally {
                 this.events.loadComplete.next(success);
+                PluginCustomState(this.plugin).events?.isBusy.next(false);
             }
         });
     }
@@ -947,5 +955,7 @@ export class PDBeMolstarPlugin {
         foldseek: Foldseek,
         stateGallery: StateGalleryExtensionFunctions,
     };
-}
 
+    /** Components for building custom UI layouts */
+    static UIComponents = UIComponents;
+}
