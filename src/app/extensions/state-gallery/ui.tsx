@@ -1,4 +1,4 @@
-import { CollapsableControls, CollapsableState } from 'molstar/lib/mol-plugin-ui/base';
+import { CollapsableControls, CollapsableState, PluginReactContext } from 'molstar/lib/mol-plugin-ui/base';
 import { Button, ExpandGroup } from 'molstar/lib/mol-plugin-ui/controls/common';
 import { CheckSvg, ErrorSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
@@ -6,6 +6,7 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
 import { createIndex, groupElements, nonnegativeModulo } from '../../helpers';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
+import { StateGalleryCustomState } from './behavior';
 import { Image, StateGalleryManager } from './manager';
 
 
@@ -115,12 +116,19 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const [selected, setSelected] = React.useState<Image>(images[0]);
     const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
 
-    React.useEffect(() => {
+    async function loadState(state: Image) {
         setStatus('loading');
-        props.manager.load(selected.filename)
-            .then(r => { if (r.status === 'completed') setStatus('ready'); })
-            .catch(() => setStatus('error'));
-    }, [selected]);
+        try {
+            const result = await props.manager.load(state.filename);
+            if (result.status === 'completed') {
+                setStatus('ready');
+            }
+            StateGalleryCustomState(props.manager.plugin).title?.next(state.simple_title ?? state.filename);
+        } catch {
+            setStatus('error');
+        }
+    }
+    React.useEffect(() => { loadState(selected); }, [selected]);
 
     const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
@@ -174,4 +182,34 @@ function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' |
         style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSelected ? 'bold' : undefined }}>
         {title}
     </Button>;
+}
+
+export function StateGalleryTitleBox() {
+    const plugin = React.useContext(PluginReactContext);
+    const [title, setTitle] = React.useState<string | undefined>(undefined);
+    React.useEffect(() => {
+        const customState = StateGalleryCustomState(plugin);
+        const sub = customState.title?.subscribe(title => setTitle(title));
+        return () => sub?.unsubscribe();
+    }, [plugin]);
+
+    if (title === undefined) return null;
+
+    return <div style={{ backgroundColor: '#88888830', position: 'absolute', top: 42, width: 400 }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
+            <div>
+                <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
+                    title='Previous state' icon={ChevronLeftSvg}
+                    onClick={() => console.log('Previous button clicked')} />
+            </div>
+            <div style={{ padding: 8, textAlign: 'center', fontWeight: 'bold' }}>
+                {title}
+            </div>
+            <div>
+                <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
+                    title='Next state' icon={ChevronRightSvg}
+                    onClick={() => console.log('Next button clicked')} />
+            </div>
+        </div>
+    </div >;
 }

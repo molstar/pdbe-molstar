@@ -1,15 +1,23 @@
 import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { BehaviorSubject } from 'rxjs';
+import { clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
 import { StateGalleryManager } from './manager';
 import { StateGalleryControls } from './ui';
 
+
+export const StateGalleryExtensionName = 'pdbe-state-gallery';
 
 /** All public functions provided by the StateGallery extension  */
 export const StateGalleryExtensionFunctions = {
     StateGalleryManager,
 };
 
+export type StateGalleryCustomState = {
+    x: string,
+    title: BehaviorSubject<string | undefined>,
+}
+export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
 
-export const StateGalleryExtensionName = 'pdbe-state-gallery';
 
 export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
     name: StateGalleryExtensionName,
@@ -19,6 +27,8 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
         description: 'Browse pre-computed 3D states for a PDB entry',
     },
     ctor: class extends PluginBehavior.Handler<{ autoAttach: boolean }> {
+        getCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
+
         register(): void {
             // this.ctx.state.data.actions.add(InitAssemblySymmetry3D);
             // this.ctx.customStructureProperties.register(this.provider, this.params.autoAttach);
@@ -32,6 +42,8 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             //     });
             //     return [refs, 'Symmetries'];
             // });
+            this.getCustomState(this.ctx).x = 'hello';
+            this.getCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }
@@ -52,6 +64,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             // this.ctx.customStructureControls.delete(Tag.Representation);
             // this.ctx.builders.structure.representation.unregisterPreset(AssemblySymmetryPreset);
             this.ctx.customStructureControls.delete(StateGalleryExtensionName);
+            clearExtensionCustomState(this.ctx, StateGalleryExtensionName);
         }
     },
     // params: () => ({

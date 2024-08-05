@@ -45,7 +45,7 @@ import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
-import { StateGalleryControls } from './extensions/state-gallery/ui';
+import { StateGalleryControls, StateGalleryTitleBox } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
@@ -150,6 +150,7 @@ export class PDBeMolstarPlugin {
             viewport: {
                 controls: PDBeViewportControls,
                 view: PDBeViewport,
+                snapshotDescription: StateGalleryTitleBox, // TODO move to a custom viewport component
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools

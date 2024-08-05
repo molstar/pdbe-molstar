@@ -40,10 +40,12 @@ export interface PluginCustomState {
             transforms: Mat4[],
             rmsds: string[][],
             coordinateSystems: (SymmetryOperator | undefined)[]
-        }
-
+        },
     },
     superpositionError?: string,
+    extensions?: {
+        [extensionId: string]: {} | undefined,
+    },
 }
 
 export interface ClusterMember { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
@@ -54,4 +56,17 @@ export interface Segment { segment_start: number, segment_end: number, clusters:
  * Supports getting and setting properties. */
 export function PluginCustomState(plugin: PluginContext): PluginCustomState {
     return (plugin.customState as any) ??= {};
+}
+
+export function getExtensionCustomState<T extends {}>(plugin: PluginContext, extensionId: string): Partial<T> {
+    const extensionStates = PluginCustomState(plugin).extensions ??= {};
+    const extensionState: Partial<T> = extensionStates[extensionId] ??= {};
+    return extensionState;
+}
+export function clearExtensionCustomState(plugin: PluginContext, extensionId: string): void {
+    const extensionStates = PluginCustomState(plugin).extensions ??= {};
+    delete extensionStates[extensionId];
+}
+export function extensionCustomStateGetter<StateType extends {}>(extensionId: string) {
+    return (plugin: PluginContext) => getExtensionCustomState<StateType>(plugin, extensionId);
 }
