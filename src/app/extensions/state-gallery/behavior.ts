@@ -13,7 +13,6 @@ export const StateGalleryExtensionFunctions = {
 };
 
 export type StateGalleryCustomState = {
-    x: string,
     title: BehaviorSubject<string | undefined>,
 }
 export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
@@ -27,8 +26,6 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
         description: 'Browse pre-computed 3D states for a PDB entry',
     },
     ctor: class extends PluginBehavior.Handler<{ autoAttach: boolean }> {
-        getCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
-
         register(): void {
             // this.ctx.state.data.actions.add(InitAssemblySymmetry3D);
             // this.ctx.customStructureProperties.register(this.provider, this.params.autoAttach);
@@ -42,8 +39,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             //     });
             //     return [refs, 'Symmetries'];
             // });
-            this.getCustomState(this.ctx).x = 'hello';
-            this.getCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
+            StateGalleryCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }

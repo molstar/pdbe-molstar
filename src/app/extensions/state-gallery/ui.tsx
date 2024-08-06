@@ -4,7 +4,7 @@ import { CheckSvg, ErrorSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
-import { createIndex, groupElements, nonnegativeModulo } from '../../helpers';
+import { groupElements } from '../../helpers';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
 import { StateGalleryCustomState } from './behavior';
 import { Image, StateGalleryManager } from './manager';
@@ -103,6 +103,7 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
     }
 }
 
+
 function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
     const nImages = images.length;
@@ -111,35 +112,30 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
     }
 
-    const imageIndex = React.useMemo(() => createIndex(images), [images]);
     const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
-    const [selected, setSelected] = React.useState<Image>(images[0]);
+    const [selected, setSelected] = React.useState<Image | undefined>(undefined);
     const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
 
     async function loadState(state: Image) {
-        setStatus('loading');
-        try {
-            const result = await props.manager.load(state.filename);
-            if (result.status === 'completed') {
-                setStatus('ready');
-            }
-            StateGalleryCustomState(props.manager.plugin).title?.next(state.simple_title ?? state.filename);
-        } catch {
-            setStatus('error');
-        }
+        await props.manager.load(state);
     }
-    React.useEffect(() => { loadState(selected); }, [selected]);
+
+    React.useEffect(() => {
+        if (images.length > 0) {
+            loadState(images[0]);
+        }
+        const subs = [
+            props.manager.events.status.subscribe(status => setStatus(status)),
+            props.manager.events.requestedStateName.subscribe(state => setSelected(state)),
+        ];
+        return () => subs.forEach(sub => sub.unsubscribe());
+    }, [props.manager]);
 
     const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
 
-    const shift = (x: number) => setSelected(old => {
-        const oldIndex = imageIndex.get(old) ?? 0;
-        const newIndex = nonnegativeModulo(oldIndex + x, nImages);
-        return images[newIndex];
-    });
-    const selectPrevious = () => shift(-1);
-    const selectNext = () => shift(1);
+    const selectPrevious = () => props.manager.shift(-1);
+    const selectNext = () => props.manager.shift(1);
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.code === 'ArrowLeft') selectPrevious();
         if (e.code === 'ArrowRight') selectNext();
@@ -150,7 +146,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
             {categories.groups.map(cat =>
                 <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
                     {categories.members.get(cat)?.map(img =>
-                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => setSelected(img)} />
+                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => loadState(img)} />
                     )}
                 </ExpandGroup>
             )}
@@ -158,9 +154,9 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         <ExpandGroup header='Description' initiallyExpanded={true} key='description'>
             <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
                 <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
-                    {selected.alt}
+                    {selected?.alt}
                 </div>
-                <div dangerouslySetInnerHTML={{ __html: selected.description }} />
+                <div dangerouslySetInnerHTML={{ __html: selected?.description ?? '' }} />
             </div>
         </ExpandGroup>
         <div className='msp-flex-row' >
@@ -169,6 +165,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         </div >
     </div>;
 }
+
 
 function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' | 'loading' | 'error', onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
     const { img, isSelected, status, onClick } = props;
@@ -183,6 +180,7 @@ function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' |
         {title}
     </Button>;
 }
+
 
 export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);

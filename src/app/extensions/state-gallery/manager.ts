@@ -6,7 +6,7 @@ import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject } from 'rxjs';
-import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distinct } from '../../helpers';
+import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distinct, nonnegativeModulo } from '../../helpers';
 import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
 
 
@@ -64,9 +64,9 @@ type ImageCategory = typeof ImageCategory[number]
 
 export interface Image {
     filename: string,
-    alt: string,
-    description: string,
-    clean_description: string,
+    alt?: string,
+    description?: string,
+    clean_description?: string,
     category?: ImageCategory,
     simple_title?: string,
 }
@@ -76,8 +76,11 @@ export class StateGalleryManager {
     public readonly images: Image[]; // TODO Rename to states, add docstring
     /** Maps filename to its index within `this.images` */
     private readonly filenameIndex: Map<string, number>;
-    public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined); // TODO remove if not needed
-    public readonly loadedStateName = new BehaviorSubject<string | undefined>(undefined); // TODO remove if not needed
+    public readonly events = {
+        requestedStateName: new BehaviorSubject<Image | undefined>(undefined), // TODO remove if not needed
+        loadedStateName: new BehaviorSubject<Image | undefined>(undefined), // TODO remove if not needed
+        status: new BehaviorSubject<'ready' | 'loading' | 'error'>('ready'), // TODO remove if not needed
+    };
     /** True if at least one state has been loaded (this is to skip animation on the first load) */
     private firstLoaded = false;
 
@@ -104,7 +107,6 @@ export class StateGalleryManager {
     private async _load(filename: string): Promise<void> {
         if (!this.plugin.canvas3d) throw new Error('plugin.canvas3d is not defined');
 
-        const state = this.getImageByFilename(filename);
         let snapshot = await this.getSnapshot(filename);
         const oldCamera = getCurrentCamera(this.plugin);
         const incomingCamera = getCameraFromSnapshot(snapshot); // Camera position from the MOLJ file, which may be incorrectly zoomed if viewport width < height
@@ -115,7 +117,6 @@ export class StateGalleryManager {
                 camera: (this.options.LoadCameraOrientation && !this.firstLoaded) ? newCamera : oldCamera,
                 transitionDurationInMs: 0,
             },
-            description: state?.simple_title,
         });
         await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(snapshot));
         await sleep(this.firstLoaded ? this.options.CameraPreTransitionMs : 0); // it is necessary to sleep even for 0 ms here, to get animation
@@ -127,14 +128,34 @@ export class StateGalleryManager {
         this.firstLoaded = true;
     }
     private readonly loader = new PreemptiveQueue((filename: string) => this._load(filename));
-    async load(filename: string): Promise<PreemptiveQueueResult<void>> {
-        this.requestedStateName.next(filename);
-        this.loadedStateName.next(undefined);
-        const result = await this.loader.requestRun(filename);
-        if (result.status === 'completed') {
-            this.loadedStateName.next(filename);
+    async load(img: Image | string): Promise<PreemptiveQueueResult<void>> {
+        if (typeof img === 'string') {
+            img = this.getImageByFilename(img) ?? { filename: img };
         }
-        return result;
+        this.events.requestedStateName.next(img);
+        this.events.loadedStateName.next(undefined);
+        this.events.status.next('loading');
+        let result;
+        try {
+            result = await this.loader.requestRun(img.filename);
+            return result;
+        } finally {
+            if (result?.status === 'completed') {
+                this.events.loadedStateName.next(img);
+                this.events.status.next('ready');
+            }
+            // if resolves with result.status 'cancelled' or 'skipped', keep current state
+            if (!result) {
+                this.events.status.next('error');
+            }
+        }
+    }
+    async shift(shift: number) {
+        const current = this.events.requestedStateName.value;
+        const iCurrent = (current !== undefined) ? this.filenameIndex.get(current.filename) : undefined;
+        let iNew = (iCurrent !== undefined) ? (iCurrent + shift) : (shift > 0) ? (shift - 1) : shift;
+        iNew = nonnegativeModulo(iNew, this.images.length);
+        return await this.load(this.images[iNew]);
     }
 
     private readonly cache: { [filename: string]: string } = {};
@@ -258,7 +279,7 @@ function removeWithSuffixes(images: Image[], suffixes: string[]): Image[] {
     return images.filter(img => !suffixes.some(suffix => img.filename.endsWith(suffix)));
 }
 
-function modifySnapshot(snapshot: string, options: { removeCanvasProps?: boolean, replaceCamera?: { camera: Camera.Snapshot, transitionDurationInMs: number }, description?: string | null }) {
+function modifySnapshot(snapshot: string, options: { removeCanvasProps?: boolean, replaceCamera?: { camera: Camera.Snapshot, transitionDurationInMs: number } }) {
     const json = JSON.parse(snapshot) as PluginStateSnapshotManager.StateSnapshot;
     for (const entry of json.entries ?? []) {
         if (entry.snapshot) {
@@ -272,11 +293,6 @@ function modifySnapshot(snapshot: string, options: { removeCanvasProps?: boolean
                     transitionStyle: transitionDurationInMs > 0 ? 'animate' : 'instant',
                     transitionDurationInMs: transitionDurationInMs > 0 ? transitionDurationInMs : undefined,
                 };
-            }
-            if (typeof options.description === 'string') {
-                entry.description = options.description;
-            } else if (options.description === null) {
-                delete entry.description;
             }
         }
     }
