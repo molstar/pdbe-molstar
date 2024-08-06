@@ -199,6 +199,9 @@ export interface InitParams {
     landscape: boolean,
     /** Set reactive layout (switching between landscape and portrait based on the browser window size). Overrides `landscape`. */
     reactive: boolean,
+    /** Specify which tabs should be included in the left control panel
+     * (pdbe = restricted selection of tabs used on PDBe pages, all = all available tabs) */
+    tabs: 'pdbe' | 'all',
 }
 
 /** Default values for `InitParams` */
@@ -246,6 +249,7 @@ export const DefaultParams: InitParams = {
     expanded: false,
     landscape: false,
     reactive: false,
+    tabs: 'pdbe',
 };
 
 /** Return `undefined` if `params` are valid, an error message otherwise. */

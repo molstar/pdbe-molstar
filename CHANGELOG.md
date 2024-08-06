@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file, following t
 - Mol* core dependency updated to 4.5.0
   - Solves the bug with Export Models
 - PDBeMolstarPlugin.extensions.foldseek
-- Added options `leftPanel`, `rightPanel`, `logPanel`
+- Added options `leftPanel`, `rightPanel`, `logPanel`, `tabs`
 - Option `hideCanvasControls` accepts "trajectory" value (for multi-model structures)
 - All color options accept color names and hexcodes
 - `visualStyle` option allows per-component specification
