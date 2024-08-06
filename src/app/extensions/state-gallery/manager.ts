@@ -7,6 +7,7 @@ import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject } from 'rxjs';
 import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distinct, nonnegativeModulo } from '../../helpers';
+import { StateGalleryCustomState } from './behavior';
 import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
 
 
@@ -73,15 +74,18 @@ export interface Image {
 
 
 export class StateGalleryManager {
-    public readonly images: Image[]; // TODO Rename to states, add docstring
+    public readonly images: Image[];
     /** Maps filename to its index within `this.images` */
     private readonly filenameIndex: Map<string, number>;
     public readonly events = {
-        requestedStateName: new BehaviorSubject<Image | undefined>(undefined), // TODO remove if not needed
-        loadedStateName: new BehaviorSubject<Image | undefined>(undefined), // TODO remove if not needed
-        status: new BehaviorSubject<'ready' | 'loading' | 'error'>('ready'), // TODO remove if not needed
+        /** Image that has been requested to load most recently. */
+        requestedImage: new BehaviorSubject<Image | undefined>(undefined),
+        /** Image that has been successfully loaded most recently. Undefined if another state has been requested since. */
+        loadedImage: new BehaviorSubject<Image | undefined>(undefined),
+        /** Loading status. */
+        status: new BehaviorSubject<'ready' | 'loading' | 'error'>('ready'),
     };
-    /** True if at least one state has been loaded (this is to skip animation on the first load) */
+    /** True if at least one image has been loaded (this is to skip animation on the first load) */
     private firstLoaded = false;
 
     private constructor(
@@ -132,16 +136,19 @@ export class StateGalleryManager {
         if (typeof img === 'string') {
             img = this.getImageByFilename(img) ?? { filename: img };
         }
-        this.events.requestedStateName.next(img);
-        this.events.loadedStateName.next(undefined);
+        this.events.requestedImage.next(img);
+        this.events.loadedImage.next(undefined);
         this.events.status.next('loading');
+        const customState = StateGalleryCustomState(this.plugin);
+        customState.title?.next(img.simple_title ?? img.filename);
+        if (customState.manager?.value !== this) customState.manager?.next(this);
         let result;
         try {
             result = await this.loader.requestRun(img.filename);
             return result;
         } finally {
             if (result?.status === 'completed') {
-                this.events.loadedStateName.next(img);
+                this.events.loadedImage.next(img);
                 this.events.status.next('ready');
             }
             // if resolves with result.status 'cancelled' or 'skipped', keep current state
@@ -150,12 +157,18 @@ export class StateGalleryManager {
             }
         }
     }
-    async shift(shift: number) {
-        const current = this.events.requestedStateName.value;
+    private async shift(shift: number) {
+        const current = this.events.requestedImage.value;
         const iCurrent = (current !== undefined) ? this.filenameIndex.get(current.filename) : undefined;
         let iNew = (iCurrent !== undefined) ? (iCurrent + shift) : (shift > 0) ? (shift - 1) : shift;
         iNew = nonnegativeModulo(iNew, this.images.length);
         return await this.load(this.images[iNew]);
+    }
+    async loadPrevious() {
+        return await this.shift(-1);
+    }
+    async loadNext() {
+        return await this.shift(1);
     }
 
     private readonly cache: { [filename: string]: string } = {};

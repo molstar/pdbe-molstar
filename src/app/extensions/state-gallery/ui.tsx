@@ -107,26 +107,17 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
 function ManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
     const nImages = images.length;
-
-    if (nImages === 0) {
-        return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
-    }
-
     const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
     const [selected, setSelected] = React.useState<Image | undefined>(undefined);
     const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
 
-    async function loadState(state: Image) {
-        await props.manager.load(state);
-    }
-
     React.useEffect(() => {
         if (images.length > 0) {
-            loadState(images[0]);
+            props.manager.load(images[0]);
         }
         const subs = [
             props.manager.events.status.subscribe(status => setStatus(status)),
-            props.manager.events.requestedStateName.subscribe(state => setSelected(state)),
+            props.manager.events.requestedImage.subscribe(img => setSelected(img)),
         ];
         return () => subs.forEach(sub => sub.unsubscribe());
     }, [props.manager]);
@@ -134,19 +125,21 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const keyDownTargetRef = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => keyDownTargetRef.current?.focus(), []);
 
-    const selectPrevious = () => props.manager.shift(-1);
-    const selectNext = () => props.manager.shift(1);
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.code === 'ArrowLeft') selectPrevious();
-        if (e.code === 'ArrowRight') selectNext();
+        if (e.code === 'ArrowLeft') props.manager.loadPrevious();
+        if (e.code === 'ArrowRight') props.manager.loadNext();
     };
+
+    if (nImages === 0) {
+        return <div style={{ margin: 8 }}>No data available for {props.manager.entryId}.</div>;
+    }
 
     return <div className='pdbemolstar-state-gallery-controls' onKeyDown={handleKeyDown} tabIndex={-1} ref={keyDownTargetRef} >
         <ExpandGroup header='States' initiallyExpanded={true} key='states'>
             {categories.groups.map(cat =>
                 <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
                     {categories.members.get(cat)?.map(img =>
-                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => loadState(img)} />
+                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => props.manager.load(img)} />
                     )}
                 </ExpandGroup>
             )}
@@ -160,8 +153,8 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
             </div>
         </ExpandGroup>
         <div className='msp-flex-row' >
-            <Button icon={ChevronLeftSvg} title='Previous state' onClick={selectPrevious}></Button>
-            <Button icon={ChevronRightSvg} title='Next state' onClick={selectNext} ></Button>
+            <Button icon={ChevronLeftSvg} title='Previous state' onClick={() => props.manager.loadPrevious()}></Button>
+            <Button icon={ChevronRightSvg} title='Next state' onClick={() => props.manager.loadNext()} ></Button>
         </div >
     </div>;
 }
@@ -185,29 +178,37 @@ function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' |
 export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);
     const [title, setTitle] = React.useState<string | undefined>(undefined);
+    const [manager, setManager] = React.useState<StateGalleryManager | undefined>(undefined);
     React.useEffect(() => {
         const customState = StateGalleryCustomState(plugin);
-        const sub = customState.title?.subscribe(title => setTitle(title));
-        return () => sub?.unsubscribe();
+        const subs = [
+            customState.title?.subscribe(x => setTitle(x)),
+            customState.manager?.subscribe(x => setManager(x)),
+        ];
+        return () => subs.forEach(sub => sub?.unsubscribe());
     }, [plugin]);
 
     if (title === undefined) return null;
 
-    return <div style={{ backgroundColor: '#88888830', position: 'absolute', top: 42, width: 400 }}>
+    return <div style={{ backgroundColor: '#99999930', position: 'absolute', top: 42, width: 400 }}>
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
-            <div>
-                <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
-                    title='Previous state' icon={ChevronLeftSvg}
-                    onClick={() => console.log('Previous button clicked')} />
-            </div>
+            {manager &&
+                <div>
+                    <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
+                        title='Previous state' icon={ChevronLeftSvg}
+                        onClick={() => manager.loadPrevious()} />
+                </div>
+            }
             <div style={{ padding: 8, textAlign: 'center', fontWeight: 'bold' }}>
                 {title}
             </div>
-            <div>
-                <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
-                    title='Next state' icon={ChevronRightSvg}
-                    onClick={() => console.log('Next button clicked')} />
-            </div>
+            {manager &&
+                <div>
+                    <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
+                        title='Next state' icon={ChevronRightSvg}
+                        onClick={() => manager?.loadNext()} />
+                </div>
+            }
         </div>
     </div >;
 }

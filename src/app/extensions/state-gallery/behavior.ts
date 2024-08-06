@@ -14,6 +14,7 @@ export const StateGalleryExtensionFunctions = {
 
 export type StateGalleryCustomState = {
     title: BehaviorSubject<string | undefined>,
+    manager: BehaviorSubject<StateGalleryManager | undefined>,
 }
 export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
 
@@ -40,6 +41,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             //     return [refs, 'Symmetries'];
             // });
             StateGalleryCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
+            StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }
