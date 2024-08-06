@@ -1,13 +1,13 @@
 import { CollapsableControls, CollapsableState, PluginReactContext } from 'molstar/lib/mol-plugin-ui/base';
 import { Button, ExpandGroup } from 'molstar/lib/mol-plugin-ui/controls/common';
-import { CheckSvg, ErrorSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { CheckSvg, ErrorSvg, Icon } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
-import React from 'react';
+import React, { useRef } from 'react';
 import { groupElements } from '../../helpers';
 import { ChevronLeftSvg, ChevronRightSvg, CollectionsOutlinedSvg, EmptyIconSvg, HourglassBottomSvg } from '../../ui/icons';
 import { StateGalleryCustomState } from './behavior';
-import { Image, StateGalleryManager } from './manager';
+import { Image, LoadingStatus, StateGalleryManager } from './manager';
 
 
 interface StateGalleryControlsState {
@@ -109,7 +109,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
     const nImages = images.length;
     const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
     const [selected, setSelected] = React.useState<Image | undefined>(undefined);
-    const [status, setStatus] = React.useState<'ready' | 'loading' | 'error'>('ready');
+    const [status, setStatus] = React.useState<LoadingStatus>('ready');
 
     React.useEffect(() => {
         if (images.length > 0) {
@@ -160,7 +160,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
 }
 
 
-function StateButton(props: { img: Image, isSelected: boolean, status: 'ready' | 'loading' | 'error', onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+function StateButton(props: { img: Image, isSelected: boolean, status: LoadingStatus, onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
     const { img, isSelected, status, onClick } = props;
     const icon = !isSelected ? EmptyIconSvg : (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
     const title = img.simple_title ?? img.filename;
@@ -179,14 +179,26 @@ export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);
     const [title, setTitle] = React.useState<string | undefined>(undefined);
     const [manager, setManager] = React.useState<StateGalleryManager | undefined>(undefined);
+    const [status, setStatus] = React.useState<LoadingStatus>('ready');
+    const loadingCounter = useRef<number>(0);
     React.useEffect(() => {
         const customState = StateGalleryCustomState(plugin);
         const subs = [
             customState.title?.subscribe(x => setTitle(x)),
             customState.manager?.subscribe(x => setManager(x)),
+            customState.status?.subscribe(status => {
+                const counter = ++loadingCounter.current;
+                if (status === 'loading') {
+                    setTimeout(() => { if (loadingCounter.current === counter) setStatus('loading'); }, 250);
+                } else {
+                    setStatus(status);
+                }
+            }),
         ];
         return () => subs.forEach(sub => sub?.unsubscribe());
     }, [plugin]);
+
+    const IconWidth = '1.2em'; // width of msp-material-icon
 
     if (title === undefined) return null;
 
@@ -199,8 +211,14 @@ export function StateGalleryTitleBox() {
                         onClick={() => manager.loadPrevious()} />
                 </div>
             }
-            <div style={{ padding: 8, textAlign: 'center', fontWeight: 'bold' }}>
-                {title}
+            <div style={{ padding: 8, textAlign: 'center', fontWeight: 'bold', display: 'flex', flexDirection: 'row' }}
+                title={status === 'error' ? `${title} (failed to load)` : status === 'loading' ? `${title} (loading)` : title} >
+                <div style={{ width: IconWidth }}>
+                    <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />
+                </div>
+                <div style={{ marginRight: IconWidth, paddingInline: 4 }}>
+                    {title}
+                </div>
             </div>
             {manager &&
                 <div>

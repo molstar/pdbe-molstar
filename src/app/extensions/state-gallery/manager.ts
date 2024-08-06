@@ -73,6 +73,9 @@ export interface Image {
 }
 
 
+export type LoadingStatus = 'ready' | 'loading' | 'error'
+
+
 export class StateGalleryManager {
     public readonly images: Image[];
     /** Maps filename to its index within `this.images` */
@@ -83,7 +86,7 @@ export class StateGalleryManager {
         /** Image that has been successfully loaded most recently. Undefined if another state has been requested since. */
         loadedImage: new BehaviorSubject<Image | undefined>(undefined),
         /** Loading status. */
-        status: new BehaviorSubject<'ready' | 'loading' | 'error'>('ready'),
+        status: new BehaviorSubject<LoadingStatus>('ready'),
     };
     /** True if at least one image has been loaded (this is to skip animation on the first load) */
     private firstLoaded = false;
@@ -97,6 +100,16 @@ export class StateGalleryManager {
         const allImages = listImages(data, true);
         this.images = removeWithSuffixes(allImages, ['_side', '_top']); // removing images in different orientation than 'front'
         this.filenameIndex = createIndex(this.images.map(img => img.filename));
+        this.events.status.subscribe(status => {
+            const customState = StateGalleryCustomState(this.plugin);
+            customState.status?.next(status);
+            if (customState.manager?.value !== this) customState.manager?.next(this);
+        });
+        this.events.requestedImage.subscribe(img => {
+            const customState = StateGalleryCustomState(this.plugin);
+            customState.title?.next(img?.simple_title ?? img?.filename);
+            if (customState.manager?.value !== this) customState.manager?.next(this);
+        });
     }
 
     static async create(plugin: PluginContext, entryId: string, options?: Partial<StateGalleryConfigValues>) {
@@ -139,9 +152,6 @@ export class StateGalleryManager {
         this.events.requestedImage.next(img);
         this.events.loadedImage.next(undefined);
         this.events.status.next('loading');
-        const customState = StateGalleryCustomState(this.plugin);
-        customState.title?.next(img.simple_title ?? img.filename);
-        if (customState.manager?.value !== this) customState.manager?.next(this);
         let result;
         try {
             result = await this.loader.requestRun(img.filename);

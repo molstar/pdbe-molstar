@@ -1,7 +1,7 @@
 import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
 import { BehaviorSubject } from 'rxjs';
 import { clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
-import { StateGalleryManager } from './manager';
+import { LoadingStatus, StateGalleryManager } from './manager';
 import { StateGalleryControls } from './ui';
 
 
@@ -15,6 +15,7 @@ export const StateGalleryExtensionFunctions = {
 export type StateGalleryCustomState = {
     title: BehaviorSubject<string | undefined>,
     manager: BehaviorSubject<StateGalleryManager | undefined>,
+    status: BehaviorSubject<LoadingStatus>,
 }
 export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
 
@@ -42,6 +43,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             // });
             StateGalleryCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
             StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
+            StateGalleryCustomState(this.ctx).status = new BehaviorSubject<LoadingStatus>('ready');
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }
