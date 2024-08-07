@@ -202,8 +202,8 @@ export function StateGalleryTitleBox() {
 
     if (title === undefined) return null;
 
-    return <div style={{ backgroundColor: '#99999930', position: 'absolute', top: 42, width: 400 }}>
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
+    return <div className='pdbemolstar-state-gallery-title-box'>
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
             {manager &&
                 <div>
                     <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
@@ -211,7 +211,7 @@ export function StateGalleryTitleBox() {
                         onClick={() => manager.loadPrevious()} />
                 </div>
             }
-            <div style={{ padding: 8, textAlign: 'center', fontWeight: 'bold', display: 'flex', flexDirection: 'row' }}
+            <div style={{ padding: 5, textAlign: 'center', fontWeight: 'bold', display: 'flex', flexDirection: 'row' }}
                 title={status === 'error' ? `${title} (failed to load)` : status === 'loading' ? `${title} (loading)` : title} >
                 <div style={{ width: IconWidth }}>
                     <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />

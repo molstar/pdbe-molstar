@@ -1,8 +1,8 @@
 import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
 import { BehaviorSubject } from 'rxjs';
-import { clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
+import { CustomControls, clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
 import { LoadingStatus, StateGalleryManager } from './manager';
-import { StateGalleryControls } from './ui';
+import { StateGalleryControls, StateGalleryTitleBox } from './ui';
 
 
 export const StateGalleryExtensionName = 'pdbe-state-gallery';
@@ -45,6 +45,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
             StateGalleryCustomState(this.ctx).status = new BehaviorSubject<LoadingStatus>('ready');
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
+            CustomControls(this.ctx, 'viewportTop').set(StateGalleryExtensionName, StateGalleryTitleBox);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }
 
@@ -64,6 +65,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             // this.ctx.customStructureControls.delete(Tag.Representation);
             // this.ctx.builders.structure.representation.unregisterPreset(AssemblySymmetryPreset);
             this.ctx.customStructureControls.delete(StateGalleryExtensionName);
+            CustomControls(this.ctx, 'viewportTop').delete(StateGalleryExtensionName);
             clearExtensionCustomState(this.ctx, StateGalleryExtensionName);
         }
     },

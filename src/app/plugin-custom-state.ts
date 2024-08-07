@@ -2,6 +2,7 @@ import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
 import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { JSXElementConstructor } from 'react';
 import { Subject } from 'rxjs';
 import { InitParams } from './spec';
 
@@ -46,6 +47,9 @@ export interface PluginCustomState {
     extensions?: {
         [extensionId: string]: {} | undefined,
     },
+    customControls?: {
+        viewportTop?: Map<string, JSXElementConstructor<{}>>,
+    },
 }
 
 export interface ClusterMember { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
@@ -69,4 +73,9 @@ export function clearExtensionCustomState(plugin: PluginContext, extensionId: st
 }
 export function extensionCustomStateGetter<StateType extends {}>(extensionId: string) {
     return (plugin: PluginContext) => getExtensionCustomState<StateType>(plugin, extensionId);
+}
+
+export function CustomControls(plugin: PluginContext, region: keyof NonNullable<PluginCustomState['customControls']>) {
+    const customControls = PluginCustomState(plugin).customControls ??= {};
+    return customControls[region] ??= new Map<string, JSXElementConstructor<{}>>();
 }
