@@ -13,19 +13,33 @@ export class CustomizableDefaultViewport extends DefaultViewport {
         const VPControls = this.plugin.spec.components?.viewport?.controls || ViewportControls;
         const SnapshotDescription = this.plugin.spec.components?.viewport?.snapshotDescription || ViewportSnapshotDescription;
 
-        const customControls_viewportTop = Array.from(CustomControls(this.plugin, 'viewportTop').entries());
+        const customControls_viewportTopCenter = Array.from(CustomControls(this.plugin, 'viewportTopCenter').entries());
+        const customControls_viewportTopLeft = Array.from(CustomControls(this.plugin, 'viewportTopLeft').entries());
 
         return <>
             <Viewport />
-            <div className='msp-viewport-top-left-controls'>
-                <AnimationViewportControls />
-                <TrajectoryViewportControls />
-                <StateSnapshotViewportControls />
-                {customControls_viewportTop.map(([name, Control]) => <Control key={name} />)}
-                {/* TODO continue here, think about proper placement */}
-                <SnapshotDescription />
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                <div className='pdbemolstar-viewport-top-center-controls'>
+                    {customControls_viewportTopCenter.map(([name, Control]) =>
+                        <Control key={name} />
+                    )}
+                    <SelectionViewportControls />
+                </div>
+                <div style={{ position: 'relative', pointerEvents: 'auto' }}>
+                    <div className='msp-viewport-top-left-controls'>
+                        <AnimationViewportControls />
+                        <TrajectoryViewportControls />
+                        <StateSnapshotViewportControls />
+                        {customControls_viewportTopLeft.map(([name, Control]) =>
+                            <div className='pdbemolstar-viewport-top-left-control' key={name}>
+                                <Control />
+                            </div>
+                        )}
+                        <SnapshotDescription />
+                    </div>
+                </div>
             </div>
-            <SelectionViewportControls />
+            {/* <SelectionViewportControls /> */}
             <VPControls />
             <BackgroundTaskProgress />
             <div className='msp-highlight-toast-wrapper'>

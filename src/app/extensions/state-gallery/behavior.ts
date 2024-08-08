@@ -45,7 +45,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
             StateGalleryCustomState(this.ctx).status = new BehaviorSubject<LoadingStatus>('ready');
             this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
-            CustomControls(this.ctx, 'viewportTop').set(StateGalleryExtensionName, StateGalleryTitleBox);
+            CustomControls(this.ctx, 'viewportTopCenter').set(StateGalleryExtensionName, StateGalleryTitleBox);
             // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
         }
 
@@ -65,7 +65,7 @@ export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
             // this.ctx.customStructureControls.delete(Tag.Representation);
             // this.ctx.builders.structure.representation.unregisterPreset(AssemblySymmetryPreset);
             this.ctx.customStructureControls.delete(StateGalleryExtensionName);
-            CustomControls(this.ctx, 'viewportTop').delete(StateGalleryExtensionName);
+            CustomControls(this.ctx, 'viewportTopCenter').delete(StateGalleryExtensionName);
             clearExtensionCustomState(this.ctx, StateGalleryExtensionName);
         }
     },

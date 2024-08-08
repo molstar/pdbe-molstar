@@ -31,13 +31,16 @@ svg.pdbe-animated-logo {
         animation-duration: 5s;
         animation-delay: 1s;
     }
+
     @keyframes dash {
         0% {
             stroke-dashoffset: 1812;
         }
+
         80% {
             stroke-dashoffset: -250;
         }
+
         100% {
             stroke-dashoffset: -250;
         }
@@ -70,6 +73,7 @@ svg.pdbe-animated-logo {
     text-wrap: nowrap;
     text-overflow: ellipsis;
 }
+
 .msp-plugin .msp-control-group-header button {
     overflow: hidden;
     text-wrap: nowrap;
@@ -79,6 +83,7 @@ svg.pdbe-animated-logo {
 .pdbemolstar-state-gallery-controls {
     overflow-x: hidden;
     word-wrap: break-word; // necessary for wrapping oligonucleotide sequences
+
     &:focus-visible {
         outline: none;
     }
@@ -88,6 +93,7 @@ svg.pdbe-animated-logo {
     .image_legend_li {
         margin-left: 16px;
     }
+
     .highlight {
         font-weight: bold;
     }
@@ -95,8 +101,29 @@ svg.pdbe-animated-logo {
 
 .pdbemolstar-state-gallery-title-box {
     // line-height: 32px; // line-height: $row-height;
-    float: left;
-    margin-right: 10px; // margin-right: $control-spacing;
-    width: 400px;
+    width: 100%; // 400px;
+    max-width: 100%;
     background-color: #99999930; // background-color: $msp-form-control-background;
+}
+
+.pdbemolstar-viewport-top-left-control {
+    float: left;
+
+    &:not(:empty) {
+        margin-right: 10px; // $control-spacing;
+    }
+}
+
+.pdbemolstar-viewport-top-center-controls {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-inline: 74px; // 54 PDBe logo box + 2x10 margin
+    pointer-events: none;
+
+    >* {
+        margin-top: 10px;
+        pointer-events: auto;
+    }
 }

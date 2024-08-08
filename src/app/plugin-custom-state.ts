@@ -48,7 +48,8 @@ export interface PluginCustomState {
         [extensionId: string]: {} | undefined,
     },
     customControls?: {
-        viewportTop?: Map<string, JSXElementConstructor<{}>>,
+        viewportTopCenter?: Map<string, JSXElementConstructor<{}>>,
+        viewportTopLeft?: Map<string, JSXElementConstructor<{}>>,
     },
 }
 
