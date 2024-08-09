@@ -8,7 +8,6 @@ import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
 import { Script } from 'molstar/lib/mol-script/script';
 import { State, StateObjectRef, StateObjectSelector } from 'molstar/lib/mol-state';
-import { Task } from 'molstar/lib/mol-task';
 import { Asset } from 'molstar/lib/mol-util/assets';
 import { Color, ColorListEntry } from 'molstar/lib/mol-util/color/color';
 import { ColorListName, ColorLists } from 'molstar/lib/mol-util/color/lists';
@@ -55,6 +54,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
             colorCounters: [],
             alphafold: {
                 apiData: {
+                    bcif: '',
                     cif: '',
                     pae: '',
                     length: 0
@@ -79,8 +79,8 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         if (!customState.superpositionState.segmentData) return;
 
         if (!customState.initParams!.moleculeId) throw new Error('initParams.moleculeId is not defined');
-        const afStrUrls = await getAfUrl(plugin, customState.initParams!.moleculeId);
-        if (afStrUrls) customState.superpositionState.alphafold.apiData = afStrUrls;
+        const afApiData = await getAfUrls(plugin, customState.initParams!.moleculeId);
+        if (afApiData) customState.superpositionState.alphafold.apiData = afApiData;
 
         segmentData.forEach(() => {
             customState.superpositionState!.loadedStructs.push([]);
@@ -127,31 +127,32 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
 
     return compList.join(', ');
 }
-async function getAfUrl(plugin: PluginContext, accession: string) {
-    let apiResponse: any;
-    let apiData: any;
-    await plugin.runTask(Task.create('Get AlphaFold URL', async ctx => {
-        try {
-            apiResponse = await plugin.fetch({ url: `https://alphafold.ebi.ac.uk/api/prediction/${accession}`, type: 'json' }).runInContext(ctx);
-            if (apiResponse && apiResponse?.[0].bcifUrl) {
-                apiData = {
-                    cif: apiResponse?.[0].cifUrl,
-                    pae: apiResponse?.[0].paeImageUrl,
-                    length: apiResponse?.[0].uniprotEnd
-                };
-            }
-        } catch (e) {
-            // console.warn(e);
-        }
-    }));
 
-    return apiData;
+type AfApiData = NonNullable<PluginCustomState['superpositionState']>['alphafold']['apiData']
+
+async function getAfUrls(plugin: PluginContext, accession: string): Promise<AfApiData | undefined> {
+    const url = `https://alphafold.ebi.ac.uk/api/prediction/${accession}`;
+    try {
+        const apiResponse = await plugin.runTask(plugin.fetch({ url, type: 'json' }));
+        if (apiResponse?.[0].bcifUrl) {
+            return {
+                bcif: apiResponse[0].bcifUrl,
+                cif: apiResponse[0].cifUrl,
+                pae: apiResponse[0].paeImageUrl,
+                length: apiResponse[0].uniprotEnd
+            };
+        }
+    } catch { }
+    console.warn(`Failed to get AFDB URLs for ${accession}: ${url}`);
+    return undefined;
 }
 
 export async function loadAfStructure(plugin: PluginContext) {
     const customState = PluginCustomState(plugin);
     if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
-    const { structure } = await loadStructure(plugin, customState.superpositionState.alphafold.apiData.cif, 'mmcif', false);
+    const isBinary = customState.initParams?.encoding === 'bcif';
+    const url = isBinary ? customState.superpositionState.alphafold.apiData.bcif : customState.superpositionState.alphafold.apiData.cif;
+    const { structure } = await loadStructure(plugin, url, 'mmcif', isBinary);
     const strInstance = structure;
     if (!strInstance) return false;
 

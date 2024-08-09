@@ -29,8 +29,13 @@ export interface PluginCustomState {
         colorCounters: number[],
         alphafold: {
             apiData: {
+                /** URL of BCIF file */
+                bcif: string,
+                /** URL of CIF file */
                 cif: string,
+                /** URL of PAE image */
                 pae: string,
+                /** Length of UniProt sequence */
                 length: number,
             },
             length: number,
