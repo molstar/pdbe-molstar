@@ -39,7 +39,6 @@ export class CustomizableDefaultViewport extends DefaultViewport {
                     </div>
                 </div>
             </div>
-            {/* <SelectionViewportControls /> */}
             <VPControls />
             <BackgroundTaskProgress />
             <div className='msp-highlight-toast-wrapper'>
