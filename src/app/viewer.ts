@@ -499,15 +499,14 @@ export class PDBeMolstarPlugin {
     /** Get loci corresponding to a selection within a structure.
      * If `params` contains more items, return loci for the union of the selections.
      * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
-    getLociForParams(params: QueryParam[], structureNumber?: number): StructureElement.Loci | EmptyLoci {
-        let assemblyRef = this.assemblyRef;
-        if (structureNumber) {
-            assemblyRef = this.plugin.managers.structure.hierarchy.current.structures[structureNumber - 1].cell.transform.ref;
-        }
-        if (assemblyRef === '') return EmptyLoci;
-        const data = (this.plugin.state.data.select(assemblyRef)[0].obj as PluginStateObject.Molecule.Structure).data;
-        if (!data) return EmptyLoci;
-        return QueryHelper.getInteractivityLoci(params, data);
+    getLociForParams(params: QueryParam[], structureNumberOrId?: number | string): StructureElement.Loci | EmptyLoci {
+        const struct = (structureNumberOrId !== undefined) ?
+            this.getStructure(structureNumberOrId)?.cell.obj?.data
+            : this.assemblyRef ?
+                (this.plugin.state.data.select(this.assemblyRef)[0]?.obj as PluginStateObject.Molecule.Structure | undefined)?.data
+                : undefined;
+        if (!struct) return EmptyLoci;
+        return QueryHelper.getInteractivityLoci(params, struct);
     }
 
     getLociByPLDDT(score: number, structureNumber?: number) {
@@ -665,18 +664,19 @@ export class PDBeMolstarPlugin {
 
         /** Focus (zoom) on the part of the structure defined by `selection`.
          * If `selection` contains more items, focus on the union of those.
-         * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
-        focus: async (selection: QueryParam[], structureNumber?: number) => {
-            const loci = this.getLociForParams(selection, structureNumber);
+         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * if not provided, will use the last added structure. */
+        focus: async (selection: QueryParam[], structureNumberOrId?: number | string) => {
+            const loci = this.getLociForParams(selection, structureNumberOrId);
             this.plugin.managers.camera.focusLoci(loci);
         },
 
         /** Trigger highlight on the part of the structure defined by `data`
          * (this will look the same as when the user hovers over a part of the structure).
          * If `focus`, also zoom on the highlighted part.
-         * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
-        highlight: async (params: { data: QueryParam[], color?: AnyColor, focus?: boolean, structureNumber?: number }) => {
-            const loci = this.getLociForParams(params.data, params.structureNumber);
+         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+        highlight: async (params: { data: QueryParam[], color?: AnyColor, focus?: boolean, structureId?: string, structureNumber?: number }) => {
+            const loci = this.getLociForParams(params.data, params.structureId ?? params.structureNumber);
             if (Loci.isEmpty(loci)) return;
             if (params.color) {
                 await this.visual.setColor({ highlight: params.color });
