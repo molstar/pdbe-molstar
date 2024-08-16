@@ -198,7 +198,7 @@
                     if (loadingTargets.size === 0) {
                         spinner.style.display = 'none';
                     }
-                    viewerInstance.visual.highlight({ data: [{}], structureId: undefined });
+                    viewerInstance.visual.highlight({ data: [{}], structureId: id });
                     setTimeout(() => {
                         viewerInstance.visual.clearHighlight();
                     }, 1000);
