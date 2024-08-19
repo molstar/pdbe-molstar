@@ -121,13 +121,15 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
 
     return <div className='pdbemolstar-state-gallery-controls' onKeyDown={handleKeyDown} tabIndex={-1} ref={keyDownTargetRef} >
         <ExpandGroup header='States' initiallyExpanded={true} key='states'>
-            {categories.groups.map(cat =>
-                <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
-                    {categories.members.get(cat)?.map(img =>
-                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => props.manager.load(img)} />
-                    )}
-                </ExpandGroup>
-            )}
+            <div style={{ marginBottom: 8 }}>
+                {categories.groups.map(cat =>
+                    <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
+                        {categories.members.get(cat)?.map(img =>
+                            <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => props.manager.load(img)} />
+                        )}
+                    </ExpandGroup>
+                )}
+            </div>
         </ExpandGroup>
         <ExpandGroup header='Description' initiallyExpanded={true} key='description'>
             <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
@@ -137,10 +139,6 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
                 <div dangerouslySetInnerHTML={{ __html: selected?.description ?? '' }} />
             </div>
         </ExpandGroup>
-        <div className='msp-flex-row' >
-            <Button icon={ChevronLeftSvg} title='Previous state' onClick={() => props.manager.loadPrevious()}></Button>
-            <Button icon={ChevronRightSvg} title='Next state' onClick={() => props.manager.loadNext()} ></Button>
-        </div >
     </div>;
 }
 
