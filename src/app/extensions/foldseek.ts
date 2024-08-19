@@ -4,7 +4,9 @@ import { exportHierarchy } from 'molstar/lib/extensions/model-export/export';
 import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'molstar/lib/mol-model/structure';
+import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { PDBeMolstarPlugin } from '..';
+import { getStructureUrl } from '../helpers';
 import { transform } from '../superposition';
 
 
@@ -17,6 +19,12 @@ export interface FoldseekApiData {
     tend: number,
     qaln: string,
     taln: string,
+    /** Target structure source (optional when database==='pdbe') */
+    tstructure?: {
+        url: string,
+        format: string,
+        binary: boolean,
+    },
     database: 'pdb' | 'afdb50',
 }
 
@@ -25,23 +33,38 @@ export interface FoldseekApiData {
 export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targetStructId: string, apiData: FoldseekApiData, targetColor: string = '#00ff00'): Promise<{ rmsd: number, nAligned: number, bTransform: Mat4 }> {
     const Q_STRUCT_ID = 'main';
 
-    // Load target structure
+    // Retrieve target entry ID and chain ID
     let tEntryId: string;
     let tAuthAsymId: string;
     if (apiData.database === 'pdb') {
         [tEntryId, tAuthAsymId] = apiData.target.split('_');
-        const pdbeUrl = viewer.initParams.pdbeUrl.replace(/\/$/, '');
-        // const url = `${pdbeUrl}/entry-files/download/${tEntryId}_updated.cif`;
-        const url = `${pdbeUrl}/model-server/v1/${tEntryId}/atoms?auth_asym_id=${tAuthAsymId}&encoding=bcif`;
-        await viewer.load({ url, format: 'mmcif', isBinary: true, id: targetStructId }, false);
     } else if (apiData.database === 'afdb50') {
         tEntryId = apiData.target;
-        tAuthAsymId = 'A'; // TODO is this a valid assumption?
-        const url = `https://alphafold.ebi.ac.uk/files/AF-${tEntryId}-F1-model_v4.cif`;
-        await viewer.load({ url, format: 'mmcif', isBinary: false, id: targetStructId }, false);
+        tAuthAsymId = 'A';
     } else {
         throw new Error(`Unknown database: ${apiData.database}`);
     }
+
+    // Load target structure
+    let tUrl: string;
+    let tFormat: BuiltInTrajectoryFormat;
+    let tBinary: boolean;
+    if (apiData.tstructure) {
+        tUrl = apiData.tstructure.url;
+        tFormat = (apiData.tstructure.format === 'cif' || apiData.tstructure.format === 'bcif') ? 'mmcif' : (apiData.tstructure.format as BuiltInTrajectoryFormat);
+        tBinary = apiData.tstructure.binary;
+    } else {
+        if (apiData.database === 'pdb') {
+            tUrl = getStructureUrl(viewer.initParams, { pdbId: tEntryId, queryType: 'atoms', queryParams: { auth_asym_id: tAuthAsymId } });
+            tFormat = 'mmcif';
+            tBinary = viewer.initParams.encoding === 'bcif';
+        } else if (apiData.database === 'afdb50') {
+            throw new Error("tstructure must be provided when database==='afdb50'");
+        } else {
+            throw new Error(`Unknown database: ${apiData.database}`);
+        }
+    }
+    await viewer.load({ url: tUrl, format: tFormat, isBinary: tBinary, id: targetStructId }, false);
 
     // Retrieve structure data
     const qStructure = viewer.getStructure(Q_STRUCT_ID)?.cell.obj?.data;
@@ -51,7 +74,7 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targe
 
     // Decipher Foldseek alignment and produce transformation matrix
     const [qMatchedIndicesInChain, tMatchedIndicesInChain] = getMatchedResidues(apiData.qstart - 1, apiData.qaln, apiData.tstart - 1, apiData.taln); // subtracting 1 to get 0-based indices
-    const qLabelAsymId = 'A'; // TODO is this a valid assumption?
+    const qLabelAsymId = 'A';
     const tLabelAsymId = auth_asym_id_to_label_asym_id(tStructure, tAuthAsymId);
     const qCoords = getCoordsForResiduesInChain(qStructure, qMatchedIndicesInChain, qLabelAsymId);
     const tCoords = getCoordsForResiduesInChain(tStructure, tMatchedIndicesInChain, tLabelAsymId);

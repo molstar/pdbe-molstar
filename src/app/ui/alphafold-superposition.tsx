@@ -115,7 +115,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
     componentDidMount() {
         this.subscribe(this.plugin.managers.structure.hierarchy.behaviors.selection, sel => {
             const superpositionState = PluginCustomState(this.plugin).superpositionState;
-            if (superpositionState && superpositionState.alphafold.apiData.cif && superpositionState.alphafold.apiData.cif !== '') {
+            if (superpositionState?.alphafold.apiData.cif && superpositionState?.alphafold.apiData.bcif) {
                 this.setState({ isHidden: false });
             }
         });

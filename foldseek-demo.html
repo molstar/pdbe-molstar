@@ -136,6 +136,11 @@
                 "pident": 8.5,
                 "taln": "GTNGSNGTGGLTLGGGAGGNGQGGGSGSGKEQSSGPAKQAVPSAAPPDGYESD-----SSDQVSSSDEEERWKDSKLSNDVPSE------------YWHIQKLVK-----YMKAGNQTATIVALCCLKDHDLTTQMNQRAIQDCGGLEVLVNLLESNDMKCRLGALSVLSEISSNLDIRRAIVDLGGIPLLVQILSEPGRDLKIMGAETIANVAKVRLARKLVRKCNGIARLVDLL----DVNMNC---LRSQRDQLSEEEREMLDMARAGARALWSLSE---------SRHNKELMCKSGIVPLMGRLLKSVHIDVVVPTMGTIQQCASQANYQLAITTEGMIFDIVSHLTSDNLDLKRQCSSAIFKCASDKTASDMVRESGGLEPLVGIARDKTVRDNKQLLAA-----ATGAIWKCA------ASEANVKKLDQLKT------------------------------------------------------------------------------VQVLVQLLNDE--------NEEVLTNVVGAISECVKYQNNRELLRTCGG-------------IPLLVNLLNMTHA---------PLLENIAKTLKECASEPESMTLMEELDAVRLIWSLLKNSN------------------------PKVQAHA-----------AWALCPCIENAKNSGELVRSFVGALELVVGLLKSRDNFVLSAVCA-AIATIAKD-------REN-LSVL-SDHKVI--------RMLADLVYTTD------DLLREHLAAAIASCAPY-ATNTQELGRLKTVTPIVGYMVSNNPRVHRTTAMALQKLS--EDSQNCITMHQGGVVPFL-----LETV-------GSKDRELQEASAGCLQNIRKLALRAEE",
                 "qend": 784,
+                "tstructure": {
+                    "url": `https://alphafold.ebi.ac.uk/files/AF-${queryAfdbId}-F1-model_v4.bcif`,
+                    "format": 'cif',
+                    "binary": true,
+                },
             },
         };
 
@@ -158,9 +163,9 @@
 
         const defaultOptions = {
             customData: {
-                url: `https://alphafold.ebi.ac.uk/files/AF-${queryAfdbId}-F1-model_v4.cif`,
+                url: `https://alphafold.ebi.ac.uk/files/AF-${queryAfdbId}-F1-model_v4.bcif`,
                 format: 'cif',
-                binary: false,
+                binary: true,
             },
             bgColor: { r: 255, g: 255, b: 255 },
             alphafoldView: true,
@@ -193,6 +198,11 @@
                     if (loadingTargets.size === 0) {
                         spinner.style.display = 'none';
                     }
+                    viewerInstance.visual.highlight({ data: [{}], structureId: id });
+                    setTimeout(() => {
+                        viewerInstance.visual.clearHighlight();
+                    }, 1000);
+                    
                 });
         }
 
