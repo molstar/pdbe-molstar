@@ -306,7 +306,7 @@
             { target: 'seqPanel', component: PDBeMolstarPlugin.UIComponents.SequenceView, props: { defaultMode: 'polymers' } },
             { target: 'logPanel', component: PDBeMolstarPlugin.UIComponents.Log },
             { target: 'leftPanel', component: PDBeMolstarPlugin.UIComponents.PDBeLeftPanelControls, props: { defaultMode: 'all' } },
-            { target: 'rightPanel', component: PDBeMolstarPlugin.UIComponents.ControlsWrapper },
+            { target: 'rightPanel', component: PDBeMolstarPlugin.UIComponents.DefaultRightPanelControls },
         ];
         viewerInstance.render(layout, options).then(() => {
             // Adjust left panel width based on active tab

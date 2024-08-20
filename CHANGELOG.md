@@ -6,11 +6,12 @@ All notable changes to this project will be documented in this file, following t
 - Mol* core dependency updated to 4.5.0
   - Solves the bug with Export Models
 - Use BCIF files for AlphaFold models (unless `encoding: 'cif'`)
-- PDBeMolstarPlugin.extensions.foldseek
 - Added options `leftPanel`, `rightPanel`, `logPanel`, `tabs`
 - Option `hideCanvasControls` accepts "trajectory" value (for multi-model structures)
 - All color options accept color names and hexcodes
 - `visualStyle` option allows per-component specification
+- Modular UI rendering (5 top-level components renderable separately)
+- Foldseek extension (PDBeMolstarPlugin.extensions.foldseek)
 - StateGallery extension (work in progress)
 
 ## [v3.2.0] - 2024-04-24

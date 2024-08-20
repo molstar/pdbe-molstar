@@ -18,12 +18,11 @@ export const UIComponents = {
     /** Component containing left panel controls (contents depend on PDBeMolstar init params (superposition/ligand/default view)) */
     PDBeLeftPanelControls,
 
-    /** Component containing right panel controls (contents depend on PDBeMolstar init params (superposition/ligand/default view)) */
-    ControlsWrapper,
-
-
-    /** Component containing left panel controls as in core Molstar */
+    /** Component containing left panel controls as in core Molstar, plus PDBeMolstar-specific tabs */
     DefaultLeftPanelControls,
+
+    /** Component containing right panel controls (contents depend on PDBeMolstar init params (superposition/ligand/default view)) */
+    DefaultRightPanelControls: ControlsWrapper,
 
     // TODO add all meaningful components,
 } as const satisfies Record<string, JSXElementConstructor<any>>;

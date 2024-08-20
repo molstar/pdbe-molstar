@@ -1,15 +1,11 @@
 
 import { PluginReactContext } from 'molstar/lib/mol-plugin-ui/base';
 import { PluginUIContext } from 'molstar/lib/mol-plugin-ui/context';
+import { renderReact18 } from 'molstar/lib/mol-plugin-ui/react18';
 import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { ComponentProps, JSXElementConstructor, createElement, useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import { DefaultPluginUISpec } from '../../spec';
 
-
-export function renderReact18(element: any, target: Element) { // TODO import this from src/mol-plugin-ui/react18.ts once using MolStar 4.x.x
-    createRoot(target).render(element);
-}
 
 export interface LayoutSpecComponent<T extends JSXElementConstructor<any>> {
     target: string | HTMLElement,
