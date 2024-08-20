@@ -1,6 +1,5 @@
 const path = require('path');
 const webpack = require('webpack');
-const ExtraWatchWebpackPlugin = require('extra-watch-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 const PACKAGE_ROOT_PATH = process.cwd();
@@ -30,7 +29,7 @@ const molstarConfig = {
                 ],
             },
             {
-                test: /\.(s*)css$/,
+                test: /\.(css|scss)$/,
                 use: [
                     MiniCssExtractPlugin.loader,
                     { loader: 'css-loader', options: { sourceMap: false } },
@@ -40,9 +39,6 @@ const molstarConfig = {
         ],
     },
     plugins: [
-        new ExtraWatchWebpackPlugin({
-            files: ['./lib/**/*.scss', './lib/**/*.html'],
-        }),
         new webpack.DefinePlugin({
             'process.env.DEBUG': JSON.stringify(process.env.DEBUG),
             __MOLSTAR_DEBUG_TIMESTAMP__: webpack.DefinePlugin.runtimeValue(() => `${new Date().valueOf()}`, true),
@@ -58,6 +54,7 @@ const molstarConfig = {
             crypto: require.resolve('crypto-browserify'),
             path: require.resolve('path-browserify'),
             stream: require.resolve('stream-browserify'),
+            vm: require.resolve('vm-browserify'),
         },
     },
     watchOptions: {
