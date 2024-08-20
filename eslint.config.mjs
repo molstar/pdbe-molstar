@@ -24,6 +24,7 @@ export default tsEslint.config(
             '@typescript-eslint/consistent-indexed-object-style': 'off',
             '@typescript-eslint/no-namespace': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
+            '@typescript-eslint/no-empty-object-type': 'off',
 
             // Additional rules - general
             'eqeqeq': 'error', // Forbid using `==`, enforce `===`
@@ -37,6 +38,7 @@ export default tsEslint.config(
                 },
             ],
             'no-var': 'error', // Forbid using `var`
+            'no-void': 'error', // Forbid using `void 0`, use `undefined` instead
             'no-throw-literal': 'error', // Forbid throwing anything that's not Error, e.g. `throw 'Blabla'`
             '@typescript-eslint/prefer-namespace-keyword': 'error', // Forbid `module` keyword
 
@@ -44,6 +46,7 @@ export default tsEslint.config(
             '@stylistic/indent': ['error', 4],
             '@stylistic/semi': 'error', // Enforce trailing semicolons, including after type definitions
             '@stylistic/comma-dangle': ['error', 'always-multiline'], // Enforce comma after last listed item when closing ] or } is on the next line
+            '@stylistic/eol-last': 'error', // Enforce newline at the end of file
             '@stylistic/quotes': [
                 'error',
                 'single',

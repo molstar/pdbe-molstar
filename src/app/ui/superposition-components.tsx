@@ -14,7 +14,7 @@ import { PluginCustomState } from '../plugin-custom-state';
 
 
 interface StructureComponentControlState extends CollapsableState {
-    isDisabled: boolean
+    isDisabled: boolean,
 }
 
 export class SuperpositionComponentControls extends CollapsableControls<{}, StructureComponentControlState> {
@@ -23,7 +23,7 @@ export class SuperpositionComponentControls extends CollapsableControls<{}, Stru
             header: 'Components',
             isCollapsed: false,
             isDisabled: false,
-            brand: { accent: 'blue', svg: CubeOutlineSvg }
+            brand: { accent: 'blue', svg: CubeOutlineSvg },
         };
     }
 
@@ -45,7 +45,7 @@ interface ComponentListControlsState {
     isLigCollapsed: boolean,
     carbGroups: StructureComponentRef[][],
     isCarbCollapsed: boolean,
-    isBusy: boolean
+    isBusy: boolean,
 };
 
 class ComponentListControls extends PurePluginUIComponent<{}, ComponentListControlsState> {
@@ -59,7 +59,7 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
         isLigCollapsed: false,
         carbGroups: [],
         isCarbCollapsed: false,
-        isBusy: false
+        isBusy: false,
     };
 
     private ligInputStream = new Subject<string>();
@@ -265,13 +265,13 @@ class ComponentListControls extends PurePluginUIComponent<{}, ComponentListContr
     }
 }
 
-type StructureComponentEntryActions = 'action' | 'label'
+type StructureComponentEntryActions = 'action' | 'label';
 
 class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureComponentRef[], boldHeader?: boolean, type?: string }, { action?: StructureComponentEntryActions, isHidden: boolean, isBusy: boolean }> {
     state = {
-        action: void 0 as StructureComponentEntryActions | undefined,
+        action: undefined as StructureComponentEntryActions | undefined,
         isHidden: false,
-        isBusy: false
+        isBusy: false,
     };
 
     get pivot() {
@@ -323,7 +323,7 @@ class StructureComponentGroup extends PurePluginUIComponent<{ group: StructureCo
         }
     };
 
-    toggleAction = () => this.setState({ action: this.state.action === 'action' ? void 0 : 'action' });
+    toggleAction = () => this.setState({ action: this.state.action === 'action' ? undefined : 'action' });
 
     highlight = (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault();
@@ -383,7 +383,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
 
     state = {
         isBusy: false,
-        clusterVal: { cluster: 'All' }
+        clusterVal: { cluster: 'All' },
     };
 
     remove = () => this.plugin.managers.structure.component.removeRepresentations(this.props.group, this.props.representation);
@@ -405,8 +405,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
         });
     }
 
-    updateRepresentations(components: ReadonlyArray<StructureComponentRef>, pivot: StructureRepresentationRef, params: StateTransformer.Params<StructureRepresentation3D>) {
-
+    updateRepresentations(components: readonly StructureComponentRef[], pivot: StructureRepresentationRef, params: StateTransformer.Params<StructureRepresentation3D>) {
         if (components.length === 0) return Promise.resolve();
         const index = components[0].representations.indexOf(pivot);
         if (index < 0) return Promise.resolve();
@@ -442,7 +441,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
             const updatedParams = {
                 type: params.type ? params.type : repr.cell.params?.values.type,
                 colorTheme: params.colorTheme ? params.colorTheme : repr.cell.params?.values.colorTheme,
-                sizeTheme: params.sizeTheme ? params.sizeTheme : repr.cell.params?.values.sizeTheme
+                sizeTheme: params.sizeTheme ? params.sizeTheme : repr.cell.params?.values.sizeTheme,
             };
 
             update.to(repr.cell).update(updatedParams);
@@ -469,7 +468,7 @@ class StructureRepresentationEntry extends PurePluginUIComponent<{ group: Struct
             clusterSelectArr.push([(i + 1) + '', (i + 1) + '']);
         });
         const clusterOptions = {
-            cluster: ParamDefinition.Select('All', clusterSelectArr, { label: 'Select Cluster' })
+            cluster: ParamDefinition.Select('All', clusterSelectArr, { label: 'Select Cluster' }),
         };
 
         let isSurrVisual = false;

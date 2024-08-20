@@ -33,14 +33,14 @@ function makeDomainAnnotationsColorThemeParams(domainSources: string[], domainNa
         domain: PD.Select('None', [['None', 'None']], { isHidden: true }), // this is to keep the same shape of props but `domain` param will not be displayed in UI
     }, { isFlat: true });
     return {
-        source: PD.MappedStatic(defaultSource ?? 'None', map, { options: Object.keys(map).map(source => [source, source]) }) // `options` is to keep case-sensitive database names in UI
+        source: PD.MappedStatic(defaultSource ?? 'None', map, { options: Object.keys(map).map(source => [source, source]) }), // `options` is to keep case-sensitive database names in UI
     };
 }
 /** DomainAnnotationsColorThemeParams for when the data are not available (yet or at all) */
 const DummyDomainAnnotationsColorThemeParams = makeDomainAnnotationsColorThemeParams([], []);
 
-export type DomainAnnotationsColorThemeParams = typeof DummyDomainAnnotationsColorThemeParams
-export type DomainAnnotationsColorThemeProps = PD.Values<DomainAnnotationsColorThemeParams>
+export type DomainAnnotationsColorThemeParams = typeof DummyDomainAnnotationsColorThemeParams;
+export type DomainAnnotationsColorThemeProps = PD.Values<DomainAnnotationsColorThemeParams>;
 
 export function DomainAnnotationsColorTheme(ctx: ThemeDataContext, props: DomainAnnotationsColorThemeProps): ColorTheme<DomainAnnotationsColorThemeParams> {
     let color: LocationColor;

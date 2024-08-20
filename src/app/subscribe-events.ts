@@ -27,7 +27,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 start_residue_number: e.eventData.residueNumber,
                 end_residue_number: e.eventData.residueNumber,
                 sideChain: true,
-                focus: true
+                focus: true,
             };
             // Call highlightAnnotation
             wrapperCtx.visual.select({ data: [highlightQuery] });
@@ -44,7 +44,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 entity_id: e.eventData.entityId,
                 struct_asym_id: e.eventData.structAsymId,
                 start_residue_number: e.eventData.residueNumber,
-                end_residue_number: e.eventData.residueNumber
+                end_residue_number: e.eventData.residueNumber,
             };
             // Call highlightAnnotation
             wrapperCtx.visual.highlight({ data: [highlightQuery] });
@@ -64,7 +64,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             if (e.detail.start && e.detail.end) {
                 highlightQuery = {
                     start_residue_number: parseInt(e.detail.start),
-                    end_residue_number: parseInt(e.detail.end)
+                    end_residue_number: parseInt(e.detail.end),
                 };
             }
 
@@ -90,7 +90,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             if (e.detail.start && e.detail.end) {
                 highlightQuery = {
                     start_residue_number: parseInt(e.detail.start),
-                    end_residue_number: parseInt(e.detail.end)
+                    end_residue_number: parseInt(e.detail.end),
                 };
             }
 
@@ -111,10 +111,10 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                 } else {
                     let selColor = undefined;
                     if (e.detail.trackIndex > -1 && e.detail.feature.locations && e.detail.feature.locations[0].fragments[e.detail.trackIndex].color) selColor = e.detail.feature.locations[0].fragments[e.detail.trackIndex].color;
-                    if (typeof selColor == 'undefined' && e.detail.feature.color) selColor = e.detail.feature.color;
-                    if (typeof selColor == 'undefined' && e.detail.color) selColor = e.detail.color;
+                    if (selColor === undefined && e.detail.feature.color) selColor = e.detail.feature.color;
+                    if (selColor === undefined && e.detail.color) selColor = e.detail.color;
 
-                    if (typeof selColor == 'undefined') {
+                    if (selColor === undefined) {
                         selColor = { r: 65, g: 96, b: 91 };
                     } else {
                         const isRgb = /rgb/g;
@@ -147,7 +147,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     start_residue_number: e.eventData.residueNumber,
                     end_residue_number: e.eventData.residueNumber,
                     sideChain: true,
-                    focus: true
+                    focus: true,
                 };
 
                 // Call highlightAnnotation
@@ -164,7 +164,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     start_residue_number: e.eventData.elementData.pathData.start.residue_number,
                     end_residue_number: e.eventData.elementData.pathData.end.residue_number,
                     color: { r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2] },
-                    focus: true
+                    focus: true,
                 };
                 wrapperCtx.visual.select({ data: [highlightQuery] });
             }
@@ -184,7 +184,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
                     start_residue_number: e.eventData.residueNumber,
                     end_residue_number: e.eventData.residueNumber,
-                    focus: true
+                    focus: true,
                 };
                 wrapperCtx.visual.select({ data: [highlightQuery] });
 
@@ -195,7 +195,7 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
                     entity_id: e.eventData.entityId,
                     struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
                     start_residue_number: e.eventData.elementData.pathData.start.residue_number,
-                    end_residue_number: e.eventData.elementData.pathData.end.residue_number
+                    end_residue_number: e.eventData.elementData.pathData.end.residue_number,
                 };
                 // Call highlightAnnotation
                 wrapperCtx.visual.highlight({ data: [highlightQuery] });

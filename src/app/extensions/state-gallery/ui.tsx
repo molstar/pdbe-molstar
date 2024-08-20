@@ -19,7 +19,7 @@ interface StateGalleryControlsState {
 const Params = {
     entryId: PD.Text(),
 };
-type Values = PD.ValuesFor<typeof Params>
+type Values = PD.ValuesFor<typeof Params>;
 
 
 export class StateGalleryControls extends CollapsableControls<{}, StateGalleryControlsState> {
@@ -142,9 +142,9 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
             {categories.groups.map(cat =>
                 <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
                     {categories.members.get(cat)?.map(img =>
-                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => setSelected(img)} />
+                        <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => setSelected(img)} />,
                     )}
-                </ExpandGroup>
+                </ExpandGroup>,
             )}
         </ExpandGroup>
         <ExpandGroup header='Description' initiallyExpanded={true} key='description'>

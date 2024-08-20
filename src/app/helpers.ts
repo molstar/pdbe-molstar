@@ -22,8 +22,8 @@ import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
 
 
-export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf'
-export type LoadParams = {
+export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf';
+export interface LoadParams {
     url: string,
     format?: BuiltInTrajectoryFormat,
     assemblyId?: string,
@@ -34,7 +34,7 @@ export type LoadParams = {
     id?: string,
 }
 
-export type MapParams = {
+export interface MapParams {
     'em'?: MapStyle,
     '2fo-fc'?: MapStyle,
     'fo-fc(+ve)'?: MapStyle,
@@ -67,7 +67,7 @@ export namespace PDBeVolumes {
             title: 'Volume',
             message: 'Streaming enabled, click on a residue or an atom to view the data.',
             key: 'toast-1',
-            timeoutMs: 7000
+            timeoutMs: 7000,
         });
     }
 
@@ -91,9 +91,9 @@ export namespace AlphafoldView {
                     MS.struct.generator.atomGroups({
                         'chain-test': MS.core.rel.eq([MS.ammp('objectPrimitive'), 'atomistic']),
                         'residue-test': MS.core.rel.gr([QualityAssessment.symbols.pLDDT.symbol(), score]),
-                    })
-                ])
-            ])
+                    }),
+                ]),
+            ]),
         ]);
 
         const query = compile<StructureSelection>(queryExp);
@@ -104,20 +104,20 @@ export namespace AlphafoldView {
 }
 
 
-export type LigandQueryParam = {
+export interface LigandQueryParam {
     label_comp_id_list?: any,
     auth_asym_id?: string,
     struct_asym_id?: string,
     label_comp_id?: string,
     auth_seq_id?: number,
-    show_all?: boolean
-};
+    show_all?: boolean,
+}
 
 
 export namespace LigandView {
     export function query(ligandViewParams: LigandQueryParam): { core: Expression, surroundings: Expression } {
         const atomGroupsParams: any = {
-            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
         };
 
         // Residue Param
@@ -140,7 +140,7 @@ export namespace LigandView {
         const core = ligandViewParams.show_all ?
             MS.struct.generator.atomGroups(atomGroupsParams) :
             MS.struct.filter.first([
-                MS.struct.generator.atomGroups(atomGroupsParams)
+                MS.struct.generator.atomGroups(atomGroupsParams),
             ]);
 
         // Construct surroundings query
@@ -148,7 +148,7 @@ export namespace LigandView {
 
         return {
             core,
-            surroundings
+            surroundings,
         };
 
     }
@@ -159,7 +159,7 @@ export namespace LigandView {
         params.atom_site.forEach((param: any) => {
             const qEntities = {
                 'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
-                'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id])
+                'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_seq_id(), param.auth_seq_id]),
             };
             entityObjArray.push(qEntities);
         });
@@ -174,7 +174,7 @@ export namespace LigandView {
             atmGroupsQueries.length === 1
                 ? atmGroupsQueries[0]
                 // Need to union before merge for fast performance
-                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([q])))
+                : MS.struct.combinator.merge(atmGroupsQueries.map(q => MS.struct.modifier.union([q]))),
         ]);
 
         // Construct surroundings query
@@ -182,14 +182,14 @@ export namespace LigandView {
 
         return {
             core,
-            surroundings
+            surroundings,
         };
 
     }
 }
 
 
-export type QueryParam = {
+export interface QueryParam {
     auth_seq_id?: number,
     entity_id?: string,
     auth_asym_id?: string,
@@ -217,8 +217,8 @@ export type QueryParam = {
     uniprot_accession?: string,
     uniprot_residue_number?: number,
     start_uniprot_residue_number?: number,
-    end_uniprot_residue_number?: number
-};
+    end_uniprot_residue_number?: number,
+}
 
 
 export namespace QueryHelper {
@@ -353,7 +353,7 @@ export namespace ModelInfo {
 
         return {
             hetNames,
-            carbEntityCount
+            carbEntityCount,
         };
     }
 }
@@ -548,7 +548,7 @@ export function nonnegativeModulo(a: number, b: number) {
 /** `{ status: 'completed', result: result }` means the job completed and returned/resolved to `result`.
 * `{ status: 'cancelled' }` means the job started but another jobs got enqueued before its completion.
 * `{ status: 'skipped' }` means the job did not start because another jobs got enqueued. */
-export type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' }
+export type PreemptiveQueueResult<Y> = { status: 'completed', result: Awaited<Y> } | { status: 'cancelled' } | { status: 'skipped' };
 
 interface PreemptiveQueueJob<X, Y> {
     args: X,
@@ -611,7 +611,7 @@ export class PreemptiveQueue<X, Y> {
 
 
 export namespace PluginConfigUtils {
-    export type ConfigFor<T> = { [key in keyof T]: PluginConfigItem<T[key]> }
+    export type ConfigFor<T> = { [key in keyof T]: PluginConfigItem<T[key]> };
 
     export function getConfigValues<T>(plugin: PluginContext | undefined, configItems: { [name in keyof T]: PluginConfigItem<T[name]> }, defaults: T): T {
         const values = {} as T;

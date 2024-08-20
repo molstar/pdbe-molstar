@@ -12,13 +12,13 @@ import React from 'react';
 interface ImageControlsState {
     showPreview: boolean,
     isDisabled: boolean,
-    imageData?: string
+    imageData?: string,
 }
 
 export class DownloadScreenshotControls extends PluginUIComponent<{ close: () => void }, ImageControlsState> {
     state: ImageControlsState = {
         showPreview: true,
-        isDisabled: false
+        isDisabled: false,
     } as ImageControlsState;
 
     private download = () => {
@@ -32,7 +32,7 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
             PluginCommands.Toast.Show(this.plugin, {
                 message: 'Copied to clipboard.',
                 title: 'Screenshot',
-                timeoutMs: 1500
+                timeoutMs: 1500,
             });
         } catch {
             return this.copyImg();
@@ -51,7 +51,7 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
     }
 
     componentWillUnmount() {
-        this.setState({ imageData: void 0 });
+        this.setState({ imageData: undefined });
     }
 
     open = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,7 +69,7 @@ export class DownloadScreenshotControls extends PluginUIComponent<{ close: () =>
             </div>}
             <div className='msp-flex-row'>
                 {!this.state.imageData && <Button icon={CopySvg} onClick={hasClipboardApi ? this.copy : this.copyImg} disabled={this.state.isDisabled}>Copy</Button>}
-                {this.state.imageData && <Button onClick={() => this.setState({ imageData: void 0 })} disabled={this.state.isDisabled}>Clear</Button>}
+                {this.state.imageData && <Button onClick={() => this.setState({ imageData: undefined })} disabled={this.state.isDisabled}>Clear</Button>}
                 <Button icon={GetAppSvg} onClick={this.download} disabled={this.state.isDisabled}>Download</Button>
             </div>
             {this.state.imageData && <div className='msp-row msp-copy-image-wrapper'>
@@ -90,20 +90,20 @@ function ScreenshotParams({ plugin, isDisabled }: { plugin: PluginContext, isDis
 
 function CropControls({ plugin }: { plugin: PluginContext }) {
     const helper = plugin.helpers.viewportScreenshot;
-    const cropParams = useBehavior(helper?.behaviors.cropParams!);
+    const cropParams = useBehavior(helper?.behaviors.cropParams);
     useBehavior(helper?.behaviors.relativeCrop);
 
     if (!helper) return null;
 
     return <div style={{ width: '100%', height: '24px', marginTop: '8px' }}>
-        <ToggleButton icon={CropOrginalSvg} title='Auto-crop' inline isSelected={cropParams.auto}
+        <ToggleButton icon={CropOrginalSvg} title='Auto-crop' inline isSelected={cropParams?.auto}
             style={{ background: 'transparent', float: 'left', width: 'auto', height: '24px', lineHeight: '24px' }}
-            toggle={() => helper.toggleAutocrop()} label={'Auto-crop ' + (cropParams.auto ? 'On' : 'Off')} />
+            toggle={() => helper.toggleAutocrop()} label={'Auto-crop ' + (cropParams?.auto ? 'On' : 'Off')} />
 
-        {!cropParams.auto && <Button icon={CropSvg} title='Crop'
+        {!cropParams?.auto && <Button icon={CropSvg} title='Crop'
             style={{ background: 'transparent', float: 'right', height: '24px', lineHeight: '24px', width: '24px', padding: '0' }}
             onClick={() => helper.autocrop()} />}
-        {!cropParams.auto && !helper.isFullFrame && <Button icon={CropFreeSvg} title='Reset Crop'
+        {!cropParams?.auto && !helper.isFullFrame && <Button icon={CropFreeSvg} title='Reset Crop'
             style={{ background: 'transparent', float: 'right', height: '24px', lineHeight: '24px', width: '24px', padding: '0' }}
             onClick={() => helper.resetCrop()} />}
     </div>;

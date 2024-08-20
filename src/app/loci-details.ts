@@ -4,7 +4,7 @@ import { Loci } from 'molstar/lib/mol-model/loci';
 import { Bond, StructureProperties as Props, StructureElement, Unit } from 'molstar/lib/mol-model/structure';
 
 
-export type EventDetail = {
+export interface EventDetail {
     models?: string[],
     entity_id?: string,
     label_asym_id?: string,
@@ -22,10 +22,10 @@ export type EventDetail = {
     seq_id_begin?: number,
     seq_id_end?: number,
     button?: number,
-    modifiers?: any
+    modifiers?: any,
 }
 
-type LabelGranularity = 'element' | 'conformation' | 'residue' | 'chain' | 'structure'
+type LabelGranularity = 'element' | 'conformation' | 'residue' | 'chain' | 'structure';
 
 export function lociDetails(loci: Loci): EventDetail | undefined {
     switch (loci.kind) {
@@ -33,11 +33,12 @@ export function lociDetails(loci: Loci): EventDetail | undefined {
             return { models: loci.structure.models.map(m => m.entry).filter(l => !!l) };
         case 'element-loci':
             return structureElementStatsDetail(StructureElement.Stats.ofLoci(loci));
-        case 'bond-loci':
+        case 'bond-loci': {
             const bond = loci.bonds[0];
             return bond ? bondLabel(bond, 'element') : '';
+        }
         default:
-            return void 0;
+            return undefined;
     }
 }
 
@@ -49,7 +50,7 @@ function structureElementStatsDetail(stats: StructureElement.Stats): EventDetail
     } else if (elementCount === 0 && residueCount === 1 && chainCount === 0) {
         return getElementDetails(stats.firstResidueLoc, 'residue');
     } else {
-        return void 0;
+        return undefined;
     }
 }
 
@@ -86,7 +87,7 @@ function atomicElementDetails(location: StructureElement.Location<Unit.Atomic>, 
         ins_code: Props.residue.pdbx_PDB_ins_code(location),
         comp_id: Props.atom.label_comp_id(location),
         atom_id: [Props.atom.label_atom_id(location)],
-        alt_id: Props.atom.label_alt_id(location)
+        alt_id: Props.atom.label_alt_id(location),
     };
 
     const unpLabel = BestDatabaseSequenceMappingProp.getLabel(location);
@@ -110,7 +111,7 @@ function coarseElementDetails(location: StructureElement.Location<Unit.Spheres |
     const elementDetails: EventDetail = {
         asym_id: Props.coarse.asym_id(location),
         seq_id_begin: Props.coarse.seq_id_begin(location),
-        seq_id_end: Props.coarse.seq_id_end(location)
+        seq_id_end: Props.coarse.seq_id_end(location),
     };
 
     if (granularity === 'residue') {
@@ -128,8 +129,8 @@ export function bondLabel(bond: Bond.Location, granularity: LabelGranularity): a
     return _bundleLabel({
         loci: [
             StructureElement.Loci(bond.aStructure, [{ unit: bond.aUnit, indices: OrderedSet.ofSingleton(bond.aIndex) }]),
-            StructureElement.Loci(bond.bStructure, [{ unit: bond.bUnit, indices: OrderedSet.ofSingleton(bond.bIndex) }])
-        ]
+            StructureElement.Loci(bond.bStructure, [{ unit: bond.bUnit, indices: OrderedSet.ofSingleton(bond.bIndex) }]),
+        ],
     }, granularity);
 }
 

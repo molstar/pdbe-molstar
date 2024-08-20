@@ -16,7 +16,7 @@ export function LayoutSpecComponent<T extends JSXElementConstructor<any>>(target
     return { target, component, props };
 }
 
-export type LayoutSpec = LayoutSpecComponent<any>[]
+export type LayoutSpec = LayoutSpecComponent<any>[];
 
 
 export async function createPluginSplitUI(options: {
@@ -62,7 +62,7 @@ export function resolveHTMLElement(element: HTMLElement | string): HTMLElement {
     }
 }
 
-type LoadState = { kind: 'initialized' } | { kind: 'pending' } | { kind: 'error', message: string }
+type LoadState = { kind: 'initialized' } | { kind: 'pending' } | { kind: 'error', message: string };
 
 function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: JSXElementConstructor<P>, props: P }) {
     const [state, setState] = useState<LoadState>({ kind: 'pending' });

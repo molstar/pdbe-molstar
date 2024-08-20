@@ -12,24 +12,24 @@ import { lociDetails } from './loci-details';
 
 
 const SuperpositionFocusRepresentationParams = (plugin: PluginContext) => {
-    const reprParams = StateTransforms.Representation.StructureRepresentation3D.definition.params!(void 0, plugin) as PD.Params;
+    const reprParams = StateTransforms.Representation.StructureRepresentation3D.definition.params!(undefined, plugin) as PD.Params;
     return {
         expandRadius: PD.Numeric(5, { min: 1, max: 10, step: 1 }),
         surroundingsParams: PD.Group(reprParams, {
             label: 'Surroundings',
-            customDefault: createStructureRepresentationParams(plugin, void 0, { type: 'ball-and-stick', size: 'physical', typeParams: { sizeFactor: 0.16 }, sizeParams: { scale: 0.3 } })
-        })
+            customDefault: createStructureRepresentationParams(plugin, undefined, { type: 'ball-and-stick', size: 'physical', typeParams: { sizeFactor: 0.16 }, sizeParams: { scale: 0.3 } }),
+        }),
     };
 };
 
-type SuperpositionFocusRepresentationProps = PD.ValuesFor<ReturnType<typeof SuperpositionFocusRepresentationParams>>
+type SuperpositionFocusRepresentationProps = PD.ValuesFor<ReturnType<typeof SuperpositionFocusRepresentationParams>>;
 
 export enum SuperpositionFocusRepresentationTags {
     SurrSel = 'superposition-focus-surr-sel',
-    SurrRepr = 'superposition-focus-surr-repr'
+    SurrRepr = 'superposition-focus-surr-repr',
 }
 
-const TagSet: Set<SuperpositionFocusRepresentationTags> = new Set([SuperpositionFocusRepresentationTags.SurrSel, SuperpositionFocusRepresentationTags.SurrRepr]);
+const TagSet = new Set([SuperpositionFocusRepresentationTags.SurrSel, SuperpositionFocusRepresentationTags.SurrRepr]);
 
 class SuperpositionFocusRepresentationBehavior extends PluginBehavior.WithSubscribers<SuperpositionFocusRepresentationProps> {
     private get surrLabel() { return `[Focus] Surroundings (${this.params.expandRadius} Å)`; }
@@ -85,14 +85,14 @@ class SuperpositionFocusRepresentationBehavior extends PluginBehavior.WithSubscr
         let surroundings = MS.struct.modifier.includeSurroundings({
             0: target,
             radius: this.params.expandRadius,
-            'as-whole-residues': true
+            'as-whole-residues': true,
         });
 
         const lociDeatils = lociDetails(sourceLoci);
         if (!lociDeatils) {
             surroundings = MS.struct.modifier.exceptBy({
                 0: surroundings,
-                by: target
+                by: target,
             });
         }
 
@@ -138,5 +138,5 @@ export const SuperpositionFocusRepresentation = PluginBehavior.create({
     display: { name: 'Superposition Focus Representation' },
     category: 'interaction',
     ctor: SuperpositionFocusRepresentationBehavior,
-    params: (_, plugin) => SuperpositionFocusRepresentationParams(plugin)
+    params: (_, plugin) => SuperpositionFocusRepresentationParams(plugin),
 });

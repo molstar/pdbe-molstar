@@ -39,7 +39,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
                 PluginCommands.Toast.Show(this.plugin, {
                     title: 'Process',
                     message: 'Loading / computing large dataset!',
-                    key: 'is-busy-toast'
+                    key: 'is-busy-toast',
                 });
             } else {
                 PluginCommands.Toast.Hide(this.plugin, { key: 'is-busy-toast' });
@@ -69,15 +69,15 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
         });
 
         const segmentOptions = {
-            segment: PD.Select('', segmentArr, { label: 'Select Segment', description: 'Select segment to view its clusters below' })
+            segment: PD.Select('', segmentArr, { label: 'Select Segment', description: 'Select segment to view its clusters below' }),
         };
 
         const segmentIndex = customState.superpositionState.activeSegment - 1;
         this.setState({
             segment: {
                 params: segmentOptions,
-                value: { segment: segmentArr[segmentIndex][0] }
-            }
+                value: { segment: segmentArr[segmentIndex][0] },
+            },
         });
         this.setState({ isBusy: false });
     };
@@ -119,7 +119,7 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
         // remove measurements
         const measurements: any = this.plugin.managers.structure.measurement.state;
         const measureTypes = ['labels', 'distances', 'angles', 'dihedrals'];
-        let measurementCell: any = void 0;
+        let measurementCell: any = undefined;
         measureTypes.forEach((type: string) => {
             if (measurementCell) return;
             if (measurements[type][0]) {
@@ -233,8 +233,8 @@ export class SegmentTree extends PurePluginUIComponent<{}, { segment?: any, isBu
         const params = {
             transform: {
                 name: 'matrix' as const,
-                params: { data: matrix, transpose: false }
-            }
+                params: { data: matrix, transpose: false },
+            },
         };
         // TODO add .insertOrUpdate to StateBuilder?
         const b = o
@@ -298,7 +298,7 @@ class ClusterNode extends PluginUIComponent<{ cluster: any[], totalClusters: num
         showSearch: false,
         isBusy: false,
         cluster: this.props.cluster,
-        searchText: ''
+        searchText: '',
     };
 
     private inputStream = new Subject();
@@ -568,7 +568,7 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
     };
 
     getTagRefs(tags: string[]) {
-        const TagSet: Set<any> = new Set(tags);
+        const TagSet = new Set(tags);
         const tree = this.plugin.state.data.tree;
         return StateSelection.findUniqueTagsInSubtree(tree, this.modelCell!.transform.ref, TagSet);
     };
@@ -577,7 +577,7 @@ class StructureNode extends PluginUIComponent<{ structure: any, isRep: boolean, 
         const uniformColor1 = getNextColor(this.plugin, this.props.segmentIndex);
         const strInstance = this.plugin.state.data.select(this.ref!)[0];
         const query = MS.struct.generator.atomGroups({
-            'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), this.props.structure.struct_asym_id])
+            'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), this.props.structure.struct_asym_id]),
         });
         const chainSel = await this.plugin.builders.structure.tryCreateComponentFromExpression(strInstance, query, `Chain-${this.props.segmentIndex}`, { label: `Chain`, tags: [`superposition-sel`] });
         if (chainSel) {

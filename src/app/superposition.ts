@@ -43,7 +43,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
             models: {},
             entries: {},
             refMaps: {},
-            segmentData: void 0,
+            segmentData: undefined,
             matrixData: {},
             activeSegment: 0,
             loadedStructs: [],
@@ -57,7 +57,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
                     bcif: '',
                     cif: '',
                     pae: '',
-                    length: 0
+                    length: 0,
                 },
                 length: 0,
                 ref: '',
@@ -65,8 +65,8 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
                 visibility: [],
                 transforms: [],
                 rmsds: [],
-                coordinateSystems: []
-            }
+                coordinateSystems: [],
+            },
         };
 
         // Get segment and cluster information for the given uniprot accession
@@ -92,7 +92,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
         const superpositionParams = customState.initParams!.superpositionParams;
         const segmentIndex = superpositionParams?.segment ? superpositionParams.segment - 1 : 0;
         customState.superpositionState.activeSegment = segmentIndex + 1;
-        const clusterIndexs = superpositionParams?.cluster ? superpositionParams.cluster : void 0;
+        const clusterIndexs = superpositionParams?.cluster ? superpositionParams.cluster : undefined;
 
         // Emit segment API data load event
         customState.events?.superpositionInit.next(true);
@@ -128,7 +128,7 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
     return compList.join(', ');
 }
 
-type AfApiData = NonNullable<PluginCustomState['superpositionState']>['alphafold']['apiData']
+type AfApiData = NonNullable<PluginCustomState['superpositionState']>['alphafold']['apiData'];
 
 async function getAfUrls(plugin: PluginContext, accession: string): Promise<AfApiData | undefined> {
     const url = `https://alphafold.ebi.ac.uk/api/prediction/${accession}`;
@@ -139,10 +139,12 @@ async function getAfUrls(plugin: PluginContext, accession: string): Promise<AfAp
                 bcif: apiResponse[0].bcifUrl,
                 cif: apiResponse[0].cifUrl,
                 pae: apiResponse[0].paeImageUrl,
-                length: apiResponse[0].uniprotEnd
+                length: apiResponse[0].uniprotEnd,
             };
         }
-    } catch { }
+    } catch {
+        // ignore, will return undefined
+    }
     console.warn(`Failed to get AFDB URLs for ${accession}: ${url}`);
     return undefined;
 }
@@ -203,11 +205,11 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
                 const structHierarchy: any = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
                 if (structHierarchy) {
                     const input = [structHierarchy.components[0], afStr];
-                    const structures = input.map(s => s.cell.obj?.data!);
+                    const structures = input.map(s => s.cell.obj?.data);
                     let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, {
                         traceOnly,
                         includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
-                        applyTestIndex: [1]
+                        applyTestIndex: [1],
                     });
 
                     if (entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
@@ -352,7 +354,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         const ligand = MS.struct.generator.atomGroups({
                             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
                             'residue-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_comp_id(), het]),
-                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
                         });
 
                         const labelTagParams = { label: `${het}`, tags: [`superposition-ligand-sel`] };
@@ -378,10 +380,10 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         0: MS.struct.generator.atomGroups({
                             'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'polymer']),
                             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), s.auth_asym_id]),
-                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
                         }),
                         radius: 5,
-                        'as-whole-residues': true
+                        'as-whole-residues': true,
                     });
 
                     let i = 0;
@@ -390,12 +392,12 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         const carbEntityChain = MS.struct.generator.atomGroups({
                             'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'branched']),
                             'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), carbEntityChainId]),
-                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()])
+                            'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
                         });
 
                         const carbEntityChainInVicinity = MS.struct.filter.intersectedBy({
                             0: polymerChainWithSurroundings,
-                            by: carbEntityChain
+                            by: carbEntityChain,
                         });
 
                         const data = (plugin.state.data.select(strInstance.ref)[0].obj).data;
@@ -425,7 +427,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                                 'entity-test': MS.core.rel.eq([MS.ammp('entityType'), 'branched']),
                                 'group-by': MS.core.str.concat([MS.struct.atomProperty.core.operatorName(), MS.struct.atomProperty.macromolecular.residueKey()]),
                                 'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.auth_asym_id(), carbEntityChainId]),
-                                'residue-test': MS.core.logic.or(carbLigands)
+                                'residue-test': MS.core.logic.or(carbLigands),
                             });
 
                             const labelTagParams = { label: `${carbVisLabel}`, tags: [`superposition-carb-sel`] };
@@ -472,7 +474,7 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
 
 async function getLigandNamesFromModelData(plugin: PluginContext, state: State, modelRef: string) {
     const cell = state.select(modelRef)[0];
-    if (!cell || !cell.obj) return void 0;
+    if (!cell || !cell.obj) return undefined;
     const model = cell.obj.data;
     if (!model) return;
 
@@ -497,13 +499,13 @@ async function loadStructure(plugin: PluginContext, url: string, format: BuiltIn
 
         return { data, trajectory, model, structure };
     } catch (e) {
-        return { structure: void 0 };
+        return { structure: undefined };
     }
 }
 
 function chainSelection(struct_asym_id: string) {
     return MS.struct.generator.atomGroups({
-        'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), struct_asym_id])
+        'chain-test': MS.core.rel.eq([MS.struct.atomProperty.macromolecular.label_asym_id(), struct_asym_id]),
     });
 }
 
@@ -526,8 +528,8 @@ async function afTransform(plugin: PluginContext, s: StateObjectRef<PluginStateO
     const params = {
         transform: {
             name: 'matrix' as const,
-            params: { data: transform, transpose: false }
-        }
+            params: { data: transform, transpose: false },
+        },
     };
     const b = o
         ? plugin.state.data.build().to(o).update(params)
@@ -602,7 +604,7 @@ function getChainLigands(carbEntity: any) {
     return {
         ligands,
         ligandChain,
-        ligandLabels
+        ligandLabels,
     };
 }
 
@@ -628,11 +630,13 @@ async function getCarbPolymerDetailsFromApi(plugin: PluginContext, pdb_id: strin
                 branchedlabels = branchedlabels.concat(carbLigData.ligandLabels);
             }
         }
-    } catch (e) { }
+    } catch (e) {
+        // ignore
+    }
 
     return {
         branchedChains,
         branchedLigands,
-        branchedlabels
+        branchedlabels,
     };
 }

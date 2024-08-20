@@ -8,9 +8,9 @@ import { PluginCustomState } from '../plugin-custom-state';
 
 const TransparencyParams = {
     score: PD.Numeric(70, { min: 0, max: 100, step: 1 }, { label: 'pLDDT less than', description: 'pLDDT score value in the range of 0 to 100' }),
-    opacity: PD.Numeric(0.2, { min: 0, max: 1, step: 0.01 }, { description: 'Opacity value in the range 0 to 1' })
+    opacity: PD.Numeric(0.2, { min: 0, max: 1, step: 0.01 }, { description: 'Opacity value in the range 0 to 1' }),
 };
-type TransparencyParams = PD.Values<typeof TransparencyParams>
+type TransparencyParams = PD.Values<typeof TransparencyParams>;
 
 export class AlphafoldTransparencyControls extends CollapsableControls<{}, { transpareny: any }> {
     defaultState() {
@@ -21,8 +21,8 @@ export class AlphafoldTransparencyControls extends CollapsableControls<{}, { tra
             isHidden: true,
             transpareny: {
                 score: 70,
-                opacity: 0.2
-            }
+                opacity: 0.2,
+            },
         };
     }
 

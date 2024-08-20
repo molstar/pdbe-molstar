@@ -22,8 +22,8 @@ export class PDBeViewportControls extends ViewportControls {
             pdbeImg: {
                 src: 'https://www.ebi.ac.uk/pdbe/entry/static/images/logos/PDBe/logo_T_64.png',
                 alt: 'PDBe logo',
-                style: { height: '12px', width: '12px', border: 0, position: 'absolute', margin: '4px 0 0 -13px' }
-            }
+                style: { height: '12px', width: '12px', border: 0, position: 'absolute', margin: '4px 0 0 -13px' },
+            },
         } as const;
 
         return <>

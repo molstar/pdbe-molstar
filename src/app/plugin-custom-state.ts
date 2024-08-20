@@ -44,8 +44,8 @@ export interface PluginCustomState {
             visibility: boolean[],
             transforms: Mat4[],
             rmsds: string[][],
-            coordinateSystems: (SymmetryOperator | undefined)[]
-        }
+            coordinateSystems: (SymmetryOperator | undefined)[],
+        },
 
     },
     superpositionError?: string,

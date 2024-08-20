@@ -1,3 +1,5 @@
+/* eslint-disable no-undef, no-restricted-syntax */
+
 import { LitElement } from 'lit-element';
 
 class PdbeMolstar extends LitElement {

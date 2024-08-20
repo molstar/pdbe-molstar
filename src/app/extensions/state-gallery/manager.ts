@@ -60,7 +60,7 @@ export interface StateGalleryData {
     last_modification?: string,
 }
 const ImageCategory = ['Entry', 'Assemblies', 'Entities', 'Ligands', 'Modified residues', 'Domains', 'Miscellaneous'] as const;
-type ImageCategory = typeof ImageCategory[number]
+type ImageCategory = typeof ImageCategory[number];
 
 export interface Image {
     filename: string,
@@ -110,7 +110,7 @@ export class StateGalleryManager {
             replaceCamera: {
                 camera: (this.options.LoadCameraOrientation && !this.firstLoaded) ? newCamera : oldCamera,
                 transitionDurationInMs: 0,
-            }
+            },
         });
         await this.plugin.managers.snapshot.setStateSnapshot(JSON.parse(snapshot));
         await sleep(this.firstLoaded ? this.options.CameraPreTransitionMs : 0); // it is necessary to sleep even for 0 ms here, to get animation

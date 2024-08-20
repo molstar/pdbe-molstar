@@ -11,7 +11,7 @@ import { StateBuilder, StateObjectCell, StateSelection, StateTransform } from 'm
 import { Transparency } from 'molstar/lib/mol-theme/transparency';
 
 
-type TransparencyEachReprCallback = (update: StateBuilder.Root, repr: StateObjectCell<PluginStateObject.Molecule.Structure.Representation3D, StateTransform<typeof StateTransforms.Representation.StructureRepresentation3D>>, transparency?: StateObjectCell<any, StateTransform<typeof StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle>>) => Promise<void>
+type TransparencyEachReprCallback = (update: StateBuilder.Root, repr: StateObjectCell<PluginStateObject.Molecule.Structure.Representation3D, StateTransform<typeof StateTransforms.Representation.StructureRepresentation3D>>, transparency?: StateObjectCell<any, StateTransform<typeof StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle>>) => Promise<void>;
 const TransparencyManagerTag = 'transparency-controls';
 
 function getLociByPLDDT(score: number, contextData: Structure) {
@@ -21,9 +21,9 @@ function getLociByPLDDT(score: number, contextData: Structure) {
                 MS.struct.generator.atomGroups({
                     'chain-test': MS.core.rel.eq([MS.ammp('objectPrimitive'), 'atomistic']),
                     'residue-test': MS.core.rel.lte([QualityAssessment.symbols.pLDDT.symbol(), score]),
-                })
-            ])
-        ])
+                }),
+            ]),
+        ]),
     ]);
 
     const query = compile<StructureSelection>(queryExp);

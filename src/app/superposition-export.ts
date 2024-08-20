@@ -83,7 +83,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
                 title: 'Export Models',
                 message: 'No visible structure in the 3D view to export!',
                 key: 'superposition-toast-1',
-                timeoutMs: 7000
+                timeoutMs: 7000,
             });
             return;
         }
