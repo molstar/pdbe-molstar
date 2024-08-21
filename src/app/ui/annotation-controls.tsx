@@ -18,10 +18,10 @@ import { TextsmsOutlinedSvg } from './icons';
 import { SymmetryAnnotationControls, isAssemblySymmetryAnnotationApplicable } from './symmetry-annotation-controls';
 
 
-type AnnotationType = 'validation' | 'domains' | 'symmetry'
+type AnnotationType = 'validation' | 'domains' | 'symmetry';
 
 type StructureQualityReportColorThemeParams = typeof StructureQualityReportColorThemeParams;
-type StructureQualityReportColorThemeProps = PD.Values<StructureQualityReportColorThemeParams>
+type StructureQualityReportColorThemeProps = PD.Values<StructureQualityReportColorThemeParams>;
 
 interface AnnotationsComponentControlsState {
     isCollapsed: boolean,

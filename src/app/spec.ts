@@ -16,7 +16,7 @@ import { PDBeSIFTSMapping } from './sifts-mappings-behaviour';
 
 export const DefaultPluginSpec = (): PluginSpec => ({
     actions: [
-        PluginSpec.Action(StateActions.Structure.EnableStructureCustomProps)
+        PluginSpec.Action(StateActions.Structure.EnableStructureCustomProps),
     ],
     behaviors: [
         PluginSpec.Behavior(PluginBehaviors.Representation.HighlightLoci),
@@ -38,13 +38,13 @@ export const DefaultPluginSpec = (): PluginSpec => ({
     config: [
         [PluginConfig.VolumeStreaming.DefaultServer, 'https://www.ebi.ac.uk/pdbe/volume-server'],
         [PluginConfig.VolumeStreaming.EmdbHeaderServer, 'https://files.wwpdb.org/pub/emdb/structures'],
-    ]
+    ],
 });
 
 export const DefaultPluginUISpec = (): PluginUISpec => ({
     ...DefaultPluginSpec(),
     customParamEditors: [
-        [CreateVolumeStreamingBehavior, VolumeStreamingCustomControls]
+        [CreateVolumeStreamingBehavior, VolumeStreamingCustomControls],
     ],
 });
 
@@ -53,26 +53,26 @@ export const DefaultPluginUISpec = (): PluginUISpec => ({
 export interface ColorParams { r: number, g: number, b: number }
 
 /** Color name (e.g. 'yellow') or hexcode (e.g. '#ffff00') or Molstar color encoding (e.g. 16776960) or RGB color object (e.g. { r: 255, g: 255, b: 0 }) */
-export type AnyColor = ColorParams | string | number
+export type AnyColor = ColorParams | string | number;
 
 
 export const Preset = ['default', 'unitcell', 'all-models', 'supercell'] as const;
-export type Preset = (typeof Preset)[number]
+export type Preset = (typeof Preset)[number];
 
 export const Lighting = ['flat', 'matte', 'glossy', 'metallic', 'plastic'] as const;
-export type Lighting = (typeof Lighting)[number]
+export type Lighting = (typeof Lighting)[number];
 
 /** Structure component type ('het' includes Molstar types 'ligand' and 'ion') */
 export const ComponentType = ['polymer', 'het', 'water', 'carbs', 'nonStandard', 'coarse'] as const;
-export type ComponentType = (typeof ComponentType)[number]
+export type ComponentType = (typeof ComponentType)[number];
 
 /** Structure representation type */
 export const VisualStyle = ['cartoon', 'ball-and-stick', 'carbohydrate', 'ellipsoid', 'gaussian-surface', 'molecular-surface', 'point', 'putty', 'spacefill'] as const;
-export type VisualStyle = (typeof VisualStyle)[number]
+export type VisualStyle = (typeof VisualStyle)[number];
 /** Specification of visual style for a single component visual, e.g. `'cartoon'` or `{type: 'putty', size: 'uniform'}` */
-type ComponentVisualStyleSpec = VisualStyle | StructureRepresentationBuiltInProps
+type ComponentVisualStyleSpec = VisualStyle | StructureRepresentationBuiltInProps;
 /** Specification of visual styles for individual component types, e.g. `'cartoon'` (all components as cartoon) or `{polymer: {type: 'putty', size: 'uniform'}, ligand: 'ball-and-stick'}` */
-export type VisualStylesSpec = ComponentVisualStyleSpec | { [component in ComponentType]?: ComponentVisualStyleSpec }
+export type VisualStylesSpec = ComponentVisualStyleSpec | { [component in ComponentType]?: ComponentVisualStyleSpec };
 
 /** Normalize a `VisualStylesSpec` to a form {polymer?:{...},het?:{...},...} */
 export function resolveVisualStyleSpec(spec: VisualStylesSpec): { [component in ComponentType]?: StructureRepresentationBuiltInProps } {
@@ -94,7 +94,7 @@ function resolveComponentVisualStyleSpec(spec: ComponentVisualStyleSpec): Struct
 
 /** Structure file format */
 export const Encoding = ['cif', 'bcif'] as const;
-export type Encoding = (typeof Encoding)[number]
+export type Encoding = (typeof Encoding)[number];
 
 
 /** Options for initializing `PDBeMolstarPlugin` */

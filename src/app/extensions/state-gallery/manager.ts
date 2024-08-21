@@ -61,7 +61,7 @@ export interface StateGalleryData {
     last_modification?: string,
 }
 const ImageCategory = ['Entry', 'Assemblies', 'Entities', 'Ligands', 'Modified residues', 'Domains', 'Miscellaneous'] as const;
-type ImageCategory = typeof ImageCategory[number]
+type ImageCategory = typeof ImageCategory[number];
 
 export interface Image {
     filename: string,
@@ -73,7 +73,7 @@ export interface Image {
 }
 
 
-export type LoadingStatus = 'ready' | 'loading' | 'error'
+export type LoadingStatus = 'ready' | 'loading' | 'error';
 
 
 export class StateGalleryManager {

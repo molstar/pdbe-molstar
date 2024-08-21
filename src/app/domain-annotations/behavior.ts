@@ -10,14 +10,14 @@ export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean
     category: 'custom-props',
     display: {
         name: 'Domain annotations',
-        description: 'Data for domain annotations, obtained via PDBe.'
+        description: 'Data for domain annotations, obtained via PDBe.',
     },
     ctor: class extends PluginBehavior.Handler<{ autoAttach: boolean, showTooltip: boolean }> {
 
         private provider = DomainAnnotationsProvider;
 
         private labelDomainAnnotations = {
-            label: (loci: Loci): string | undefined => undefined
+            label: (loci: Loci): string | undefined => undefined,
         };
 
         register(): void {
@@ -43,5 +43,5 @@ export const PDBeDomainAnnotations = PluginBehavior.create<{ autoAttach: boolean
     params: () => ({
         autoAttach: PD.Boolean(false),
         showTooltip: PD.Boolean(true),
-    })
+    }),
 });

@@ -6,10 +6,10 @@ import { EventDetail, lociDetails } from './loci-details';
 
 export namespace CustomEvents {
     function createEvent(eventType: string): MouseEvent {
-        if (typeof MouseEvent == 'function') {
+        if (typeof MouseEvent === 'function') {
             // current standard
             return new MouseEvent(eventType, { 'view': window, 'bubbles': true, 'cancelable': true });
-        } else if (typeof document.createEvent == 'function') {
+        } else if (typeof document.createEvent === 'function') {
             // older standard
             const event = document.createEvent('MouseEvents');
             event.initEvent(eventType, true /* bubbles */, true /* cancelable */);

@@ -24,6 +24,7 @@ import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
 import { CustomStructureProperties, StructureComponent } from 'molstar/lib/mol-plugin-state/transforms/model';
 import { StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 import { createPluginUI } from 'molstar/lib/mol-plugin-ui/index';
+import { renderReact18 } from 'molstar/lib/mol-plugin-ui/react18';
 import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { FocusLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/camera';
 import { SelectLoci } from 'molstar/lib/mol-plugin/behavior/dynamic/representation';
@@ -58,7 +59,7 @@ import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStru
 import { PDBeViewport } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
-import { LayoutSpec, createPluginSplitUI, renderReact18, resolveHTMLElement } from './ui/split-ui/split-ui';
+import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 
 
 export class PDBeMolstarPlugin {
@@ -67,7 +68,7 @@ export class PDBeMolstarPlugin {
     private _ev = RxEventHelper.create();
 
     readonly events = {
-        loadComplete: this._ev<boolean>()
+        loadComplete: this._ev<boolean>(),
     };
 
     plugin: PluginContext;
@@ -140,7 +141,7 @@ export class PDBeMolstarPlugin {
                     bottom: this.initParams.logPanel ? 'full' : 'hidden',
                 },
                 controlsDisplay: this.initParams.reactive ? 'reactive' : this.initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
-            }
+            },
         };
 
         pdbePluginSpec.components = {
@@ -168,9 +169,9 @@ export class PDBeMolstarPlugin {
                 carbonColor: { name: 'element-symbol', params: {} },
                 focus: {
                     name: 'element-symbol',
-                    params: { carbonColor: { name: 'element-symbol', params: {} } }
-                }
-            }
+                    params: { carbonColor: { name: 'element-symbol', params: {} } },
+                },
+            },
         }]);
 
         ElementSymbolColorThemeParams.carbonColor.defaultValue = { name: 'element-symbol', params: {} };
@@ -337,7 +338,7 @@ export class PDBeMolstarPlugin {
 
         let ligandQuery;
         if (isBranched) {
-            ligandQuery = LigandView.branchedQuery(this.initParams.ligandView?.label_comp_id_list!);
+            ligandQuery = LigandView.branchedQuery(this.initParams.ligandView?.label_comp_id_list);
         } else {
             ligandQuery = LigandView.query(this.initParams.ligandView!);
         }
@@ -369,7 +370,7 @@ export class PDBeMolstarPlugin {
                 PluginCustomState(this.plugin).events?.isBusy.next(true);
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
-                let downloadOptions: any = void 0;
+                let downloadOptions: any = undefined;
                 let isBranchedView = false;
                 if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
                     isBranchedView = true;
@@ -382,9 +383,9 @@ export class PDBeMolstarPlugin {
                 let structRef: string;
                 if (!isHetView) {
                     await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
-                        structure: assemblyId ? (assemblyId === 'preferred') ? void 0 : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
+                        structure: assemblyId ? (assemblyId === 'preferred') ? undefined : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
                         showUnitcell: false,
-                        representationPreset: 'auto'
+                        representationPreset: 'auto',
                     });
                     structRef = this.plugin.state.data.selectQ(q => q.byRef(data.ref).subtree().ofType(PluginStateObject.Molecule.Structure))[0].transform.ref;
                     if (this.initParams.hideStructure.length > 0 || this.initParams.visualStyle) {

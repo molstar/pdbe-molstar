@@ -1,15 +1,11 @@
 
 import { PluginReactContext } from 'molstar/lib/mol-plugin-ui/base';
 import { PluginUIContext } from 'molstar/lib/mol-plugin-ui/context';
+import { renderReact18 } from 'molstar/lib/mol-plugin-ui/react18';
 import { PluginUISpec } from 'molstar/lib/mol-plugin-ui/spec';
 import { ComponentProps, JSXElementConstructor, createElement, useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import { DefaultPluginUISpec } from '../../spec';
 
-
-export function renderReact18(element: any, target: Element) { // TODO import this from src/mol-plugin-ui/react18.ts once using MolStar 4.x.x
-    createRoot(target).render(element);
-}
 
 export interface LayoutSpecComponent<T extends JSXElementConstructor<any>> {
     target: string | HTMLElement,
@@ -20,7 +16,7 @@ export function LayoutSpecComponent<T extends JSXElementConstructor<any>>(target
     return { target, component, props };
 }
 
-export type LayoutSpec = LayoutSpecComponent<any>[]
+export type LayoutSpec = LayoutSpecComponent<any>[];
 
 
 export async function createPluginSplitUI(options: {
@@ -66,7 +62,7 @@ export function resolveHTMLElement(element: HTMLElement | string): HTMLElement {
     }
 }
 
-type LoadState = { kind: 'initialized' } | { kind: 'pending' } | { kind: 'error', message: string }
+type LoadState = { kind: 'initialized' } | { kind: 'pending' } | { kind: 'error', message: string };
 
 function PluginPanelWrapper<P extends {}>({ plugin, component, props }: { plugin: PluginUIContext, component: JSXElementConstructor<P>, props: P }) {
     const [state, setState] = useState<LoadState>({ kind: 'pending' });

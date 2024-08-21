@@ -73,7 +73,9 @@ const InitParamsLoadingActions: AttributeLoadingActions<Partial<InitParams>> = {
 
 
 /** Actions for loading individual HTML attributes into a context */
-type AttributeLoadingActions<TContext> = { [attribute: string]: (value: string, context: TContext) => any }
+interface AttributeLoadingActions<TContext> {
+    [attribute: string]: (value: string, context: TContext) => any,
+};
 
 /** Load attributes of an HTML element into a context */
 function loadHtmlAttributes<TContext>(element: HTMLElement, actions: AttributeLoadingActions<TContext>, context: TContext): TContext {
@@ -88,7 +90,7 @@ function loadHtmlAttributes<TContext>(element: HTMLElement, actions: AttributeLo
 
 
 /** Select keys of an object type `T` which except type `V` as value */
-type KeyWith<T, V> = Exclude<{ [key in keyof T]: V extends T[key] ? key : never }[keyof T], undefined>
+type KeyWith<T, V> = Exclude<{ [key in keyof T]: V extends T[key] ? key : never }[keyof T], undefined>;
 
 function setString<T>(key: KeyWith<T, string>) {
     return (value: string, obj: T) => { obj[key] = value as any; };

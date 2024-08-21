@@ -20,7 +20,7 @@ interface StateGalleryControlsState {
 const Params = {
     entryId: PD.Text(),
 };
-type Values = PD.ValuesFor<typeof Params>
+type Values = PD.ValuesFor<typeof Params>;
 
 
 export class StateGalleryControls extends CollapsableControls<{}, StateGalleryControlsState> {

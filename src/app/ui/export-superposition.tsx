@@ -14,7 +14,7 @@ export class SuperpositionModelExportUI extends CollapsableControls<{}, {}> {
         return {
             header: 'Export Models',
             isCollapsed: true,
-            brand: { accent: 'cyan', svg: GetAppSvg }
+            brand: { accent: 'cyan', svg: GetAppSvg },
         };
     }
     protected renderControls(): JSX.Element | null {
@@ -23,7 +23,7 @@ export class SuperpositionModelExportUI extends CollapsableControls<{}, {}> {
 }
 
 const Params = {
-    format: PD.Select<'cif' | 'bcif'>('cif', [['cif', 'mmCIF'], ['bcif', 'Binary mmCIF']])
+    format: PD.Select<'cif' | 'bcif'>('cif', [['cif', 'mmCIF'], ['bcif', 'Binary mmCIF']]),
 };
 const DefaultParams = PD.getDefaultValues(Params);
 

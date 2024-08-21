@@ -19,7 +19,7 @@ export class AlphafoldPaeControls extends CollapsableControls {
             isCollapsed: false,
             header: 'AlphaFold PAE',
             brand: { accent: 'gray' as const, svg: SuperpositionSvg },
-            isHidden: true
+            isHidden: true,
         };
     }
 
@@ -108,7 +108,7 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
             isCollapsed: false,
             header: 'AlphaFold Superposition',
             brand: { accent: 'gray' as const, svg: SuperpositionSvg },
-            isHidden: true
+            isHidden: true,
         };
     }
 
@@ -158,18 +158,16 @@ export class AlphafoldSuperpositionControls extends CollapsableControls {
 
 export const AlphafoldSuperpositionParams = {
     // alignSequences: PD.Boolean(true, { isEssential: true, description: 'For Chain-based 3D superposition, perform a sequence alignment and use the aligned residue pairs to guide the 3D superposition.' }),
-    traceOnly: PD.Boolean(true, { description: 'For Chain- and Uniprot-based 3D superposition, base superposition only on CA (and equivalent) atoms.' })
+    traceOnly: PD.Boolean(true, { description: 'For Chain- and Uniprot-based 3D superposition, base superposition only on CA (and equivalent) atoms.' }),
 };
 const DefaultAlphafoldSuperpositionOptions = PD.getDefaultValues(AlphafoldSuperpositionParams);
-export type AlphafoldSuperpositionOptions = PD.ValuesFor<typeof AlphafoldSuperpositionParams>
+export type AlphafoldSuperpositionOptions = PD.ValuesFor<typeof AlphafoldSuperpositionParams>;
 
-// const SuperpositionTag = 'SuperpositionTransform';
-
-type AfSuperpositionControlsState = {
+interface AfSuperpositionControlsState {
     isBusy: boolean,
     action?: 'byChains' | 'byAtoms' | 'options',
     canUseDb?: boolean,
-    options: AlphafoldSuperpositionOptions
+    options: AlphafoldSuperpositionOptions,
 }
 
 export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpositionControlsState> {
@@ -177,7 +175,7 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
         isBusy: false,
         canUseDb: true,
         action: undefined,
-        options: DefaultAlphafoldSuperpositionOptions
+        options: DefaultAlphafoldSuperpositionOptions,
     };
 
     componentDidMount() {
@@ -202,7 +200,7 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
         superposeAf(this.plugin, this.state.options.traceOnly);
     };
 
-    toggleOptions = () => this.setState({ action: this.state.action === 'options' ? void 0 : 'options' });
+    toggleOptions = () => this.setState({ action: this.state.action === 'options' ? undefined : 'options' });
 
     superposeByDbMapping() {
         return <>

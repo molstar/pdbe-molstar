@@ -6,7 +6,7 @@ import { PluginCustomState } from '../plugin-custom-state';
 /** Return a React component with MainContent, overlayed by OverlayContent when `PluginCustomState(this.plugin).events?.isBusy` last emitted value is true. */
 export function WithLoadingOverlay(MainContent: JSXElementConstructor<{}>, OverlayContent: JSXElementConstructor<{}> = PDBeLoadingOverlayBox): ComponentClass<{}> {
     return class _WithLoadingOverlay extends PurePluginUIComponent<{}, { showOverlay: boolean }> {
-        state: Readonly<{ showOverlay: boolean; }> = { showOverlay: false };
+        state: Readonly<{ showOverlay: boolean }> = { showOverlay: false };
         componentDidMount(): void {
             super.componentDidMount?.();
             const busyEvent = PluginCustomState(this.plugin).events?.isBusy;

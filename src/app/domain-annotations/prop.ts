@@ -15,7 +15,7 @@ type DomainAnnotations = PropertyWrapper<{
     domains: IndexedCustomProperty.Residue<string[]>,
     domainNames: string[][],
     domainTypes: string[],
-} | undefined>
+} | undefined>;
 
 namespace DomainAnnotations {
 
@@ -72,15 +72,15 @@ namespace DomainAnnotations {
 }
 
 export const DomainAnnotationsParams = {
-    serverUrl: PD.Text(DomainAnnotations.DefaultServerUrl, { description: 'JSON API Server URL' })
+    serverUrl: PD.Text(DomainAnnotations.DefaultServerUrl, { description: 'JSON API Server URL' }),
 };
-export type DomainAnnotationsParams = typeof DomainAnnotationsParams
-export type DomainAnnotationsProps = PD.Values<DomainAnnotationsParams>
+export type DomainAnnotationsParams = typeof DomainAnnotationsParams;
+export type DomainAnnotationsProps = PD.Values<DomainAnnotationsParams>;
 
 export const DomainAnnotationsProvider: CustomModelProperty.Provider<DomainAnnotationsParams, DomainAnnotations> = CustomModelProperty.createProvider({
     label: 'Domain annotations',
     descriptor: CustomPropertyDescriptor({
-        name: 'domain_annotations'
+        name: 'domain_annotations',
     }),
     type: 'static',
     defaultParams: DomainAnnotationsParams,
@@ -89,7 +89,7 @@ export const DomainAnnotationsProvider: CustomModelProperty.Provider<DomainAnnot
     obtain: async (ctx: CustomProperty.Context, data: Model, props: Partial<DomainAnnotationsProps>) => {
         const p = { ...PD.getDefaultValues(DomainAnnotationsParams), ...props };
         return await DomainAnnotations.fromServer(ctx, data, p);
-    }
+    },
 });
 
 function findChainLabel(map: any, label_entity_id: string, label_asym_id: string): ChainIndex {
@@ -145,7 +145,7 @@ function createdomainMapFromJson(modelData: Model, data: any): DomainAnnotations
     return {
         domains: IndexedCustomProperty.fromResidueMap(ret),
         domainNames,
-        domainTypes
+        domainTypes,
     };
 }
 

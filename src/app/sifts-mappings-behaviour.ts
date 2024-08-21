@@ -18,7 +18,7 @@ export const PDBeSIFTSMapping = PluginBehavior.create<{ autoAttach: boolean, sho
             label: (loci: Loci): string | undefined => {
                 if (!this.params.showTooltip) return;
                 return PDBeBestDatabaseSequenceMappingLabel(loci);
-            }
+            },
         };
 
         update(p: { autoAttach: boolean, showTooltip: boolean }) {
@@ -46,11 +46,10 @@ export const PDBeSIFTSMapping = PluginBehavior.create<{ autoAttach: boolean, sho
     },
     params: () => ({
         autoAttach: PD.Boolean(true),
-        showTooltip: PD.Boolean(true)
-    })
+        showTooltip: PD.Boolean(true),
+    }),
 });
 
-//
 
 function PDBeBestDatabaseSequenceMappingLabel(loci: Loci): string | undefined {
     if (loci.kind === 'element-loci') {

@@ -12,7 +12,7 @@ export const StateGalleryExtensionFunctions = {
     StateGalleryManager,
 };
 
-export type StateGalleryCustomState = {
+export interface StateGalleryCustomState {
     title: BehaviorSubject<string | undefined>,
     manager: BehaviorSubject<StateGalleryManager | undefined>,
     status: BehaviorSubject<LoadingStatus>,

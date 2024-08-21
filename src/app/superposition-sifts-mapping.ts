@@ -10,20 +10,20 @@ import { SIFTSMapping } from './sifts-mapping';
 export interface AlignmentResultEntry {
     transform: MinimizeRmsd.Result,
     pivot: number,
-    other: number
+    other: number,
 }
 
 export interface AlignmentResult {
     entries: AlignmentResultEntry[],
     zeroOverlapPairs: [number, number][],
-    failedPairs: [number, number][]
+    failedPairs: [number, number][],
 }
 
-type IncludeResidueTest = (traceElementOrFirstAtom: StructureElement.Location<Unit.Atomic>, residueIndex: ResidueIndex, startIndex: ElementIndex, endIndex: ElementIndex) => boolean
+type IncludeResidueTest = (traceElementOrFirstAtom: StructureElement.Location<Unit.Atomic>, residueIndex: ResidueIndex, startIndex: ElementIndex, endIndex: ElementIndex) => boolean;
 
 export function alignAndSuperposeWithSIFTSMapping(
     structures: Structure[],
-    options?: { traceOnly?: boolean, includeResidueTest?: IncludeResidueTest, applyTestIndex?: number[] }
+    options?: { traceOnly?: boolean, includeResidueTest?: IncludeResidueTest, applyTestIndex?: number[] },
 ): AlignmentResult {
     const indexMap = new Map<string, IndexEntry>();
 
@@ -136,7 +136,7 @@ function findPairs(N: number, index: IndexEntry[]) {
 
 interface IndexEntry {
     key: string,
-    pivots: { [i: number]: [unit: Unit.Atomic, start: ElementIndex, end: ElementIndex] | undefined }
+    pivots: { [i: number]: [unit: Unit.Atomic, start: ElementIndex, end: ElementIndex] | undefined },
 }
 
 function _includeAllResidues() { return true; }

@@ -10,33 +10,26 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { AnnotationRowControls } from './annotation-row-controls';
 
 
-type SymmetryParams = {
+const DefaultSymmetryParams = {
     /** State of the visibility button */
-    on: PD.BooleanParam,
+    on: PD.Boolean(false, { isHidden: true }),
     /** Index of the currently selected symmetry (in case there a more symmetries for an assembly), regardless of whether visibility is on of off */
-    symmetryIndex: PD.Select<number>,
+    symmetryIndex: PD.Select(0, [[0, 'Auto']]),
     /** `true` if symmetry data have been retrieved but do not contain any non-trivial symmetry */
-    noSymmetries: PD.BooleanParam,
-}
+    noSymmetries: PD.Boolean(false, { isHidden: true }),
+};
 
-type SymmetryParamValues = PD.ValuesFor<SymmetryParams>
+type SymmetryParams = typeof DefaultSymmetryParams;
+type SymmetryProps = PD.ValuesFor<SymmetryParams>;
 
 interface SymmetryControlsState {
     params: SymmetryParams,
-    values: SymmetryParamValues,
+    values: SymmetryProps,
 }
 
 const DefaultSymmetryControlsState: SymmetryControlsState = {
-    params: {
-        on: PD.Boolean(false, { isHidden: true }),
-        symmetryIndex: PD.Select(0, [[0, 'Auto']]),
-        noSymmetries: PD.Boolean(false, { isHidden: true }),
-    },
-    values: {
-        on: false,
-        symmetryIndex: 0,
-        noSymmetries: false,
-    },
+    params: DefaultSymmetryParams,
+    values: PD.getDefaultValues(DefaultSymmetryParams),
 };
 
 
@@ -159,8 +152,8 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
         }
     }
 
-    /** Run changes needed to change parameter values, and set UI accordingly*/
-    async changeParamValues(values: SymmetryParamValues) {
+    /** Run changes needed to change parameter values, and set UI accordingly */
+    async changeParamValues(values: SymmetryProps) {
         const struct = this.getPivotStructure();
         if (!struct) return;
         const currValues = this.getRealValues();

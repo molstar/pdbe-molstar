@@ -12,14 +12,14 @@ export interface SIFTSMappingMapping {
     readonly dbName: string[],
     readonly accession: string[],
     readonly num: string[],
-    readonly residue: string[]
+    readonly residue: string[],
 }
 
 namespace SIFTSMapping {
     export const Provider: CustomModelProperty.Provider<{}, SIFTSMappingMapping> = CustomModelProperty.createProvider({
         label: 'SIFTS Mapping',
         descriptor: CustomPropertyDescriptor({
-            name: 'sifts_sequence_mapping'
+            name: 'sifts_sequence_mapping',
         }),
         type: 'static',
         defaultParams: {},
@@ -27,7 +27,7 @@ namespace SIFTSMapping {
         isApplicable: (data: Model) => isAvailable(data),
         obtain: async (ctx, data) => {
             return { value: fromCif(data) };
-        }
+        },
     });
 
     export function isAvailable(model: Model) {
@@ -37,7 +37,7 @@ namespace SIFTSMapping {
             pdbx_sifts_xref_db_name: db_name,
             pdbx_sifts_xref_db_acc: db_acc,
             pdbx_sifts_xref_db_num: db_num,
-            pdbx_sifts_xref_db_res: db_res
+            pdbx_sifts_xref_db_res: db_res,
         } = model.sourceData.data.db.atom_site;
 
         return db_name.isDefined && db_acc.isDefined && db_num.isDefined && db_res.isDefined;
@@ -68,7 +68,7 @@ namespace SIFTSMapping {
             pdbx_sifts_xref_db_name: db_name,
             pdbx_sifts_xref_db_acc: db_acc,
             pdbx_sifts_xref_db_num: db_num,
-            pdbx_sifts_xref_db_res: db_res
+            pdbx_sifts_xref_db_res: db_res,
         } = model.sourceData.data.db.atom_site;
 
         if (!db_name.isDefined || !db_acc.isDefined || !db_num.isDefined || !db_res.isDefined) return;

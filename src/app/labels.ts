@@ -29,11 +29,11 @@ export const PDBeLociLabelProvider = PluginBehavior.create({
                 return label.filter(l => !!l).join('</br>');
             },
             group: (label: LociLabel) => label.toString().replace(/Model [0-9]+/g, 'Models'),
-            priority: 100
+            priority: 100,
         };
         register() { this.ctx.managers.lociLabels.addProvider(this.f); }
         unregister() { this.ctx.managers.lociLabels.removeProvider(this.f); }
         constructor(protected ctx: PluginContext) { }
     },
-    display: { name: 'Provide PDBe Loci Label' }
+    display: { name: 'Provide PDBe Loci Label' },
 });

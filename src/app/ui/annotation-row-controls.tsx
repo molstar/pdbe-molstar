@@ -5,7 +5,7 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
 
 
-type AnnotationRowControlsProps<P extends PD.Params> = ParameterControlsProps<P> & {
+interface AnnotationRowControlsProps<P extends PD.Params> extends ParameterControlsProps<P> {
     shortTitle?: string,
     title: string,
     applied?: boolean,
@@ -13,7 +13,7 @@ type AnnotationRowControlsProps<P extends PD.Params> = ParameterControlsProps<P>
     errorMessage?: string,
 }
 
-type AnnotationRowControlsState = {
+interface AnnotationRowControlsState {
     applied: boolean,
     optionsExpanded: boolean,
 }
