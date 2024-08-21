@@ -132,10 +132,8 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
             </div>
         </ExpandGroup>
         <ExpandGroup header='Description' initiallyExpanded={true} key='description'>
-            <div className='pdbemolstar-state-gallery-legend' style={{ marginBlock: 6 }}>
-                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>
-                    {selected?.alt}
-                </div>
+            <div className='pdbemolstar-state-gallery-legend'>
+                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{selected?.alt}</div>
                 <div dangerouslySetInnerHTML={{ __html: selected?.description ?? '' }} />
             </div>
         </ExpandGroup>
@@ -148,11 +146,11 @@ function StateButton(props: { img: Image, isSelected: boolean, status: LoadingSt
     const icon = !isSelected ? EmptyIconSvg : (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
     const title = img.simple_title ?? img.filename;
     const errorMsg = (isSelected && status === 'error') ? '[Failed to load] ' : '';
-    return <Button className='msp-action-menu-button'
+    return <Button className='msp-action-menu-button pdbemolstar-state-gallery-state-button'
         icon={icon}
         onClick={onClick}
         title={`${errorMsg}${title}`}
-        style={{ height: 24, lineHeight: '24px', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSelected ? 'bold' : undefined }}>
+        style={{ fontWeight: isSelected ? 'bold' : undefined }}>
         {title}
     </Button>;
 }
@@ -181,35 +179,27 @@ export function StateGalleryTitleBox() {
         return () => subs.forEach(sub => sub?.unsubscribe());
     }, [plugin]);
 
-    const IconWidth = '1.2em'; // width of msp-material-icon
-
     if (title === undefined) return null;
 
     return <div className='pdbemolstar-state-gallery-title-box'>
-        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
-            {manager &&
-                <div>
-                    <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
-                        title='Previous state' icon={ChevronLeftSvg}
-                        onClick={() => manager.loadPrevious()} />
-                </div>
-            }
-            <div style={{ padding: 5, textAlign: 'center', fontWeight: 'bold', display: 'flex', flexDirection: 'row' }}
-                title={status === 'error' ? `${title} (failed to load)` : status === 'loading' ? `${title} (loading)` : title} >
-                <div style={{ width: IconWidth }}>
-                    <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />
-                </div>
-                <div style={{ marginRight: IconWidth, paddingInline: 4 }}>
-                    {title}
-                </div>
+        {manager &&
+            <div>
+                <Button className='msp-btn-icon' title='Previous state' icon={ChevronLeftSvg} onClick={() => manager.loadPrevious()} />
             </div>
-            {manager &&
-                <div>
-                    <Button className='msp-btn-icon' style={{ backgroundColor: 'transparent', height: '100%' }}
-                        title='Next state' icon={ChevronRightSvg}
-                        onClick={() => manager?.loadNext()} />
-                </div>
-            }
+        }
+        <div className='pdbemolstar-state-gallery-title'
+            title={status === 'error' ? `${title} (failed to load)` : status === 'loading' ? `${title} (loading)` : title} >
+            <div className='pdbemolstar-state-gallery-title-icon'>
+                <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />
+            </div>
+            <div className='pdbemolstar-state-gallery-title-text'>
+                {title}
+            </div>
         </div>
+        {manager &&
+            <div>
+                <Button className='msp-btn-icon' title='Next state' icon={ChevronRightSvg} onClick={() => manager?.loadNext()} />
+            </div>
+        }
     </div >;
 }
