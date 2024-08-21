@@ -6,7 +6,8 @@ import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { isPlainObject } from 'molstar/lib/mol-util/object';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { BehaviorSubject } from 'rxjs';
-import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, distinct } from '../../helpers';
+import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distinct, nonnegativeModulo } from '../../helpers';
+import { StateGalleryCustomState } from './behavior';
 import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
 
 
@@ -64,19 +65,30 @@ type ImageCategory = typeof ImageCategory[number];
 
 export interface Image {
     filename: string,
-    alt: string,
-    description: string,
-    clean_description: string,
+    alt?: string,
+    description?: string,
+    clean_description?: string,
     category?: ImageCategory,
     simple_title?: string,
 }
 
 
+export type LoadingStatus = 'ready' | 'loading' | 'error';
+
+
 export class StateGalleryManager {
     public readonly images: Image[];
-    public readonly requestedStateName = new BehaviorSubject<string | undefined>(undefined);
-    public readonly loadedStateName = new BehaviorSubject<string | undefined>(undefined);
-    /** True if at least one state has been loaded (this is to skip animation on the first load) */
+    /** Maps filename to its index within `this.images` */
+    private readonly filenameIndex: Map<string, number>;
+    public readonly events = {
+        /** Image that has been requested to load most recently. */
+        requestedImage: new BehaviorSubject<Image | undefined>(undefined),
+        /** Image that has been successfully loaded most recently. Undefined if another state has been requested since. */
+        loadedImage: new BehaviorSubject<Image | undefined>(undefined),
+        /** Loading status. */
+        status: new BehaviorSubject<LoadingStatus>('ready'),
+    };
+    /** True if at least one image has been loaded (this is to skip animation on the first load) */
     private firstLoaded = false;
 
     private constructor(
@@ -87,6 +99,17 @@ export class StateGalleryManager {
     ) {
         const allImages = listImages(data, true);
         this.images = removeWithSuffixes(allImages, ['_side', '_top']); // removing images in different orientation than 'front'
+        this.filenameIndex = createIndex(this.images.map(img => img.filename));
+        this.events.status.subscribe(status => {
+            const customState = StateGalleryCustomState(this.plugin);
+            customState.status?.next(status);
+            if (customState.manager?.value !== this) customState.manager?.next(this);
+        });
+        this.events.requestedImage.subscribe(img => {
+            const customState = StateGalleryCustomState(this.plugin);
+            customState.title?.next(img?.simple_title ?? img?.filename);
+            if (customState.manager?.value !== this) customState.manager?.next(this);
+        });
     }
 
     static async create(plugin: PluginContext, entryId: string, options?: Partial<StateGalleryConfigValues>) {
@@ -122,14 +145,40 @@ export class StateGalleryManager {
         this.firstLoaded = true;
     }
     private readonly loader = new PreemptiveQueue((filename: string) => this._load(filename));
-    async load(filename: string): Promise<PreemptiveQueueResult<void>> {
-        this.requestedStateName.next(filename);
-        this.loadedStateName.next(undefined);
-        const result = await this.loader.requestRun(filename);
-        if (result.status === 'completed') {
-            this.loadedStateName.next(filename);
+    async load(img: Image | string): Promise<PreemptiveQueueResult<void>> {
+        if (typeof img === 'string') {
+            img = this.getImageByFilename(img) ?? { filename: img };
         }
-        return result;
+        this.events.requestedImage.next(img);
+        this.events.loadedImage.next(undefined);
+        this.events.status.next('loading');
+        let result;
+        try {
+            result = await this.loader.requestRun(img.filename);
+            return result;
+        } finally {
+            if (result?.status === 'completed') {
+                this.events.loadedImage.next(img);
+                this.events.status.next('ready');
+            }
+            // if resolves with result.status 'cancelled' or 'skipped', keep current state
+            if (!result) {
+                this.events.status.next('error');
+            }
+        }
+    }
+    private async shift(shift: number) {
+        const current = this.events.requestedImage.value;
+        const iCurrent = (current !== undefined) ? this.filenameIndex.get(current.filename) : undefined;
+        let iNew = (iCurrent !== undefined) ? (iCurrent + shift) : (shift > 0) ? (shift - 1) : shift;
+        iNew = nonnegativeModulo(iNew, this.images.length);
+        return await this.load(this.images[iNew]);
+    }
+    async loadPrevious() {
+        return await this.shift(-1);
+    }
+    async loadNext() {
+        return await this.shift(1);
     }
 
     private readonly cache: { [filename: string]: string } = {};
@@ -140,6 +189,11 @@ export class StateGalleryManager {
     }
     async getSnapshot(filename: string): Promise<string> {
         return this.cache[filename] ??= await this.fetchSnapshot(filename);
+    }
+    private getImageByFilename(filename: string): Image | undefined {
+        const index = this.filenameIndex.get(filename);
+        if (index === undefined) return undefined;
+        return this.images[index];
     }
 }
 

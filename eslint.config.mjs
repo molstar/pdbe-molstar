@@ -12,7 +12,7 @@ export default tsEslint.config(
             '@stylistic': stylisticEslint,
         },
         rules: {
-            // Relax recommended rules
+            // RELAX RECOMMENDED RULES
             'prefer-const': [
                 'error',
                 {
@@ -26,7 +26,7 @@ export default tsEslint.config(
             '@typescript-eslint/no-unused-vars': 'off',
             '@typescript-eslint/no-empty-object-type': 'off',
 
-            // Additional rules - general
+            // ADDITIONAL RULES - GENERAL
             'eqeqeq': 'error', // Forbid using `==`, enforce `===`
             'no-eval': 'error', // Forbid using `eval`
             'no-new-wrappers': 'error',
@@ -42,10 +42,18 @@ export default tsEslint.config(
             'no-throw-literal': 'error', // Forbid throwing anything that's not Error, e.g. `throw 'Blabla'`
             '@typescript-eslint/prefer-namespace-keyword': 'error', // Forbid `module` keyword
 
-            // Additional rules - @stylistic
+            // ADDITIONAL RULES - @stylistic
             '@stylistic/indent': ['error', 4],
             '@stylistic/semi': 'error', // Enforce trailing semicolons, including after type definitions
-            '@stylistic/comma-dangle': ['error', 'always-multiline'], // Enforce comma after last listed item when closing ] or } is on the next line
+            '@stylistic/comma-dangle': ['error', { // Enforce comma after last listed item when closing ] or } is on the next line
+                arrays: 'always-multiline',
+                objects: 'always-multiline',
+                imports: 'always-multiline',
+                exports: 'always-multiline',
+                enums: 'always-multiline',
+                tuples: 'always-multiline',
+                functions: 'only-multiline', // This would look ugly after JSX syntax in `map`
+            }],
             '@stylistic/eol-last': 'error', // Enforce newline at the end of file
             '@stylistic/quotes': [
                 'error',
@@ -80,7 +88,7 @@ export default tsEslint.config(
                 },
             ],
 
-            // Additional rules - @stylistic - spacing
+            // ADDITIONAL RULES - @stylistic - SPACING
             '@stylistic/array-bracket-spacing': 'error', // Forbid spaces in array: [_1, 2_]
             '@stylistic/arrow-spacing': 'error', // Enforce space in lambda function: x_=>_x**2
             '@stylistic/block-spacing': 'error', // Enforce space in one-line block: () => {_return true;_}
@@ -118,5 +126,3 @@ export default tsEslint.config(
         },
     },
 );
-
-// TODO solve problems and compare with old lint config

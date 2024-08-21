@@ -21,9 +21,9 @@ import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping
 function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
     return palettes.flatMap(paletteName => ColorLists[paletteName].list);
 }
+
 export const SuperpositionColorPalette = combinedColorPalette(['dark-2', 'red-yellow-green', 'paired', 'set-1', 'accent', 'set-2', 'rainbow']);
 const DefaultLigandColor = Color.fromRgb(253, 3, 253);
-
 
 export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     const spState = PluginCustomState(plugin).superpositionState;
@@ -32,6 +32,7 @@ export function getNextColor(plugin: PluginContext, segmentIndex: number) {
     spState.colorCounters[segmentIndex] = (spState.colorCounters[segmentIndex] + 1) % SuperpositionColorPalette.length;
     return nextColor;
 }
+
 
 export async function initSuperposition(plugin: PluginContext, completeSubject?: Subject<boolean>) {
     let success = false;
@@ -124,7 +125,6 @@ function createCarbVisLabel(carbLigNamesAndCount: any) {
     for (const carbCompId in carbLigNamesAndCount) {
         compList.push(`${carbCompId} (${carbLigNamesAndCount[carbCompId]})`);
     }
-
     return compList.join(', ');
 }
 
@@ -172,7 +172,6 @@ export async function loadAfStructure(plugin: PluginContext) {
     }
 
     return false;
-
 }
 
 export async function superposeAf(plugin: PluginContext, traceOnly: boolean, segmentIndex?: number) {
@@ -234,7 +233,6 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
                         // rmsdList.push(`${cluster[0].pdb_id} ${cluster[0].struct_asym_id}:-`)
                     }
 
-
                 }
             }
         });
@@ -254,7 +252,6 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
     applyAFTransparency(plugin, afStr, 0.8, 70);
 
     return true;
-
 }
 
 export async function renderSuperposition(plugin: PluginContext, segmentIndex: number, entryList: ClusterMember[]) {
@@ -323,7 +320,6 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor1 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
-
             } else if ((superpositionParams && superpositionParams.ligandView) && !s.is_representative) {
                 // Do nothing
             } else {
@@ -333,13 +329,10 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor2 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
-
-
                 // // const addTooltipUpdate = plugin.state.behaviors.build().to(BestDatabaseSequenceMapping.id).update(BestDatabaseSequenceMapping, (old: any) => { old.showTooltip = true; });
                 // // await plugin.runTask(plugin.state.behaviors.updateTree(addTooltipUpdate));
                 // BestDatabaseSequenceMapping
                 // console.log(plugin.state.data.select(modelRef)[0])
-
             }
 
             let invalidStruct = chainSel ? false : true;
@@ -437,14 +430,10 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                                 spState.refMaps[ligandExp.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                                 invalidStruct = false;
                             }
-
                         }
 
                         i++;
                     }
-
-
-
                 }
 
                 if (invalidStruct) {

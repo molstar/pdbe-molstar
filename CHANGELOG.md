@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file, following t
 - `visualStyle` option allows per-component specification
 - Modular UI rendering (5 top-level components renderable separately)
 - Foldseek extension (PDBeMolstarPlugin.extensions.foldseek)
-- StateGallery extension (work in progress)
+- StateGallery extension
 
 ## [v3.2.0] - 2024-04-24
 - Mol* core dependency updated to 3.45.0
