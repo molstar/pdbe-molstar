@@ -133,7 +133,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
         </ExpandGroup>
         <ExpandGroup header='Description' initiallyExpanded={true} key='description'>
             <div className='pdbemolstar-state-gallery-legend'>
-                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{selected?.alt}</div>
+                {/* <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{selected?.alt}</div> */}
                 <div dangerouslySetInnerHTML={{ __html: selected?.description ?? '' }} />
             </div>
         </ExpandGroup>

@@ -1,4 +1,5 @@
 import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
+import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { BehaviorSubject } from 'rxjs';
 import { CustomControls, clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
 import { LoadingStatus, StateGalleryManager } from './manager';
@@ -7,11 +8,6 @@ import { StateGalleryControls, StateGalleryTitleBox } from './ui';
 
 export const StateGalleryExtensionName = 'pdbe-state-gallery';
 
-/** All public functions provided by the StateGallery extension  */
-export const StateGalleryExtensionFunctions = {
-    StateGalleryManager,
-};
-
 export interface StateGalleryCustomState {
     title: BehaviorSubject<string | undefined>,
     manager: BehaviorSubject<StateGalleryManager | undefined>,
@@ -19,58 +15,72 @@ export interface StateGalleryCustomState {
 }
 export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
 
+export interface StateGalleryParams {
+    showStructureControls: boolean,
+    showTitleBox: boolean,
+}
 
-export const StateGallery = PluginBehavior.create<{ autoAttach: boolean }>({
+
+export const StateGallery = PluginBehavior.create<StateGalleryParams>({
     name: StateGalleryExtensionName,
     category: 'misc',
     display: {
         name: '3D State Gallery',
         description: 'Browse pre-computed 3D states for a PDB entry',
     },
-    ctor: class extends PluginBehavior.Handler<{ autoAttach: boolean }> {
+    ctor: class extends PluginBehavior.Handler<StateGalleryParams> {
         register(): void {
-            // this.ctx.state.data.actions.add(InitAssemblySymmetry3D);
-            // this.ctx.customStructureProperties.register(this.provider, this.params.autoAttach);
-            // this.ctx.representation.structure.themes.colorThemeRegistry.add(AssemblySymmetryClusterColorThemeProvider);
-
-            // this.ctx.genericRepresentationControls.set(Tag.Representation, selection => {
-            //     const refs: GenericRepresentationRef[] = [];
-            //     selection.structures.forEach(structure => {
-            //         const symmRepr = structure.genericRepresentations?.filter(r => r.cell.transform.transformer.id === AssemblySymmetry3D.id)[0];
-            //         if (symmRepr) refs.push(symmRepr);
-            //     });
-            //     return [refs, 'Symmetries'];
-            // });
             StateGalleryCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
             StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
             StateGalleryCustomState(this.ctx).status = new BehaviorSubject<LoadingStatus>('ready');
-            this.ctx.customStructureControls.set(StateGalleryExtensionName, StateGalleryControls as any);
-            CustomControls(this.ctx, 'viewportTopCenter').set(StateGalleryExtensionName, StateGalleryTitleBox);
-            // this.ctx.builders.structure.representation.registerPreset(AssemblySymmetryPreset);
+            this.toggleStructureControls(this.params.showStructureControls);
+            this.toggleTitleBox(this.params.showTitleBox);
         }
 
-        // update(p: { autoAttach: boolean }) {
-        //     const updated = this.params.autoAttach !== p.autoAttach;
-        //     this.params.autoAttach = p.autoAttach;
-        //     this.ctx.customStructureProperties.setDefaultAutoAttach(this.provider.descriptor.name, this.params.autoAttach);
-        //     return updated;
-        // }
+        update(p: StateGalleryParams): boolean {
+            // TODO implement this properly
+            throw new Error('NotImplementedError: StateGallery.update');
+        }
 
         unregister() {
-            // this.ctx.state.data.actions.remove(InitAssemblySymmetry3D);
-            // this.ctx.customStructureProperties.unregister(this.provider.descriptor.name);
-            // this.ctx.representation.structure.themes.colorThemeRegistry.remove(AssemblySymmetryClusterColorThemeProvider);
-
-            // this.ctx.genericRepresentationControls.delete(Tag.Representation);
-            // this.ctx.customStructureControls.delete(Tag.Representation);
-            // this.ctx.builders.structure.representation.unregisterPreset(AssemblySymmetryPreset);
-            this.ctx.customStructureControls.delete(StateGalleryExtensionName);
-            CustomControls(this.ctx, 'viewportTopCenter').delete(StateGalleryExtensionName);
+            this.toggleStructureControls(false);
+            this.toggleTitleBox(false);
             clearExtensionCustomState(this.ctx, StateGalleryExtensionName);
         }
+
+        /** Register/unregister custom structure controls */
+        private toggleStructureControls(show: boolean) {
+            const registry = this.ctx.customStructureControls;
+            if (show) {
+                if (!registry.has(StateGalleryExtensionName)) {
+                    registry.set(StateGalleryExtensionName, StateGalleryControls as any);
+                }
+            } else {
+                registry.delete(StateGalleryExtensionName);
+            }
+        }
+
+        /** Register/unregister title box */
+        private toggleTitleBox(show: boolean) {
+            const registry = CustomControls(this.ctx, 'viewportTopCenter');
+            if (show) {
+                if (!registry.has(StateGalleryExtensionName)) {
+                    registry.set(StateGalleryExtensionName, StateGalleryTitleBox);
+                }
+            } else {
+                registry.delete(StateGalleryExtensionName);
+            }
+        }
     },
-    // params: () => ({
-    //     autoAttach: PD.Boolean(false),
-    //     serverUrl: PD.Text(AssemblySymmetryData.DefaultServerUrl)
-    // })
+    params: () => ({
+        showStructureControls: PD.Boolean(true),
+        showTitleBox: PD.Boolean(true),
+    }),
 });
+
+
+/** All public functions provided by the StateGallery extension  */
+export const StateGalleryExtensionFunctions = {
+    StateGalleryManager,
+    StateGalleryCustomState,
+};
