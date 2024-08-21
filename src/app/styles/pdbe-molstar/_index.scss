@@ -1,0 +1,135 @@
+/** Styles for PDBe Molstar (in addition to styles imported from core Molstar) */
+
+// Color constants must be imported before importing this file
+// (from molstar/lib/mol-plugin-ui/skin/*.scss or molstar/lib/mol-plugin-ui/skin/colors/*.scss)
+
+.msp-plugin {
+    @import 'molstar/lib/mol-plugin-ui/skin/base/variables.scss';
+
+    ::-webkit-scrollbar-thumb {
+        background-color: #80808080;
+        border-radius: 10px;
+        border: solid 1px transparent;
+        background-clip: content-box;
+    }
+
+    .msp-plugin-init-error {
+        color: #808080;
+    }
+
+    .msp-layout-static {
+        container-type: size; // define container to reference in .msp-viewport-controls-panel-controls
+    }
+
+    .msp-viewport-controls-panel .msp-viewport-controls-panel-controls {
+        max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
+    }
+
+    // Avoid wraping headers in left panel help 
+    .msp-simple-help-section {
+        overflow: hidden;
+        text-wrap: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .msp-control-group-header button {
+        overflow: hidden;
+        text-wrap: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .pdbemolstar-overlay {
+        z-index: 1000;
+        position: absolute;
+        top: 0px;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        pointer-events: none;
+    }
+
+    .pdbemolstar-overlay-box {
+        width: 25%;
+        height: 25%;
+    }
+
+    svg.pdbe-animated-logo {
+        background-color: transparent;
+        width: 100%;
+        height: 100%;
+        opacity: 80%;
+
+        .path-fg {
+            stroke-dasharray: 1812 250;
+            stroke-dashoffset: -250;
+            animation: dash linear normal infinite;
+            animation-duration: 5s;
+            animation-delay: 1s;
+        }
+
+        @keyframes dash {
+            0% {
+                stroke-dashoffset: 1812;
+            }
+
+            80% {
+                stroke-dashoffset: -250;
+            }
+
+            100% {
+                stroke-dashoffset: -250;
+            }
+        }
+    }
+
+    .pdbemolstar-state-gallery-controls {
+        overflow-x: hidden;
+        word-wrap: break-word; // necessary for wrapping oligonucleotide sequences
+
+        &:focus-visible {
+            outline: none;
+        }
+    }
+
+    .pdbemolstar-state-gallery-legend {
+        .image_legend_li {
+            margin-left: 16px;
+        }
+
+        .highlight {
+            font-weight: bold;
+        }
+    }
+
+    .pdbemolstar-state-gallery-title-box {
+        width: 500px;
+        max-width: 100%;
+        background-color: #99999930; // background-color: $msp-form-control-background;
+    }
+    
+    .pdbemolstar-viewport-top-left-control {
+        float: left;
+    
+        &:not(:empty) {
+            margin-right: 10px; // $control-spacing;
+        }
+    }
+    
+    .pdbemolstar-viewport-top-center-controls {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-inline: 74px; // 54 PDBe logo box + 2x10 margin
+        pointer-events: none;
+    
+        >* {
+            margin-top: 10px;
+            pointer-events: auto;
+        }
+    }
+
+}

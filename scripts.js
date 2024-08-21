@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-var argparse = require('argparse');
+const argparse = require('argparse');
 
 const PACKAGE_ROOT_PATH = process.cwd();
 const PACKAGE = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
@@ -38,12 +38,6 @@ function removeFiles(...paths) {
     }
 }
 
-function replaceSkin(srcFile, skin, destFile) {
-    let text = fs.readFileSync(srcFile, { encoding: 'utf8' });
-    text = text.replaceAll('mol-plugin-ui/skin/dark.scss', `mol-plugin-ui/skin/${skin}.scss`);
-    fs.writeFileSync(destFile, text, { encoding: 'utf8' });
-}
-
 function addBanner(file) {
     if (!fs.existsSync(file)) return;
     const contents = [
@@ -59,12 +53,16 @@ const scripts = {
         removeFiles('lib', 'build', 'tsconfig.tsbuildinfo');
     },
 
+    /** Remove unnecessary files produced by the build process */
+    'clean-rubbish': () => {
+        removeFiles(`build/${PACKAGE.name}-light-plugin.js`);
+    },
+
     /** Build web component */
     'bundle-webcomponent': () => {
         const outputFile = `build/${PACKAGE.name}-component.js`;
         removeFiles(outputFile);
         const contents = [
-            banner,
             license,
             fs.readFileSync(`build/${PACKAGE.name}-plugin.js`, { encoding: 'utf8' }),
             fs.readFileSync(`lib/${PACKAGE.name}-component-build.js`, { encoding: 'utf8' }),
@@ -76,22 +74,9 @@ const scripts = {
     'add-banners': () => {
         addBanner(`build/${PACKAGE.name}-plugin.js`);
         addBanner(`build/${PACKAGE.name}-plugin.js.LICENSE.txt`);
+        addBanner(`build/${PACKAGE.name}-component.js`);
         addBanner(`build/${PACKAGE.name}.css`);
         addBanner(`build/${PACKAGE.name}-light.css`);
-    },
-
-    /** Prepare module files for light skin */
-    'light-skin': () => {
-        replaceSkin('lib/index.js', 'light', 'lib/index(light).js');
-        replaceSkin('lib/index.d.ts', 'light', 'lib/index(light).d.ts');
-    },
-
-    /** Remove unnecessary files produced by the build process */
-    'clean-rubbish': () => {
-        removeFiles(
-            `build/${PACKAGE.name}-light-plugin.js`,
-            `build/${PACKAGE.name}-light-plugin.js.LICENSE.txt`
-        );
     },
 };
 

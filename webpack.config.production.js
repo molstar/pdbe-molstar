@@ -6,11 +6,11 @@ const PACKAGE_ROOT_PATH = process.cwd();
 const PACKAGE = require(path.join(PACKAGE_ROOT_PATH, 'package.json'));
 
 /** Webpack configuration for building the plugin bundle (pdbe-molstar-plugin.js, pdbe-molstar.css).
- * Also builds the light-skin version (pdbe-molstar-light-plugin.js, pdbe-molstar-light.css). */
+ * Also builds the light-skin version (pdbe-molstar-light-plugin.js (empty), pdbe-molstar-light.css). */
 const molstarConfig = {
     entry: {
         [PACKAGE.name]: path.resolve(__dirname, 'lib/index.js'),
-        [PACKAGE.name + '-light']: path.resolve(__dirname, 'lib/index(light).js'),
+        [PACKAGE.name + '-light']: path.resolve(__dirname, 'lib/styles/pdbe-molstar-light.scss'),
     },
     output: {
         filename: `[name]-plugin.js`,
