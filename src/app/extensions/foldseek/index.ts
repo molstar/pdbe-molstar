@@ -76,15 +76,17 @@ export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targe
     const [qMatchedIndicesInChain, tMatchedIndicesInChain] = getMatchedResidues(apiData.qstart - 1, apiData.qaln, apiData.tstart - 1, apiData.taln); // subtracting 1 to get 0-based indices
     const qLabelAsymId = 'A';
     const tLabelAsymId = auth_asym_id_to_label_asym_id(tStructure, tAuthAsymId);
-    const qCoords = getCoordsForResiduesInChain(qStructure, qMatchedIndicesInChain, qLabelAsymId);
-    const tCoords = getCoordsForResiduesInChain(tStructure, tMatchedIndicesInChain, tLabelAsymId);
+    const [qCoords, tCoords] = discardMissingLocations(
+        getCoordsForResiduesInChain(qStructure, qMatchedIndicesInChain, qLabelAsymId),
+        getCoordsForResiduesInChain(tStructure, tMatchedIndicesInChain, tLabelAsymId),
+    );
     const superposition = MinimizeRmsd.compute({ a: qCoords, b: tCoords });
 
     // Transform, color, focus
     await transform(viewer.plugin, viewer.getStructure(targetStructId)!.cell, superposition.bTransform);
     await viewer.visual.select({ data: [{ color: targetColor }], structureId: targetStructId }); // color target
     await viewer.visual.reset({ camera: true });
-    return { ...superposition, nAligned: qMatchedIndicesInChain.length };
+    return { ...superposition, nAligned: qCoords.x.length };
 }
 
 function getMatchedResidues(qstart: number, qaln: string, tstart: number, taln: string) {
@@ -151,7 +153,7 @@ function auth_asym_id_to_label_asym_id(struct: Structure, auth_asym_id: string):
     throw new Error(`There is no polymer chain with auth_asym_id ${auth_asym_id}.`);
 }
 
-function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[]) {
+function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[]): MinimizeRmsd.Positions {
     const hier = struct.model.atomicHierarchy;
     const conf = struct.model.atomicConformation;
     const n = residueIndices.length;
@@ -168,15 +170,48 @@ function getCACoordsForResidues(struct: Structure, residueIndices: ResidueIndex[
                 break;
             }
         }
-        if (theAtom === -1) {
+        if (theAtom >= 0) {
+            coords.x[i] = conf.x[theAtom];
+            coords.y[i] = conf.y[theAtom];
+            coords.z[i] = conf.z[theAtom];
+        } else {
             const label_seq_id = hier.residues.label_seq_id.value(iRes);
-            throw new Error(`C alpha not found for residue ${label_seq_id}.`);
+            console.warn(`Foldseek extension: C alpha not found for residue ${label_seq_id} in ${struct.model.entry}. Ignoring this residue.`);
+            coords.x[i] = NaN;
+            coords.y[i] = NaN;
+            coords.z[i] = NaN;
         }
-        coords.x[i] = conf.x[theAtom];
-        coords.y[i] = conf.y[theAtom];
-        coords.z[i] = conf.z[theAtom];
     }
     return coords;
+}
+
+/** Discard those positions in `a` and `b` where either of them contains NaN. Return original arrays if there are no NaNs. */
+function discardMissingLocations(a: MinimizeRmsd.Positions, b: MinimizeRmsd.Positions): [MinimizeRmsd.Positions, MinimizeRmsd.Positions] {
+    const n = a.x.length;
+    if (b.x.length !== n) throw new Error('ValueError: Positions a and b must have the same length');
+    const positionsOK: number[] = [];
+    for (let i = 0; i < n; i++) {
+        if (!isNaN(a.x[i]) && !isNaN(b.x[i])) {
+            positionsOK.push(i);
+        }
+    }
+    const nOK = positionsOK.length;
+    if (nOK === n) {
+        return [a, b];
+    } else {
+        const aOK = MinimizeRmsd.Positions.empty(nOK);
+        const bOK = MinimizeRmsd.Positions.empty(nOK);
+        for (let j = 0; j < nOK; j++) {
+            const i = positionsOK[j];
+            aOK.x[j] = a.x[i];
+            aOK.y[j] = a.y[i];
+            aOK.z[j] = a.z[i];
+            bOK.x[j] = b.x[i];
+            bOK.y[j] = b.y[i];
+            bOK.z[j] = b.z[i];
+        }
+        return [aOK, bOK];
+    }
 }
 
 /** Export currently loaded models in mmCIF (or BCIF). Pack in a ZIP if there is more then 1 model. */
