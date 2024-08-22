@@ -39,7 +39,7 @@
     }
 
 
-    .pdbemolstar-viewport-top-left-control {
+    .pdbemolstar-custom-control-viewport-top-left {
         float: left;
 
         &:not(:empty) {
@@ -58,6 +58,7 @@
         >* {
             margin-top: $control-spacing;
             pointer-events: auto;
+            max-width: 100%;
         }
     }
 

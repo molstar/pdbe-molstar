@@ -52,10 +52,7 @@ export interface PluginCustomState {
     extensions?: {
         [extensionId: string]: {} | undefined,
     },
-    customControls?: {
-        viewportTopCenter?: Map<string, JSXElementConstructor<{}>>,
-        viewportTopLeft?: Map<string, JSXElementConstructor<{}>>,
-    },
+    customControls?: { [region in PluginCustomControlRegion]?: PluginCustomControlRegistry },
 }
 
 export interface ClusterMember { pdb_id: string, auth_asym_id: string, struct_asym_id: string, entity_id: number, is_representative: boolean };
@@ -81,7 +78,46 @@ export function extensionCustomStateGetter<StateType extends {}>(extensionId: st
     return (plugin: PluginContext) => getExtensionCustomState<StateType>(plugin, extensionId);
 }
 
-export function CustomControls(plugin: PluginContext, region: keyof NonNullable<PluginCustomState['customControls']>) {
-    const customControls = PluginCustomState(plugin).customControls ??= {};
-    return customControls[region] ??= new Map<string, JSXElementConstructor<{}>>();
+
+/** UI region where custom controls can be registered */
+export type PluginCustomControlRegion = 'structure-tools' | 'viewport-top-center' | 'viewport-top-left';
+
+/** Collection of registered custom controls in a UI region */
+export type PluginCustomControlRegistry = Map<string, JSXElementConstructor<{}>>;
+
+/** Functions for registering/unregistering custom UI controls */
+export const PluginCustomControls = {
+    /** Get custom controls in the specified UI `region`. */
+    get(plugin: PluginContext, region: PluginCustomControlRegion): PluginCustomControlRegistry {
+        const customControls = PluginCustomState(plugin).customControls ??= {};
+        return customControls[region] ??= initialPluginCustomControls(plugin, region);
+    },
+    /** Register a custom control in the specified UI `region`. */
+    add(plugin: PluginContext, region: PluginCustomControlRegion, name: string, control: JSXElementConstructor<{}>) {
+        const registry = PluginCustomControls.get(plugin, region);
+        if (!registry.has(name)) {
+            registry.set(name, control);
+        }
+        return {
+            delete: () => PluginCustomControls.delete(plugin, region, name),
+        };
+    },
+    /** Unregister a custom control in the specified UI `region`. */
+    delete(plugin: PluginContext, region: PluginCustomControlRegion, name: string) {
+        const registry = PluginCustomControls.get(plugin, region);
+        registry.delete(name);
+    },
+    /** Register/unregister a custom control in the specified UI `region`. */
+    toggle(plugin: PluginContext, region: PluginCustomControlRegion, name: string, control: JSXElementConstructor<{}>, show: boolean) {
+        if (show) {
+            PluginCustomControls.add(plugin, region, name, control);
+        } else {
+            PluginCustomControls.delete(plugin, region, name);
+        }
+    },
+};
+
+function initialPluginCustomControls(plugin: PluginContext, region: PluginCustomControlRegion): PluginCustomControlRegistry {
+    if (region === 'structure-tools') return plugin.customStructureControls;
+    return new Map<string, JSXElementConstructor<{}>>();
 }

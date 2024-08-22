@@ -23,6 +23,7 @@ const Params = {
 type Values = PD.ValuesFor<typeof Params>;
 
 
+/** "3D State Gallery" section in Structure Tools (right panel) */
 export class StateGalleryControls extends CollapsableControls<{}, StateGalleryControlsState> {
     protected defaultState(): StateGalleryControlsState & CollapsableState {
         const existingManager = StateGalleryCustomState(this.plugin).manager?.value;
@@ -155,7 +156,7 @@ function StateButton(props: { img: Image, isSelected: boolean, status: LoadingSt
     </Button>;
 }
 
-
+/** Box in viewport with state title and arrows to move between states */
 export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);
     const [title, setTitle] = React.useState<string | undefined>(undefined);

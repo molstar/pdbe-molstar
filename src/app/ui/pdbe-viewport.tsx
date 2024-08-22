@@ -3,8 +3,8 @@ import { DefaultViewport } from 'molstar/lib/mol-plugin-ui/plugin';
 import { BackgroundTaskProgress } from 'molstar/lib/mol-plugin-ui/task';
 import { Toasts } from 'molstar/lib/mol-plugin-ui/toast';
 import { Viewport, ViewportControls } from 'molstar/lib/mol-plugin-ui/viewport';
+import { CustomControls } from './custom-controls';
 import { WithLoadingOverlay } from './overlay';
-import { CustomControls } from '../plugin-custom-state';
 
 
 /** A modified copy of DefaultViewport */
@@ -13,16 +13,11 @@ export class CustomizableDefaultViewport extends DefaultViewport {
         const VPControls = this.plugin.spec.components?.viewport?.controls || ViewportControls;
         const SnapshotDescription = this.plugin.spec.components?.viewport?.snapshotDescription || ViewportSnapshotDescription;
 
-        const customControls_viewportTopCenter = Array.from(CustomControls(this.plugin, 'viewportTopCenter').entries());
-        const customControls_viewportTopLeft = Array.from(CustomControls(this.plugin, 'viewportTopLeft').entries());
-
         return <>
             <Viewport />
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 <div className='pdbemolstar-viewport-top-center-controls'>
-                    {customControls_viewportTopCenter.map(([name, Control]) =>
-                        <Control key={name} />
-                    )}
+                    <CustomControls region='viewport-top-center' />
                     <SelectionViewportControls />
                 </div>
                 <div style={{ position: 'relative', pointerEvents: 'auto' }}>
@@ -30,11 +25,7 @@ export class CustomizableDefaultViewport extends DefaultViewport {
                         <AnimationViewportControls />
                         <TrajectoryViewportControls />
                         <StateSnapshotViewportControls />
-                        {customControls_viewportTopLeft.map(([name, Control]) =>
-                            <div className='pdbemolstar-viewport-top-left-control' key={name}>
-                                <Control />
-                            </div>
-                        )}
+                        <CustomControls region='viewport-top-left' />
                         <SnapshotDescription />
                     </div>
                 </div>
