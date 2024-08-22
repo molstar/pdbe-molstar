@@ -5,9 +5,9 @@ import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'molstar/lib/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
-import { PDBeMolstarPlugin } from '..';
-import { getStructureUrl } from '../helpers';
-import { transform } from '../superposition';
+import { type PDBeMolstarPlugin } from '../..';
+import { getStructureUrl } from '../../helpers';
+import { transform } from '../../superposition';
 
 
 export interface FoldseekApiData {

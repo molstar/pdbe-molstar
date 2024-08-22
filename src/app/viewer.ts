@@ -953,8 +953,8 @@ export class PDBeMolstarPlugin {
 
     /** Helper functions related to specific views or use cases */
     static extensions = {
-        foldseek: Foldseek,
-        stateGallery: StateGalleryExtensionFunctions,
+        Foldseek: Foldseek,
+        StateGallery: StateGalleryExtensionFunctions,
     };
 
     /** Components for building custom UI layouts */

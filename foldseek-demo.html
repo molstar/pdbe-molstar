@@ -73,7 +73,7 @@
                     <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
                 </svg>
             </div>
-            <button onclick="PDBeMolstarPlugin.extensions.foldseek.exportModels(viewerInstance)">Export superposed models</button>
+            <button onclick="PDBeMolstarPlugin.extensions.Foldseek.exportModels(viewerInstance)">Export superposed models</button>
         </div>
 
     </div>
@@ -191,7 +191,7 @@
             const spinner = document.getElementById('loading-spinner');
             spinner.style.display = null;
             loadingTargets.add(id);
-            return PDBeMolstarPlugin.extensions.foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
+            return PDBeMolstarPlugin.extensions.Foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
                 .then(result => {
                     console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
                     loadingTargets.delete(id);
