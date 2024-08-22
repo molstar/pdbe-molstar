@@ -32,7 +32,7 @@ npm run watch
   - Use a version number like "1.2.3" for proper releases
 - Ensure `npm install && npm run lint && npm run rebuild` works locally
 - Update `CHANGELOG.md`
-- Git commit and push
+- Git commit and push (commit message e.g. "Version 1.2.3")
 - Create a git tag matching the version with prepended "v" (e.g. "v1.2.3")
 - The GitHub repo will automatically be mirrored to EBI GitLab (might take up to 1 hour)
 - CICD pipeline in EBI GitLab will automatically publish the package to npm (https://www.npmjs.com/package/pdbe-molstar)

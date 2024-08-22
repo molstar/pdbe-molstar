@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+## [v3.3.0] - 2024-08-22
 - Mol* core dependency updated to 4.5.0
   - Solves the bug with Export Models
 - Use BCIF files for AlphaFold models (unless `encoding: 'cif'`)
