@@ -111,8 +111,8 @@
             <h3>Canvas/ layout methods</h3>
             <div class="controlBox">
                 <h4>Set Background</h4>
-                <button onclick="viewerInstance.canvas.setBgColor({ r: 255, g: 255, b: 255 })">White</button>
-                <button onclick="viewerInstance.canvas.setBgColor({ r: 0, g: 0, b: 0 })">Black</button>
+                <button onclick="viewerInstance.canvas.setBgColor('white')">White</button>
+                <button onclick="viewerInstance.canvas.setBgColor('black')">Black</button>
 
                 <h4>Toggle controls menu</h4>
                 <button onclick="viewerInstance.canvas.toggleControls(false)">Hide</button>
@@ -140,7 +140,7 @@
                 </button>
 
                 <h4>Highlight</h4>
-                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: { r: 255, g: 255, b: 0} })">
+                <button onclick="viewerInstance.visual.highlight({ data: [{ struct_asym_id: 'A', start_residue_number: 14, end_residue_number: 18 }], color: '#ffff00' })">
                     Highlight Chain A:14-18
                 </button>
                 <button onclick="viewerInstance.visual.clearHighlight()">
@@ -148,31 +148,31 @@
                 </button>
 
                 <h4>Selection</h4>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: { r: 255, g: 255, b: 0 }, focus: true }] })">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'A', color: '#ffff00', focus: true }] })">
                     Select & Focus on Chain A
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: { r: 255, g: 255, b: 0 }, focus: true }]})">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', color: '#ffff00', focus: true }]})">
                     Select & Focus on Chain B
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }]})">
+                <button onclick="viewerInstance.visual.select({ data: [{ struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: '#ffff00' }]})">
                     Select Chain B:1-6
                 </button>
                 <br>
                 <button onclick="viewerInstance.visual.select({ data: [
-                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 } }, 
-                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 } }]})">
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: '#ffff00' }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: '#88ff00' }]})">
                     Select Chain B:1-6, B:15-20
                 </button>
                 <br>
                 <button onclick="viewerInstance.visual.select({ data: [
-                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: { r: 255, g: 255, b: 0 }, sideChain: true }, 
-                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: { r: 150, g: 255, b: 0 }, representation: 'spacefill', representationColor: '#ff00ff' }]})">
+                        { struct_asym_id: 'B', start_residue_number: 1, end_residue_number: 6, color: '#ffff00', sideChain: true }, 
+                        { struct_asym_id: 'B', start_residue_number: 15, end_residue_number: 20, color: '#88ff00', representation: 'spacefill', representationColor: '#ff00ff' }]})">
                     Select Chain B:1-6, B:15-20 (extra reprs)
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: { r: 255, g: 0, b: 255} }], nonSelectedColor: { r: 255, g: 255, b: 255 } })">
+                <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: '#ff00ff' }], nonSelectedColor: '#ffffff' })">
                     Select Uniprot
                 </button>
                 <br>
@@ -181,14 +181,14 @@
                 </button>
 
                 <h4>Set highlight / selection colour</h4>
-                <button onclick="viewerInstance.visual.setColor({ highlight: { r: 255, g: 255, b: 0 } })">
+                <button onclick="viewerInstance.visual.setColor({ highlight: '#ffff00' })">
                     Yellow highlight
                 </button>
                 <button onclick="viewerInstance.visual.reset({ highlightColor: true })">
                     Reset
                 </button>
                 <br>
-                <button onclick="viewerInstance.visual.setColor({ select: { r: 255, g: 0, b: 0} })">
+                <button onclick="viewerInstance.visual.setColor({ select: '#ff0000' })">
                     Red selection
                 </button>
                 <button onclick="viewerInstance.visual.reset({ selectColor: true })">
@@ -283,7 +283,7 @@
             moleculeId: '1hda',
             // expanded: true,
             // loadMaps: true,
-            // bgColor: {r:255, g:255, b:255},
+            // bgColor: 'white',
             // hideControls: true,
             // domainAnnotation: true,
             // validationAnnotation: true,
