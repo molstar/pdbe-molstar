@@ -3,14 +3,14 @@ import { shallowEqual } from 'molstar/lib/mol-util';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { BehaviorSubject } from 'rxjs';
 import { PluginCustomControls, clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
-import { LoadingStatus, StateGalleryManager } from './manager';
+import { Image, LoadingStatus, StateGalleryManager } from './manager';
 import { StateGalleryControls, StateGalleryTitleBox } from './ui';
 
 
 export const StateGalleryExtensionName = 'pdbe-state-gallery';
 
 export interface StateGalleryCustomState {
-    title: BehaviorSubject<string | undefined>,
+    requestedImage: BehaviorSubject<Image | undefined>,
     manager: BehaviorSubject<StateGalleryManager | undefined>,
     status: BehaviorSubject<LoadingStatus>,
 }
@@ -34,7 +34,7 @@ export const StateGallery = PluginBehavior.create<StateGalleryParams>({
     },
     ctor: class extends PluginBehavior.Handler<StateGalleryParams> {
         register(): void {
-            StateGalleryCustomState(this.ctx).title = new BehaviorSubject<string | undefined>(undefined);
+            StateGalleryCustomState(this.ctx).requestedImage = new BehaviorSubject<Image | undefined>(undefined);
             StateGalleryCustomState(this.ctx).manager = new BehaviorSubject<StateGalleryManager | undefined>(undefined);
             StateGalleryCustomState(this.ctx).status = new BehaviorSubject<LoadingStatus>('ready');
             this.toggleStructureControls(this.params.showControls);

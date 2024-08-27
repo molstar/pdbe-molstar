@@ -9,6 +9,7 @@ import { BehaviorSubject } from 'rxjs';
 import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distinct, nonnegativeModulo } from '../../helpers';
 import { StateGalleryCustomState } from './behavior';
 import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
+import { ImageTitles } from './titles';
 
 
 export interface StateGalleryData {
@@ -69,7 +70,8 @@ export interface Image {
     description?: string,
     clean_description?: string,
     category?: ImageCategory,
-    simple_title?: string,
+    title?: string,
+    subtitle?: string,
 }
 
 
@@ -107,7 +109,7 @@ export class StateGalleryManager {
         });
         this.events.requestedImage.subscribe(img => {
             const customState = StateGalleryCustomState(this.plugin);
-            customState.title?.next(img?.simple_title ?? img?.filename);
+            customState.requestedImage?.next(img);
             if (customState.manager?.value !== this) customState.manager?.next(this);
         });
     }
@@ -215,62 +217,52 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
 
         // Entry
         for (const img of data?.entry?.all?.image ?? []) {
-            const title = img.filename.includes('_chemically_distinct_molecules')
-                ? 'Deposited model (color by entity)'
-                : img.filename.includes('_chain')
-                    ? 'Deposited model (color by chain)'
-                    : undefined;
-            out.push({ ...img, category: 'Entry', simple_title: title });
+            out.push({ ...img, category: 'Entry', ...ImageTitles.entry(img) });
         }
         // Validation
         for (const img of data?.validation?.geometry?.deposited?.image ?? []) {
-            out.push({ ...img, category: 'Entry', simple_title: 'Geometry validation' });
+            out.push({ ...img, category: 'Entry', ...ImageTitles.validation(img) });
         }
         // Bfactor
         for (const img of data?.entry?.bfactor?.image ?? []) {
-            out.push({ ...img, category: 'Entry', simple_title: 'B-factor' });
+            out.push({ ...img, category: 'Entry', ...ImageTitles.bfactor(img) });
         }
         // Assembly
         const assemblies = data?.assembly;
-        for (const ass in assemblies) {
-            for (const img of assemblies[ass].image ?? []) {
-                const title = img.filename.includes('_chemically_distinct_molecules')
-                    ? `Assembly ${ass} (color by entity)`
-                    : img.filename.includes('_chain')
-                        ? `Assembly ${ass} (color by chain)`
-                        : undefined;
-                out.push({ ...img, category: 'Assemblies', simple_title: title });
+        for (const assemblyId in assemblies) {
+            for (const img of assemblies[assemblyId].image ?? []) {
+                out.push({ ...img, category: 'Entry', ...ImageTitles.assembly(img, { assemblyId }) });
             }
         }
         // Entity
         const entities = data?.entity;
-        for (const entity in entities) {
-            for (const img of entities[entity].image ?? []) {
-                out.push({ ...img, category: 'Entities', simple_title: `Entity ${entity}` });
+        for (const entityId in entities) {
+            for (const img of entities[entityId].image ?? []) {
+                out.push({ ...img, category: 'Entities', ...ImageTitles.entity(img, { entityId }) });
             }
         }
         // Ligand
         const ligands = data?.entry?.ligands;
-        for (const ligand in ligands) {
-            for (const img of ligands[ligand].image ?? []) {
-                out.push({ ...img, category: 'Ligands', simple_title: `Ligand environment for ${ligand}` });
+        for (const compId in ligands) {
+            for (const img of ligands[compId].image ?? []) {
+                out.push({ ...img, category: 'Ligands', ...ImageTitles.ligand(img, { compId }) });
             }
         }
         // Modres
         const modres = data?.entry?.mod_res;
-        for (const res in modres) {
-            for (const img of modres[res].image ?? []) {
-                out.push({ ...img, category: 'Modified residues', simple_title: `Modified residue ${res}` });
+        for (const compId in modres) {
+            for (const img of modres[compId].image ?? []) {
+                out.push({ ...img, category: 'Modified residues', ...ImageTitles.modres(img, { compId }) });
             }
         }
         // Domain
-        for (const entity in entities) {
-            const dbs = entities[entity].database;
+        for (const entityId in entities) {
+            const dbs = entities[entityId].database;
             for (const db in dbs) {
                 const domains = dbs[db];
-                for (const domain in domains) {
-                    for (const img of domains[domain].image ?? []) {
-                        out.push({ ...img, category: 'Domains', simple_title: `${db} ${domain} (entity ${entity})` });
+                for (const familyId in domains) {
+                    for (const img of domains[familyId].image ?? []) {
+                        out.push({ ...img, category: 'Domains', ...ImageTitles.domain(img, { db, familyId, entityId }) });
                     }
                 }
             }

@@ -119,9 +119,14 @@
         .pdbemolstar-state-gallery-state-button {
             height: 24px;
             line-height: 24px;
+            padding-inline: 5px;
             text-align: left;
             overflow: hidden;
-            text-overflow: ellipsis,
+            text-overflow: ellipsis;
+
+            .msp-icon {
+                margin-right: 3px;
+            }
         }
 
         .pdbemolstar-state-gallery-legend {
@@ -152,9 +157,11 @@
         }
 
         .pdbemolstar-state-gallery-title {
-            padding: 5px;
+            margin: 5px;
+            min-height: 2.9em; // Enough for one normal line + one <small> line
             display: flex;
             flex-direction: row;
+            align-items: center;
             text-align: center;
             font-weight: bold;
 

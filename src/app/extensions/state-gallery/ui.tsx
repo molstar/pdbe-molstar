@@ -145,29 +145,27 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
 function StateButton(props: { img: Image, isSelected: boolean, status: LoadingStatus, onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
     const { img, isSelected, status, onClick } = props;
     const icon = !isSelected ? EmptyIconSvg : (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
-    const title = img.simple_title ?? img.filename;
-    const errorMsg = (isSelected && status === 'error') ? '[Failed to load] ' : '';
+    const tooltip = stateTooltip(img, isSelected ? status : 'ready');
     return <Button className='msp-action-menu-button pdbemolstar-state-gallery-state-button'
-        icon={icon}
-        onClick={onClick}
-        title={`${errorMsg}${title}`}
+        icon={icon} onClick={onClick} title={tooltip}
         style={{ fontWeight: isSelected ? 'bold' : undefined }}>
-        {title}
+        {img.title ?? img.filename}
+        {img.subtitle && <small>&ensp; {img.subtitle}</small>}
     </Button>;
 }
 
 /** Box in viewport with state title and arrows to move between states */
 export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);
-    const [title, setTitle] = React.useState<string | undefined>(undefined);
+    const [image, setImage] = React.useState<Image | undefined>(undefined);
     const [manager, setManager] = React.useState<StateGalleryManager | undefined>(undefined);
     const [status, setStatus] = React.useState<LoadingStatus>('ready');
     const loadingCounter = useRef<number>(0);
     React.useEffect(() => {
         const customState = StateGalleryCustomState(plugin);
         const subs = [
-            customState.title?.subscribe(x => setTitle(x)),
-            customState.manager?.subscribe(x => setManager(x)),
+            customState.requestedImage?.subscribe(img => setImage(img)),
+            customState.manager?.subscribe(mgr => setManager(mgr)),
             customState.status?.subscribe(status => {
                 const counter = ++loadingCounter.current;
                 if (status === 'loading') {
@@ -180,7 +178,7 @@ export function StateGalleryTitleBox() {
         return () => subs.forEach(sub => sub?.unsubscribe());
     }, [plugin]);
 
-    if (title === undefined) return null;
+    if (image === undefined) return null;
 
     return <div className='pdbemolstar-state-gallery-title-box'>
         {manager &&
@@ -188,13 +186,14 @@ export function StateGalleryTitleBox() {
                 <Button className='msp-btn-icon' title='Previous state' icon={ChevronLeftSvg} onClick={() => manager.loadPrevious()} />
             </div>
         }
-        <div className='pdbemolstar-state-gallery-title'
-            title={status === 'error' ? `${title} (failed to load)` : status === 'loading' ? `${title} (loading)` : title} >
+        <div className='pdbemolstar-state-gallery-title' title={stateTooltip(image, status)} >
             <div className='pdbemolstar-state-gallery-title-icon'>
                 <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />
             </div>
             <div className='pdbemolstar-state-gallery-title-text'>
-                {title}
+                {image.title ?? image.filename}
+                <br />
+                <small>{image.subtitle}</small>
             </div>
         </div>
         {manager &&
@@ -203,4 +202,12 @@ export function StateGalleryTitleBox() {
             </div>
         }
     </div >;
+}
+
+function stateTooltip(img: Image, status: LoadingStatus): string {
+    const tooltip =
+        (status === 'error' ? '[Failed to load] \n' : status === 'loading' ? '[Loading] \n' : '')
+        + (img.title ?? img.filename)
+        + (img.subtitle ? `: ${img.subtitle}` : '');
+    return tooltip;
 }
