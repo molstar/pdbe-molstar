@@ -46,6 +46,7 @@ import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
+import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
@@ -204,7 +205,7 @@ export class PDBeMolstarPlugin {
         }
 
         // Create/ Initialise Plugin
-        const onBeforeUIRender = (plugin: PluginContext) => {
+        const onBeforeUIRender = async (plugin: PluginContext) => {
             // This needs to run after the plugin is created but before the UI is rendered
             PluginCustomState(plugin).initParams = { ...this.initParams };
             PluginCustomState(plugin).events = {
@@ -212,6 +213,13 @@ export class PDBeMolstarPlugin {
                 superpositionInit: this._ev<boolean>(),
                 isBusy: this._ev<boolean>(),
             };
+            if (this.initParams.galleryView && this.initParams.moleculeId) {
+                try {
+                    await StateGalleryManager.create(plugin, this.initParams.moleculeId); // sets extension custom state
+                } catch (err) {
+                    console.error(`Failed to initialize StateGalleryManager for entry ${this.initParams.moleculeId}.\n${err}`);
+                }
+            }
         };
 
         if (Array.isArray(target)) {
@@ -258,6 +266,8 @@ export class PDBeMolstarPlugin {
             // Initialise superposition
             initSuperposition(this.plugin, this.events.loadComplete);
 
+        } else if (this.initParams.galleryView) {
+            // Do nothing, StateGalleryManager initialized in onBeforeUIRender
         } else {
             // Load Molecule CIF or coordQuery and Parse
             const dataSource = this.getMoleculeSrcUrl();

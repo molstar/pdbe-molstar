@@ -231,7 +231,7 @@ function listImages(data: StateGalleryData | undefined, byCategory: boolean = fa
         const assemblies = data?.assembly;
         for (const assemblyId in assemblies) {
             for (const img of assemblies[assemblyId].image ?? []) {
-                out.push({ ...img, category: 'Entry', ...ImageTitles.assembly(img, { assemblyId }) });
+                out.push({ ...img, category: 'Assemblies', ...ImageTitles.assembly(img, { assemblyId }) });
             }
         }
         // Entity
