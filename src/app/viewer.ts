@@ -586,8 +586,8 @@ export class PDBeMolstarPlugin {
     /** Helper methods related to canvas and layout */
     canvas = {
         /** Set canvas background color. */
-        setBgColor: async (color?: { r: number, g: number, b: number }) => {
-            if (!color) return;
+        setBgColor: async (color?: AnyColor) => {
+            if (color === undefined || color === null) return;
             await this.canvas.applySettings({ color });
         },
 
@@ -787,7 +787,8 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any coloring and extra representations previously added by the `select` method.
-         * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
+         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * if not provided, will apply to all loaded structures.
          * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
         clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
@@ -847,7 +848,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any custom tooltips added by the `tooltips` method. */
-        clearTooltips: async (structureNumberOrId?: number) => {
+        clearTooltips: async (structureNumberOrId?: number | string) => {
             await this.visual.tooltips({ data: [], structureId: structureNumberOrId as any });
         },
 

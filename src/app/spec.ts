@@ -132,7 +132,9 @@ export interface InitParams {
     galleryView: boolean,
 
     // APPEARANCE
-    /** Leave `undefined` to keep both cartoon and ball-and-sticks based on component type */
+    /** Set default visual style.
+     * Leave undefined to use default visual styles for each component type (polymer, ligand etc.).
+     * Use a `VisualStylesSpec` object to define more detailed visual styles for individual component types, e.g. `{polymer: {type: 'putty', size: 'uniform'}, ligand: 'ball-and-stick'}` */
     visualStyle?: VisualStylesSpec,
     /** Molstar renders multiple visuals (polymer, ligand, water...) visuals by default. This option is to exclude any of these default visuals */
     hideStructure: ('polymer' | 'het' | 'water' | 'carbs' | 'nonStandard' | 'coarse')[],
