@@ -17,7 +17,7 @@ import { AnimateStateInterpolation } from 'molstar/lib/mol-plugin-state/animatio
 import { AnimateStateSnapshots } from 'molstar/lib/mol-plugin-state/animation/built-in/state-snapshots';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { clearStructureOverpaint } from 'molstar/lib/mol-plugin-state/helpers/structure-overpaint';
-import { createStructureRepresentationParams, StructureRepresentationBuiltInProps } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
+import { StructureRepresentationBuiltInProps, createStructureRepresentationParams } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
@@ -400,6 +400,7 @@ export class PDBeMolstarPlugin {
                     structRef = this.plugin.state.data.selectQ(q => q.byRef(data.ref).subtree().ofType(PluginStateObject.Molecule.Structure))[0].transform.ref;
                     await this.deleteStructureComponents(structRef, this.initParams.hideStructure);
                     await this.applyVisualStyles(structRef, this.initParams.visualStyle);
+                    await PluginCommands.Camera.Reset(this.plugin, { durationMs: fullLoad ? 0 : undefined });
                 } else {
                     const model = await this.plugin.builders.structure.createModel(trajectory);
                     const structure = await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
