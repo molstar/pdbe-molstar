@@ -17,7 +17,7 @@ import { AnimateStateInterpolation } from 'molstar/lib/mol-plugin-state/animatio
 import { AnimateStateSnapshots } from 'molstar/lib/mol-plugin-state/animation/built-in/state-snapshots';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { clearStructureOverpaint } from 'molstar/lib/mol-plugin-state/helpers/structure-overpaint';
-import { createStructureRepresentationParams } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
+import { createStructureRepresentationParams, StructureRepresentationBuiltInProps } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
@@ -36,7 +36,7 @@ import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { PluginLayoutStateParams } from 'molstar/lib/mol-plugin/layout';
 import { PluginSpec } from 'molstar/lib/mol-plugin/spec';
 import { Representation } from 'molstar/lib/mol-repr/representation';
-import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
+import { StateObjectSelector, StateSelection, StateTransform } from 'molstar/lib/mol-state';
 import { ElementSymbolColorThemeParams } from 'molstar/lib/mol-theme/color/element-symbol';
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
 import { Asset } from 'molstar/lib/mol-util/assets';
@@ -398,10 +398,8 @@ export class PDBeMolstarPlugin {
                         representationPreset: 'auto',
                     });
                     structRef = this.plugin.state.data.selectQ(q => q.byRef(data.ref).subtree().ofType(PluginStateObject.Molecule.Structure))[0].transform.ref;
-                    if (this.initParams.hideStructure.length > 0 || this.initParams.visualStyle) {
-                        await this.deleteStructureComponents(structRef, this.initParams.hideStructure);
-                        await this.applyVisualStyles(structRef, this.initParams.visualStyle);
-                    }
+                    await this.deleteStructureComponents(structRef, this.initParams.hideStructure);
+                    await this.applyVisualStyles(structRef, this.initParams.visualStyle);
                 } else {
                     const model = await this.plugin.builders.structure.createModel(trajectory);
                     const structure = await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
@@ -471,21 +469,31 @@ export class PDBeMolstarPlugin {
         if (styles === undefined) return;
         const components = this.plugin.state.data.selectQ(q => q.byRef(structureRef).subtree().withTransformer(StructureComponent));
         const compStyles = resolveVisualStyleSpec(styles);
+        const addedReprs: { style: StructureRepresentationBuiltInProps, repr: StateObjectSelector }[] = [];
+        const update = this.plugin.build();
         for (const comp of components) {
             const compType = getComponentTypeFromTags(comp.obj?.tags);
             if (compType === undefined) continue;
             const compStyle = compStyles[compType as keyof typeof compStyles];
             if (compStyle === undefined) continue;
-            const update = this.plugin.build();
             const existingReprs = this.plugin.state.data.selectQ(q => q.byValue(comp).subtree().withTransformer(StructureRepresentation3D));
             for (const repr of existingReprs) {
                 update.delete(repr);
             }
             const newReprProps = createStructureRepresentationParams(this.plugin, comp.obj?.data, { color: this.defaultColorTheme() as any, ...compStyle });
-            const newRepr = await update.to(comp).apply(StructureRepresentation3D, newReprProps).commit();
-            if (newRepr.cell?.params?.values.type.name !== compStyle.type) {
-                await this.plugin.build().delete(newRepr).commit(); // sometimes Molstar applies different repr type than requested (especially for water), we must remove such unwanted reprs
+            const newRepr = update.to(comp).apply(StructureRepresentation3D, newReprProps).selector;
+            addedReprs.push({ style: compStyle, repr: newRepr });
+        }
+        await update.commit();
+
+        // Sometimes Molstar applies different repr type than requested (especially for water), we must remove such unwanted reprs:
+        const rubbishReprs = addedReprs.filter(r => r.repr.cell?.params?.values.type.name !== r.style.type);
+        if (rubbishReprs.length > 0) {
+            const update = this.plugin.build();
+            for (const r of rubbishReprs) {
+                update.delete(r.repr);
             }
+            await update.commit();
         }
     }
     private defaultColorTheme() {
@@ -494,6 +502,7 @@ export class PDBeMolstarPlugin {
 
     /** Remove all structure components of the given structure which correspond to any component type listed in `deleteComponents`. */
     private async deleteStructureComponents(structureRef: string, deleteComponents: ComponentType[]) {
+        if (deleteComponents.length === 0) return;
         const comps = this.plugin.state.data.selectQ(q => q.byRef(structureRef).subtree().withTransformer(StructureComponent));
         const deleteTags = deleteComponents.flatMap(comp => StructureComponentTags[comp] ?? []);
         const update = this.plugin.build();
@@ -504,7 +513,9 @@ export class PDBeMolstarPlugin {
                 update.delete(comp);
             }
         }
-        await update.commit();
+        if (update.editInfo.count > 0) {
+            await update.commit();
+        }
     }
 
     /** Get loci corresponding to a selection within a structure.
