@@ -2,20 +2,23 @@ import { PluginBehavior } from 'molstar/lib/mol-plugin/behavior';
 import { shallowEqual } from 'molstar/lib/mol-util';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { BehaviorSubject } from 'rxjs';
-import { PluginCustomControls, clearExtensionCustomState, extensionCustomStateGetter } from '../../plugin-custom-state';
+import { ExtensionCustomState, PluginCustomControls } from '../../plugin-custom-state';
 import { Image, LoadingStatus, StateGalleryManager } from './manager';
 import { StateGalleryControls, StateGalleryTitleBox } from './ui';
 
 
+/** Name used when registering extension, custom controls, etc. */
 export const StateGalleryExtensionName = 'pdbe-state-gallery';
 
+/** Plugin-bound state for StateGallery extension */
 export interface StateGalleryCustomState {
     requestedImage: BehaviorSubject<Image | undefined>,
     manager: BehaviorSubject<StateGalleryManager | undefined>,
     status: BehaviorSubject<LoadingStatus>,
 }
-export const StateGalleryCustomState = extensionCustomStateGetter<StateGalleryCustomState>(StateGalleryExtensionName);
+export const StateGalleryCustomState = ExtensionCustomState.getter<StateGalleryCustomState>(StateGalleryExtensionName);
 
+/** Parameters for StateGallery extension */
 export interface StateGalleryParams {
     /** Show "3D State Gallery" section in Structure Tools controls */
     showControls: boolean,
@@ -52,7 +55,7 @@ export const StateGallery = PluginBehavior.create<StateGalleryParams>({
         unregister() {
             this.toggleStructureControls(false);
             this.toggleTitleBox(false);
-            clearExtensionCustomState(this.ctx, StateGalleryExtensionName);
+            ExtensionCustomState.clear(this.ctx, StateGalleryExtensionName);
         }
 
         /** Register/unregister custom structure controls */

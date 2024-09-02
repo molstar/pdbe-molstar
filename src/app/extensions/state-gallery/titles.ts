@@ -4,7 +4,7 @@ import { Image } from './manager';
 type Titles = Pick<Image, 'title' | 'subtitle'>;
 
 
-/** Functions for creating informative image (state) titles to show in UI */
+/** Functions for creating informative image (3D state) titles for display in UI */
 export const ImageTitles = {
     entry(img: Image): Titles {
         if (img.filename.includes('_chemically_distinct_molecules')) {
@@ -61,11 +61,13 @@ export const ImageTitles = {
 };
 
 
+/** Get contents of `<span ...>...</span>` tags from an HTML string */
 function getSpans(text: string | undefined): string[] {
     const matches = (text ?? '').matchAll(/<span [^>]*>([^<]*)<\/span>/g);
     return Array.from(matches).map(match => match[1]);
 }
 
+/** Get content of parenthesis (`(...)`) from a string */
 function getParenthesis(text: string | undefined): string | undefined {
     return text?.match(/\((.*)\)/)?.[1];
 }

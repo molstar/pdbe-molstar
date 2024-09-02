@@ -10,16 +10,22 @@ import { StateGalleryCustomState } from './behavior';
 import { Image, LoadingStatus, StateGalleryManager } from './manager';
 
 
+/** React state for `StateGalleryControls` */
 interface StateGalleryControlsState {
+    /** Content of "Entry ID" text field */
     entryId: string,
     manager: StateGalleryManager | undefined,
+    /** `true` when initializing manager (fetching list of images) */
     isLoading: boolean,
+    /** Mirrors `this.plugin.behaviors.state.isBusy` (`true` when loading a specific image) */
     isBusy: boolean,
 }
 
+/** Parameter definition for ParameterControls part of "3D State Gallery" section */
 const Params = {
-    entryId: PD.Text(),
+    entryId: PD.Text(undefined, { label: 'Entry ID' }),
 };
+/** Parameter values for ParameterControls part of "3D State Gallery" section */
 type Values = PD.ValuesFor<typeof Params>;
 
 
@@ -46,7 +52,7 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
             if (this.state.entryId === '' && sel.structures.length > 0) {
                 const id = sel.structures[0].cell.obj?.data.model.entryId;
                 if (id) {
-                    this.setEntryId(id.toLowerCase());
+                    this.setState({ entryId: id.toLowerCase() });
                 }
             }
         });
@@ -58,19 +64,16 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
             entryId: this.state.entryId,
         };
     }
-    private setEntryId = (entryId: string) => {
-        this.setState(old => ({
-            entryId,
-        }));
+    private onChangeValues = (values: Values) => {
+        this.setState({ entryId: values.entryId });
     };
+
+    /** Load entry given by `this.state.entryId` */
     private load = async () => {
         if (this.loadDisabled()) return;
         this.setState({ isLoading: true, description: undefined });
         const manager = await StateGalleryManager.create(this.plugin, this.state.entryId);
         this.setState({ manager, isLoading: false, description: this.state.entryId.toUpperCase() });
-    };
-    private onChangeValues = (values: Values) => {
-        this.setEntryId(values.entryId);
     };
     private loadDisabled = () => !this.state.entryId || this.state.entryId === this.state.manager?.entryId || this.state.isBusy || this.state.isLoading;
 
@@ -84,14 +87,15 @@ export class StateGalleryControls extends CollapsableControls<{}, StateGalleryCo
                 </Button>
             }
             {this.state.manager &&
-                <ManagerControls manager={this.state.manager} />
+                <StateGalleryManagerControls manager={this.state.manager} />
             }
         </>;
     }
 }
 
 
-function ManagerControls(props: { manager: StateGalleryManager }) {
+/** Part of "3D State Gallery" section related to a specific entry */
+export function StateGalleryManagerControls(props: { manager: StateGalleryManager }) {
     const images = props.manager.images;
     const nImages = images.length;
     const categories = React.useMemo(() => groupElements(images, img => img.category ?? 'Miscellaneous'), [images]);
@@ -126,7 +130,7 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
                 {categories.groups.map(cat =>
                     <ExpandGroup header={cat} key={cat} initiallyExpanded={true} >
                         {categories.members.get(cat)?.map(img =>
-                            <StateButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => props.manager.load(img)} />
+                            <ImageButton key={img.filename} img={img} isSelected={img === selected} status={status} onClick={() => props.manager.load(img)} />
                         )}
                     </ExpandGroup>
                 )}
@@ -142,10 +146,11 @@ function ManagerControls(props: { manager: StateGalleryManager }) {
 }
 
 
-function StateButton(props: { img: Image, isSelected: boolean, status: LoadingStatus, onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+/** Button with image title */
+function ImageButton(props: { img: Image, isSelected: boolean, status: LoadingStatus, onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
     const { img, isSelected, status, onClick } = props;
     const icon = !isSelected ? EmptyIconSvg : (status === 'loading') ? HourglassBottomSvg : (status === 'error') ? ErrorSvg : CheckSvg;
-    const tooltip = stateTooltip(img, isSelected ? status : 'ready');
+    const tooltip = imageTooltip(img, isSelected ? status : 'ready');
     return <Button className='msp-action-menu-button pdbemolstar-state-gallery-state-button'
         icon={icon} onClick={onClick} title={tooltip}
         style={{ fontWeight: isSelected ? 'bold' : undefined }}>
@@ -154,7 +159,7 @@ function StateButton(props: { img: Image, isSelected: boolean, status: LoadingSt
     </Button>;
 }
 
-/** Box in viewport with state title and arrows to move between states */
+/** Box in viewport with image title and arrows to move between images (3D states) */
 export function StateGalleryTitleBox() {
     const plugin = React.useContext(PluginReactContext);
     const [image, setImage] = React.useState<Image | undefined>(undefined);
@@ -186,7 +191,7 @@ export function StateGalleryTitleBox() {
                 <Button className='msp-btn-icon' title='Previous state' icon={ChevronLeftSvg} onClick={() => manager.loadPrevious()} />
             </div>
         }
-        <div className='pdbemolstar-state-gallery-title' title={stateTooltip(image, status)} >
+        <div className='pdbemolstar-state-gallery-title' title={imageTooltip(image, status)} >
             <div className='pdbemolstar-state-gallery-title-icon'>
                 <Icon svg={status === 'error' ? ErrorSvg : status === 'loading' ? HourglassBottomSvg : EmptyIconSvg} />
             </div>
@@ -204,7 +209,8 @@ export function StateGalleryTitleBox() {
     </div >;
 }
 
-function stateTooltip(img: Image, status: LoadingStatus): string {
+/** Return tooltip text for an image */
+function imageTooltip(img: Image, status: LoadingStatus): string {
     const tooltip =
         (status === 'error' ? '[Failed to load] \n' : status === 'loading' ? '[Loading] \n' : '')
         + (img.title ?? img.filename)

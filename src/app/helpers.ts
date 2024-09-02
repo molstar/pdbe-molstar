@@ -610,10 +610,13 @@ export class PreemptiveQueue<X, Y> {
 }
 
 
+/** Functions for working with plugin config items */
 export namespace PluginConfigUtils {
-    export type ConfigFor<T> = { [key in keyof T]: PluginConfigItem<T[key]> };
+    /** Type of config definition for given type of config values T */
+    export type ConfigFor<T extends object> = { [key in keyof T]: PluginConfigItem<T[key]> };
 
-    export function getConfigValues<T>(plugin: PluginContext | undefined, configItems: { [name in keyof T]: PluginConfigItem<T[name]> }, defaults: T): T {
+    /** Retrieve config values for items in `configItems` from the current plugin config */
+    export function getConfigValues<T extends object>(plugin: PluginContext | undefined, configItems: ConfigFor<T>, defaults: T): T {
         const values = {} as T;
         for (const name in configItems) {
             values[name] = plugin?.config.get(configItems[name]) ?? defaults[name];

@@ -49,9 +49,11 @@ export interface PluginCustomState {
         },
     },
     superpositionError?: string,
+    /** Space for extensions to save their plugin-bound custom state. Only access via `ExtensionCustomState`! */
     extensions?: {
         [extensionId: string]: {} | undefined,
     },
+    /** Registry for custom UI components. Only access via `PluginCustomControls`! */
     customControls?: { [region in PluginCustomControlRegion]?: PluginCustomControlRegistry },
 }
 
@@ -65,18 +67,25 @@ export function PluginCustomState(plugin: PluginContext): PluginCustomState {
     return (plugin.customState as any) ??= {};
 }
 
-export function getExtensionCustomState<T extends {}>(plugin: PluginContext, extensionId: string): Partial<T> {
-    const extensionStates = PluginCustomState(plugin).extensions ??= {};
-    const extensionState: Partial<T> = extensionStates[extensionId] ??= {};
-    return extensionState;
-}
-export function clearExtensionCustomState(plugin: PluginContext, extensionId: string): void {
-    const extensionStates = PluginCustomState(plugin).extensions ??= {};
-    delete extensionStates[extensionId];
-}
-export function extensionCustomStateGetter<StateType extends {}>(extensionId: string) {
-    return (plugin: PluginContext) => getExtensionCustomState<StateType>(plugin, extensionId);
-}
+
+/** Functions for accessing plugin-bound custom state for extensions. */
+export const ExtensionCustomState = {
+    /** Get plugin-bound custom state for a specific extension. If not present, initialize with empty object. */
+    get<T extends {}>(plugin: PluginContext, extensionId: string): Partial<T> {
+        const extensionStates = PluginCustomState(plugin).extensions ??= {};
+        const extensionState: Partial<T> = extensionStates[extensionId] ??= {};
+        return extensionState;
+    },
+    /** Remove plugin-bound custom state for a specific extension (if present). */
+    clear(plugin: PluginContext, extensionId: string): void {
+        const extensionStates = PluginCustomState(plugin).extensions ??= {};
+        delete extensionStates[extensionId];
+    },
+    /** Return function which gets plugin-bound custom state for a specific extension. */
+    getter<StateType extends {}>(extensionId: string) {
+        return (plugin: PluginContext) => this.get<StateType>(plugin, extensionId);
+    },
+};
 
 
 /** UI region where custom controls can be registered */
