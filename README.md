@@ -1,5 +1,7 @@
 # PDBe Molstar
 
+[![Published on NPM](https://img.shields.io/npm/v/pdbe-molstar.svg)](https://www.npmjs.com/package/pdbe-molstar)
+
 PDBe implementation of [Mol\* (/'mol-star/)](https://github.com/molstar/molstar)
 
 **Refer [PDBe Molstar Wiki](https://github.com/PDBeurope/pdbe-molstar/wiki) for detailed documentation and examples**
