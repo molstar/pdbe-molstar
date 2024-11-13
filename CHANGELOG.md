@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+- Mol* core dependency updated to 4.8.0 (fixed iOS volume rendering bug)
+
 ## [v3.3.0] - 2024-08-22
 - Mol* core dependency updated to 4.5.0
   - Solves the bug with Export Models
