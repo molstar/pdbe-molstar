@@ -28,7 +28,7 @@ namespace DomainAnnotations {
         return !!model && Model.hasPdbId(model);
     }
 
-    export function fromJson(model: Model, data: any) {
+    export function fromJson(model: Model, data: any): DomainAnnotations {
         const info = PropertyWrapper.createInfo();
         const domainMap = createdomainMapFromJson(model, data);
         return { info, data: domainMap };
@@ -88,7 +88,12 @@ export const DomainAnnotationsProvider: CustomModelProperty.Provider<DomainAnnot
     isApplicable: (data: Model) => DomainAnnotations.isApplicable(data),
     obtain: async (ctx: CustomProperty.Context, data: Model, props: Partial<DomainAnnotationsProps>) => {
         const p = { ...PD.getDefaultValues(DomainAnnotationsParams), ...props };
-        return await DomainAnnotations.fromServer(ctx, data, p);
+        try {
+            return await DomainAnnotations.fromServer(ctx, data, p);
+        } catch {
+            console.error('Could not obtain domain annotations');
+            return { value: DomainAnnotations.fromJson(data, {}) };
+        }
     },
 });
 
