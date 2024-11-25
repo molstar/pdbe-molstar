@@ -3,8 +3,10 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
-## [v3.3.1] - 2024-11-13
+## [v3.3.2] - 2024-11-25
+- Fixed Domain Annotations crashing when no domains available
 
+## [v3.3.1] - 2024-11-13
 - Mol* core dependency updated to 4.8.0
   - Fixes iOS volume rendering bug
 
