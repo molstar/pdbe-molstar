@@ -57,15 +57,17 @@ namespace DomainAnnotations {
     }
 
     export function getDomainTypes(structure?: Structure): string[] {
-        if (!structure) return _emptyArray;
-        const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
+        const model = structure?.models[0];
+        if (!model) return _emptyArray;
+        const prop = DomainAnnotationsProvider.get(model).value;
         if (!prop || !prop.data) return _emptyArray;
         return prop.data.domainTypes;
     }
 
     export function getDomainNames(structure?: Structure): string[][] {
-        if (!structure) return [];
-        const prop = DomainAnnotationsProvider.get(structure.models[0]).value;
+        const model = structure?.models[0];
+        if (!model) return [];
+        const prop = DomainAnnotationsProvider.get(model).value;
         if (!prop || !prop.data) return [];
         return prop.data.domainNames;
     }
