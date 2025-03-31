@@ -2,7 +2,9 @@
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
 ## [Unreleased]
-- `.visual.interactivityFocus` method
+
+## [v3.4.0] - 2025-11-25
+- Added `.visual.interactivityFocus` method
 
 ## [v3.3.2] - 2024-11-25
 - Fixed Domain Annotations crashing when no domains available
