@@ -694,6 +694,18 @@ export class PDBeMolstarPlugin {
             this.plugin.managers.camera.focusLoci(loci);
         },
 
+        /** Apply interactive focus behavior on the part of the structure defined by `data` (i.e. emulate user clicking on a substructure).
+         * This includes behaviors like "show non-covalent interactions" or "show streamed volume data"
+         * but not camera adjustment (call `.visual.focus` for that).
+         * If `data` contains more items, focus on the union of those.
+         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!);
+         * otherwise use the last added structure. */
+        interactivityFocus: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
+            const structureNumberOrId = params.structureId ?? params.structureNumber;
+            const loci = this.getLociForParams(params.data, structureNumberOrId);
+            this.plugin.managers.structure.focus.setFromLoci(loci);
+        },
+
         /** Trigger highlight on the part of the structure defined by `data`
          * (this will look the same as when the user hovers over a part of the structure).
          * If `focus`, also zoom on the highlighted part.
