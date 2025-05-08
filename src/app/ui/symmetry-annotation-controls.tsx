@@ -15,8 +15,8 @@ const DefaultSymmetryParams = {
     on: PD.Boolean(false, { isHidden: true }),
     /** Index of the currently selected symmetry (in case there a more symmetries for an assembly), regardless of whether visibility is on of off */
     symmetryIndex: PD.Select(0, [[0, 'Auto']]),
-    /** `true` if symmetry data have been retrieved but do not contain any non-trivial symmetry */
-    noSymmetries: PD.Boolean(false, { isHidden: true }),
+    /** `true` if visibility is on and symmetry data have been retrieved and contain at least one non-trivial symmetry. */
+    hasSymmetries: PD.Boolean(false, { isHidden: true }),
 };
 
 type SymmetryParams = typeof DefaultSymmetryParams;
@@ -64,24 +64,24 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
     /** Synchronize parameters and values in UI with real parameters currently applied in `AssemblySymmetryProvider` */
     syncParams() {
         if (this.hasAssemblySymmetry3D()) {
-            const noSymmetries = this.noSymmetriesAvailable();
+            const hasSymmetries = this.hasSymmetriesAvailable();
             const realParams = this.getRealParams();
             const realValues = this.getRealValues();
-            const options = noSymmetries ?
-                [[0, 'None']] as const
-                : realParams.symmetryIndex.options.filter(([index, label]) => index >= 0); // Removing the 'off' option (having index -1)
+            const options = hasSymmetries ?
+                realParams.symmetryIndex.options.filter(([index, label]) => index >= 0) // Removing the 'off' option (having index -1)
+                : [[0, 'None']] as const;
             const params = {
                 ...this.state.params,
                 symmetryIndex: PD.Select(0, options),
             };
-            const values = (realValues.symmetryIndex >= 0) ? {
+            const values: SymmetryProps = (realValues.symmetryIndex >= 0) ? {
                 on: true,
                 symmetryIndex: realValues.symmetryIndex,
-                noSymmetries: noSymmetries,
+                hasSymmetries,
             } : {
                 on: false,
                 symmetryIndex: this.state.values.symmetryIndex,
-                noSymmetries: noSymmetries,
+                hasSymmetries,
             };
             this.setState({ params, values });
         } else {
@@ -92,11 +92,11 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
         }
     }
 
-    /** Return `true` if symmetry data have been retrieved and do not contain any non-trivial symmetry. */
-    noSymmetriesAvailable() {
+    /** Return `true` if symmetry data have been retrieved and contain at least one non-trivial symmetry. */
+    hasSymmetriesAvailable() {
         const structure = this.getPivotStructure()?.cell.obj?.data;
         const symmetryData = structure && AssemblySymmetryDataProvider.get(structure).value;
-        return symmetryData !== undefined && symmetryData.filter(sym => sym.symbol !== 'C1').length === 0;
+        return symmetryData !== undefined && symmetryData.filter(sym => sym.symbol !== 'C1').length > 0;
     }
 
     /** Get the first loaded structure, if any. */
@@ -205,27 +205,19 @@ export class SymmetryAnnotationControls extends PurePluginUIComponent<{}, Symmet
     }
 
     render() {
-        const shortTitle = 'Assembly Symmetry' + (this.state.values.noSymmetries ? ' [Not Available]' : '');
-        const title = 'Assembly Symmetry' + (this.state.values.noSymmetries ? ' [Not Available]\nSymmetry information for this assembly is not available' : '');
+        const notAvailable = this.state.values.on && !this.state.values.hasSymmetries;
+        const shortTitle = 'Assembly Symmetry' + (notAvailable ? ' [Not Available]' : '');
+        const title = 'Assembly Symmetry' + (notAvailable ? ' [Not Available]\nSymmetry information for this assembly is not available' : '');
         return <>
-            <SymmetryAnnotationRowControls shortTitle={shortTitle} title={title}
+            <AnnotationRowControls shortTitle={shortTitle} title={title}
                 applied={this.state.values.on} onChangeApplied={applied => this.apply(applied)}
-                params={this.state.params} values={this.state.values} onChangeValues={v => this.changeParamValues(v)} />
+                params={this.state.params} values={this.state.values} onChangeValues={v => this.changeParamValues(v)}
+                errorMessage={!this.state.values.on ? 'First activate annotation to show options' : notAvailable ? 'Symmetry information not available' : undefined}
+            />
         </>;
     }
 }
 
-
-class SymmetryAnnotationRowControls extends AnnotationRowControls<SymmetryParams> {
-    renderOptions() {
-        if (this.props.values.noSymmetries) {
-            return <div className='msp-row-text'>
-                <div title='Symmetry information for this assembly is not available'>Symmetry information not available</div>
-            </div>;
-        }
-        return super.renderOptions();
-    }
-}
 
 /** Get the first loaded structure, if any. */
 function getPivotStructure(plugin: PluginContext): StructureRef | undefined {
