@@ -35,7 +35,7 @@ export function lociDetails(loci: Loci): EventDetail | undefined {
             return structureElementStatsDetail(StructureElement.Stats.ofLoci(loci));
         case 'bond-loci': {
             const bond = loci.bonds[0];
-            return bond ? bondLabel(bond, 'element') : '';
+            return bond ? bondLabel(bond, 'element') : {};
         }
         default:
             return undefined;
