@@ -78,7 +78,7 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "lit": "^3.1.1",
-    "molstar": "4.13.0",
+    "molstar": "4.14.1",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",
     "vm-browserify": "^1.1.2"
