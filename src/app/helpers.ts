@@ -1,4 +1,5 @@
 import { QualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/prop';
+import { ComponentExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'molstar/lib/mol-model/structure/query/query';
@@ -211,7 +212,9 @@ export interface QueryParam {
     representationColor?: any,
     focus?: boolean,
     tooltip?: string,
+    /** @deprecated I don't know what this is */
     start?: any,
+    /** @deprecated I don't know what this is */
     end?: any,
     atom_id?: number[],
     uniprot_accession?: string,
@@ -219,6 +222,52 @@ export interface QueryParam {
     start_uniprot_residue_number?: number,
     end_uniprot_residue_number?: number,
 }
+
+export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
+    const broadcasted = broadcast(params, ['atoms', 'atom_id']);
+    return broadcasted.map(item => ({
+        label_entity_id: item.entity_id,
+        label_asym_id: item.struct_asym_id,
+        auth_asym_id: item.auth_asym_id,
+        label_seq_id: item.residue_number,
+        auth_seq_id: item.auth_seq_id ?? item.auth_residue_number,
+        pdbx_PDB_ins_code: item.auth_ins_code_id,
+        beg_label_seq_id: item.start_residue_number,
+        end_label_seq_id: item.end_residue_number,
+        beg_auth_seq_id: item.start_auth_residue_number,
+        end_auth_seq_id: item.end_auth_residue_number,
+        label_atom_id: item.atoms,
+        auth_atom_id: undefined,
+        type_symbol: undefined,
+        atom_id: item.atom_id,
+        atom_index: undefined,
+    }));
+}
+
+/** `broadcastSingleKey([{chain: 'A', residue: 5, atom: ['C', 'O']}], 'atom')`
+ * -> `[{chain: 'A', residue: 5, atom: 'C'}], {chain: 'A', residue: 5, atom: 'O'}` */
+function broadcastSingleKey<TKey extends keyof any, TValue, TOthers extends {}>(objs: ({ [key in TKey]?: TValue[] } & TOthers)[], key: TKey): ({ [key in TKey]?: TValue } & TOthers)[] {
+    const out = [];
+    for (const obj of objs) {
+        if (obj[key] === undefined) {
+            out.push(obj);
+        } else {
+            for (const value of obj[key]) {
+                out.push({ ...obj, [key]: value });
+            }
+        }
+    }
+    return out;
+}
+
+/** `broadcast([{chain: 'A', residue: [5, 6], atom: ['C', 'O']}], ['residue', 'atom'])`
+ * -> `[{chain: 'A', residue: 5, atom: 'C'}], {chain: 'A', residue: 5, atom: 'O', {chain: 'A', residue: 6, atom: 'C'}], {chain: 'A', residue: 6, atom: 'O'}` */
+function broadcast<T extends object, TKey extends ArrayKeys<T>>(objs: T[], keys: TKey[]): ({ [key in TKey]?: Extract<T[key], unknown[]>[number] } & Omit<T, TKey>)[] {
+    return keys.reduce((list, key) => broadcastSingleKey(list, key), objs);
+}
+
+/** Extract keys of `T` which have (optional) array type value */
+type ArrayKeys<T> = Exclude<{ [key in keyof T]: never[] extends T[key] ? key : never }[keyof T], undefined>;
 
 
 export namespace QueryHelper {
@@ -242,6 +291,7 @@ export namespace QueryHelper {
             }
 
             // residues
+            // TODO implement AND-logic here (now { residue_number: 50, label_comp_id: 'PHE' } selects all PHE)
             if (param.label_comp_id) {
                 selection['residueTest'] = l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
             } else if (param.uniprot_accession && param.uniprot_residue_number !== undefined) {
@@ -278,6 +328,7 @@ export namespace QueryHelper {
                 selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
             } else if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
                 selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                // TODO really check ins code, same for auth_seq_id, start_auth_ins_code_id, end_auth_ins_code_id
             } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
                 selection['residueTest'] = l => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);

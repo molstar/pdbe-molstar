@@ -45,6 +45,7 @@ import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Foldseek from './extensions/foldseek';
+import * as Interactions from './extensions/interactions';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
 import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
@@ -278,7 +279,7 @@ export class PDBeMolstarPlugin {
                     assemblyId: this.initParams.assemblyId,
                     isBinary: dataSource.isBinary,
                     progressMessage: `Loading ${this.initParams.moleculeId ?? ''} ...`,
-                    id: 'main',
+                    id: PDBeMolstarPlugin.MAIN_STRUCTURE_ID,
                 });
             }
 
@@ -289,9 +290,7 @@ export class PDBeMolstarPlugin {
 
             // Emit events for other PDB Components
             CustomEvents.add(this.plugin, this.targetElement);
-
         }
-
     }
 
     getMoleculeSrcUrl() {
@@ -989,9 +988,13 @@ export class PDBeMolstarPlugin {
     /** Helper functions related to specific views or use cases */
     static extensions = {
         Foldseek: Foldseek,
+        Interactions: Interactions,
         StateGallery: StateGalleryExtensionFunctions,
+        // TODO add MVS
     };
 
     /** Components for building custom UI layouts */
     static UIComponents = UIComponents;
+
+    static MAIN_STRUCTURE_ID = 'main';
 }

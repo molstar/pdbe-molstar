@@ -5,7 +5,7 @@ import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { ElementIndex, ResidueIndex, Structure } from 'molstar/lib/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
-import { type PDBeMolstarPlugin } from '../..';
+import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl } from '../../helpers';
 import { transform } from '../../superposition';
 
@@ -31,7 +31,7 @@ export interface FoldseekApiData {
 /** Load target structure as defined by `apiData`
  * and superpose it on the already loaded query structure. */
 export async function loadFoldseekSuperposition(viewer: PDBeMolstarPlugin, targetStructId: string, apiData: FoldseekApiData, targetColor: string = '#00ff00'): Promise<{ rmsd: number, nAligned: number, bTransform: Mat4 }> {
-    const Q_STRUCT_ID = 'main';
+    const Q_STRUCT_ID = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
 
     // Retrieve target entry ID and chain ID
     let tEntryId: string;
