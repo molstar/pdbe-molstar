@@ -5,6 +5,7 @@ import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { MolstarSubtree } from 'molstar/lib/extensions/mvs/tree/molstar/molstar-tree';
 import { ColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { ShapeRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
+import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/state';
 import { PDBeMolstarPlugin } from '../..';
 import { QueryParam, queryParamsToMvsComponentExpressions } from '../../helpers';
 import { ExtensionCustomState } from '../../plugin-custom-state';
@@ -27,18 +28,20 @@ export interface Interaction {
 export interface StateObjectHandle {
     /** State transform reference */
     ref: string,
+    /** Set state object visibility on/off */
+    setVisibility(visible: boolean): void,
     /** Remove state object from state hierarchy */
     delete: () => Promise<void>,
 }
 
-export function loadInteractions_example(viewer: PDBeMolstarPlugin) {
+export function loadInteractions_example(viewer: PDBeMolstarPlugin): Promise<StateObjectHandle> {
     return loadInteractions(viewer, { interactions: exampleData });
 }
 
-export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string }) {
+export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string }): Promise<StateObjectHandle> {
     const data = await getInteractionApiData({ ...params, pdbeBaseUrl: viewer.initParams.pdbeUrl });
     const interactions = interactionsFromApiData(data, params.pdbId);
-    await loadInteractions(viewer, { interactions, structureId: params.structureId });
+    return await loadInteractions(viewer, { interactions, structureId: params.structureId });
 }
 
 /** Show custom atom interactions */
@@ -58,6 +61,7 @@ export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { inte
 
     const visual: StateObjectHandle = {
         ref: data.ref,
+        setVisibility: (visible: boolean) => setSubtreeVisibility(viewer.plugin.state.data, data.ref, !visible /* true means hidden */),
         delete: () => viewer.plugin.build().delete(data.ref).commit(),
     };
     const visualsList = getExtensionCustomState(viewer.plugin).visuals ??= [];

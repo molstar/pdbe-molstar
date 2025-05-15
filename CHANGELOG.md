@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Mol* core dependency updated to 4.14.1
+- Custom interactions extension (PDBeMolstarPlugin.extensions.Interactions)
 
 ## [v3.4.0] - 2025-11-25
 - Added `.visual.interactivityFocus` method
