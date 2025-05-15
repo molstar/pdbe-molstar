@@ -5,9 +5,16 @@ import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { MolstarSubtree } from 'molstar/lib/extensions/mvs/tree/molstar/molstar-tree';
 import { ColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { ShapeRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
-import { AnyColor } from 'src/app/spec';
 import { PDBeMolstarPlugin } from '../..';
 import { QueryParam, queryParamsToMvsComponentExpressions } from '../../helpers';
+import { ExtensionCustomState } from '../../plugin-custom-state';
+import { AnyColor } from '../../spec';
+import { getInteractionApiData, interactionsFromApiData } from './api';
+
+
+/** Name used when registering extension, custom state, etc. */
+const InteractionsExtensionName = 'pdbe-custom-interactions';
+const getExtensionCustomState = ExtensionCustomState.getter<{ visuals: StateObjectHandle[] }>(InteractionsExtensionName);
 
 
 export interface Interaction {
@@ -17,27 +24,25 @@ export interface Interaction {
     tooltip?: string,
 }
 
-const dummyData: Interaction[] = [
-    {
-        start: { auth_asym_id: 'A', auth_seq_id: 45, atoms: ['CA'] },
-        end: { auth_asym_id: 'A', auth_seq_id: 50, atoms: ['CA'] },
-        color: 'yellow',
-        tooltip: '<b>Hydrophobic interaction</b><br/> GLN 45 | CA — PHE 50 | CA',
-    },
-    {
-        start: { auth_asym_id: 'A', auth_seq_id: 50, atoms: ['CA'] },
-        end: { auth_asym_id: 'A', auth_seq_id: 65, atoms: ['CA'] },
-        color: 'red',
-        tooltip: '<b>Ion interaction</b><br/> PHE 50 | CA — PHE 65 | CA',
-    },
-];
+export interface StateObjectHandle {
+    /** State transform reference */
+    ref: string,
+    /** Remove state object from state hierarchy */
+    delete: () => Promise<void>,
+}
 
-export function foo(viewer: PDBeMolstarPlugin) {
-    return loadInteractions(viewer, { interactions: dummyData });
+export function loadInteractions_example(viewer: PDBeMolstarPlugin) {
+    return loadInteractions(viewer, { interactions: exampleData });
+}
+
+export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string }) {
+    const data = await getInteractionApiData({ ...params, pdbeBaseUrl: viewer.initParams.pdbeUrl });
+    const interactions = interactionsFromApiData(data, params.pdbId);
+    await loadInteractions(viewer, { interactions, structureId: params.structureId });
 }
 
 /** Show custom atom interactions */
-export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { interactions: Interaction[], structureId?: string }) {
+export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { interactions: Interaction[], structureId?: string }): Promise<StateObjectHandle> {
     const structureId = params.structureId ?? PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const struct = viewer.getStructure(structureId);
     if (!struct) throw new Error(`Did not find structure with ID "${structureId}"`);
@@ -45,18 +50,29 @@ export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { inte
     const primitivesMvsNode = interactionsToMvsPrimitiveData(params.interactions);
 
     const update = viewer.plugin.build();
-    const data = update.to(struct.cell).apply(MVSInlinePrimitiveData, { node: primitivesMvsNode as any }); // TODO tags
-    data.apply(MVSBuildPrimitiveShape, { kind: 'mesh' }).apply(ShapeRepresentation3D);
-    data.apply(MVSBuildPrimitiveShape, { kind: 'lines' }).apply(ShapeRepresentation3D);
-    data.apply(MVSBuildPrimitiveShape, { kind: 'labels' }).apply(ShapeRepresentation3D); // TODO tags
+    const data = update.to(struct.cell).apply(MVSInlinePrimitiveData, { node: primitivesMvsNode as any }, { tags: ['custom-interactions-data'] });
+    data.apply(MVSBuildPrimitiveShape, { kind: 'mesh' }).apply(ShapeRepresentation3D, {}, { tags: ['custom-interactions-mesh'] });
+    data.apply(MVSBuildPrimitiveShape, { kind: 'lines' }).apply(ShapeRepresentation3D, {}, { tags: ['custom-interactions-lines'] });
+    data.apply(MVSBuildPrimitiveShape, { kind: 'labels' }).apply(ShapeRepresentation3D, {}, { tags: ['custom-interactions-labels'] });
     await update.commit();
 
-    return {
+    const visual: StateObjectHandle = {
         ref: data.ref,
-        delete(): Promise<void> {
-            return viewer.plugin.build().delete(data.ref).commit();
-        },
+        delete: () => viewer.plugin.build().delete(data.ref).commit(),
     };
+    const visualsList = getExtensionCustomState(viewer.plugin).visuals ??= [];
+    visualsList.push(visual);
+    return visual;
+}
+
+/** Remove any previously added interactions */
+export async function clearInteractions(viewer: PDBeMolstarPlugin): Promise<void> {
+    const visuals = getExtensionCustomState(viewer.plugin).visuals;
+    if (!visuals) return;
+    for (const visual of visuals) {
+        await visual.delete();
+    }
+    visuals.length = 0;
 }
 
 function interactionsToMvsPrimitiveData(interactions: Interaction[]): MolstarSubtree<'primitives'> {
@@ -67,25 +83,42 @@ function interactionsToMvsPrimitiveData(interactions: Interaction[]): MolstarSub
         primitives.tube({
             start: { expressions: queryParamsToMvsComponentExpressions([interaction.start]) },
             end: { expressions: queryParamsToMvsComponentExpressions([interaction.end]) },
-            radius: 0.1,
+            radius: 0.075,
             dash_length: 0.1,
             color: interaction.color as ColorT,
             tooltip: interaction.tooltip,
         });
     }
-    // use primitives.distance to add labels to tubes
-    // primitives.distance({
-    //     start: { auth_asym_id: 'A', auth_seq_id: 50, auth_atom_id: 'CA' },
-    //     end: { auth_asym_id: 'A', auth_seq_id: 65, auth_atom_id: 'CA' },
-    //     radius: 0.1,
-    //     dash_length: 0.1,
-    //     color: 'yellow',
-    //     label_template: 'hydrophobic',
-    //     label_color: 'yellow',
-    //     label_size: 0.5,
-    // });
     const state = builder.getState();
     const primitivesNode = state.root.children?.find(child => child.kind === 'primitives') as MolstarSubtree<'primitives'> | undefined;
     if (!primitivesNode) throw new Error('AssertionError: Failed to create MVS "primitives" subtree.');
     return primitivesNode;
 }
+
+/** Selected interactions from https://www.ebi.ac.uk/pdbe/graph-api/pdb/bound_ligand_interactions/1hda/C/143 */
+const exampleData = [
+    {
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CBC'] },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'atoms': ['CE'] },
+        'color': 'yellow',
+        'tooltip': '<strong>Hydrophobic interaction</strong><br>HEM 143 | CBC — MET 32 | CE',
+    },
+    {
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CBC'] },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'atoms': ['SD'] },
+        'color': 'yellow',
+        'tooltip': '<strong>Hydrophobic interaction</strong><br>HEM 143 | CBC — MET 32 | SD',
+    },
+    {
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CMD'] },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 42, 'atoms': ['O'] },
+        'color': 'gray',
+        'tooltip': '<strong>Mixed interaction</strong><br>Vdw, Weak polar<br>HEM 143 | CMD — TYR 42 | O',
+    },
+    {
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['C1B', 'C2B', 'C3B', 'C4B', 'NB'] },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 136, 'atoms': ['CD1'] },
+        'color': 'magenta',
+        'tooltip': '<strong>CARBONPI interaction</strong><br>HEM 143 | C1B, C2B, C3B, C4B, NB — LEU 136 | CD1',
+    },
+];

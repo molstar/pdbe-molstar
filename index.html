@@ -78,13 +78,6 @@
 
     <div class="content">
         <div class="controlsSection">
-            <h3>Tmp - interaction extension</h3>
-            <div class="controlBox">
-                <h4>Interaction extension</h4>
-                <button onclick="PDBeMolstarPlugin.extensions.Interactions.foo(viewerInstance)">Magic!</button>
-                <!-- <button onclick="PDBeMolstarPlugin.extensions.Interactions.foo(viewerInstance).then(ints => setTimeout(() => ints.delete(), 1000))">Tmp magic!</button> -->
-            </div>
-
             <h3>Canvas/ layout methods</h3>
             <div class="controlBox">
                 <h4>Set Background</h4>
@@ -211,6 +204,16 @@
                 <button onclick="viewerInstance.visual.update({ moleculeId: '1cbs' }, true)">
                     Update (replace)
                 </button>
+            </div>
+
+            <h3>Extensions</h3>
+            <div class="controlBox">
+                <h4>Interaction extension</h4>
+                <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractions_example(viewerInstance)">Show interactions (1hda)</button>
+                <!-- <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1cbs', authAsymId: 'A', authSeqId: 200 })">Show interactions from API (1cbs)</button>
+                <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1tqn', authAsymId: 'A', authSeqId: 508 })">Show interactions from API (1tqn)</button> -->
+                <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1hda', authAsymId: 'C', authSeqId: 143 })">Show interactions from API (1hda)</button>
+                <button onclick="PDBeMolstarPlugin.extensions.Interactions.clearInteractions(viewerInstance)">Clear</button>
             </div>
 
             <div>

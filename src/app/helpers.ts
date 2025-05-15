@@ -241,6 +241,8 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         type_symbol: undefined,
         atom_id: item.atom_id,
         atom_index: undefined,
+        label_comp_id: item.label_comp_id,
+        auth_comp_id: undefined,
     }));
 }
 
