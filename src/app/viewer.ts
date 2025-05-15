@@ -4,6 +4,8 @@ import { MAQualityAssessment } from 'molstar/lib/extensions/model-archive/qualit
 import { Mp4Export } from 'molstar/lib/extensions/mp4-export';
 import { MolViewSpec } from 'molstar/lib/extensions/mvs/behavior';
 import { CustomTooltipsProps, CustomTooltipsProvider } from 'molstar/lib/extensions/mvs/components/custom-tooltips-prop';
+import { loadMVS } from 'molstar/lib/extensions/mvs/load';
+import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe';
 import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
 import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci';
@@ -989,8 +991,8 @@ export class PDBeMolstarPlugin {
     static extensions = {
         Foldseek: Foldseek,
         Interactions: Interactions,
+        MVS: { MVSData, loadMVS },
         StateGallery: StateGalleryExtensionFunctions,
-        // TODO add MVS
     };
 
     /** Components for building custom UI layouts */
