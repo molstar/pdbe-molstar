@@ -9,7 +9,6 @@ import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/sta
 import { PDBeMolstarPlugin } from '../..';
 import { QueryParam, queryParamsToMvsComponentExpressions } from '../../helpers';
 import { ExtensionCustomState } from '../../plugin-custom-state';
-import { AnyColor } from '../../spec';
 import { getInteractionApiData, interactionsFromApiData } from './api';
 
 
@@ -21,9 +20,16 @@ const getExtensionCustomState = ExtensionCustomState.getter<{ visuals: StateObje
 export interface Interaction {
     start: QueryParam,
     end: QueryParam,
-    color?: AnyColor,
+    color?: string,
+    radius?: number,
+    dash_length?: number,
     tooltip?: string,
 }
+
+const DEFAULT_COLOR = 'white';
+const DEFAULT_RADIUS = 0.075;
+const DEFAULT_DASH_LENGTH = 0.1;
+const DEFAULT_OPACITY = 1;
 
 export interface StateObjectHandle {
     /** State transform reference */
@@ -34,23 +40,23 @@ export interface StateObjectHandle {
     delete: () => Promise<void>,
 }
 
-export function loadInteractions_example(viewer: PDBeMolstarPlugin): Promise<StateObjectHandle> {
-    return loadInteractions(viewer, { interactions: exampleData });
+export function loadInteractions_example(viewer: PDBeMolstarPlugin, params?: { opacity?: number, color?: string, radius?: number, dash_length?: number }): Promise<StateObjectHandle> {
+    return loadInteractions(viewer, { ...params, interactions: exampleData });
 }
 
-export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string }): Promise<StateObjectHandle> {
+export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string, opacity?: number, color?: string, radius?: number, dash_length?: number }): Promise<StateObjectHandle> {
     const data = await getInteractionApiData({ ...params, pdbeBaseUrl: viewer.initParams.pdbeUrl });
     const interactions = interactionsFromApiData(data, params.pdbId);
-    return await loadInteractions(viewer, { interactions, structureId: params.structureId });
+    return await loadInteractions(viewer, { ...params, interactions });
 }
 
 /** Show custom atom interactions */
-export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { interactions: Interaction[], structureId?: string }): Promise<StateObjectHandle> {
+export async function loadInteractions(viewer: PDBeMolstarPlugin, params: { interactions: Interaction[], structureId?: string, opacity?: number, color?: string, radius?: number, dash_length?: number }): Promise<StateObjectHandle> {
     const structureId = params.structureId ?? PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const struct = viewer.getStructure(structureId);
     if (!struct) throw new Error(`Did not find structure with ID "${structureId}"`);
 
-    const primitivesMvsNode = interactionsToMvsPrimitiveData(params.interactions);
+    const primitivesMvsNode = interactionsToMvsPrimitiveData(params);
 
     const update = viewer.plugin.build();
     const data = update.to(struct.cell).apply(MVSInlinePrimitiveData, { node: primitivesMvsNode as any }, { tags: ['custom-interactions-data'] });
@@ -79,17 +85,20 @@ export async function clearInteractions(viewer: PDBeMolstarPlugin): Promise<void
     visuals.length = 0;
 }
 
-function interactionsToMvsPrimitiveData(interactions: Interaction[]): MolstarSubtree<'primitives'> {
+function interactionsToMvsPrimitiveData(params: { interactions: Interaction[], opacity?: number, color?: string, radius?: number, dash_length?: number }): MolstarSubtree<'primitives'> {
     const builder = MVSData.createBuilder();
-    const primitives = builder.primitives({ opacity: 1, tooltip: 'Custom interactions', color: 'white' });
+    const primitives = builder.primitives({
+        opacity: params.opacity ?? DEFAULT_OPACITY,
+        color: params.color as ColorT ?? DEFAULT_COLOR,
+    });
 
-    for (const interaction of interactions) {
+    for (const interaction of params.interactions) {
         primitives.tube({
             start: { expressions: queryParamsToMvsComponentExpressions([interaction.start]) },
             end: { expressions: queryParamsToMvsComponentExpressions([interaction.end]) },
-            radius: 0.075,
-            dash_length: 0.1,
-            color: interaction.color as ColorT,
+            radius: interaction.radius ?? params.radius ?? DEFAULT_RADIUS,
+            dash_length: interaction.dash_length ?? params.dash_length ?? DEFAULT_DASH_LENGTH,
+            color: interaction.color as ColorT | undefined,
             tooltip: interaction.tooltip,
         });
     }
