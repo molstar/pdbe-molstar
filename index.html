@@ -210,10 +210,16 @@
             <div class="controlBox">
                 <h4>Interaction extension</h4>
                 <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractions_example(viewerInstance)">Show interactions (1hda)</button>
-                <!-- <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1cbs', authAsymId: 'A', authSeqId: 200 })">Show interactions from API (1cbs)</button>
-                <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1tqn', authAsymId: 'A', authSeqId: 508 })">Show interactions from API (1tqn)</button> -->
-                <button onclick="PDBeMolstarPlugin.extensions.Interactions.loadInteractionsFromApi(viewerInstance, { pdbId: '1hda', authAsymId: 'C', authSeqId: 143 })">Show interactions from API (1hda)</button>
                 <button onclick="PDBeMolstarPlugin.extensions.Interactions.clearInteractions(viewerInstance)">Clear</button>
+
+                <h4>MolViewSpec</h4>
+                <button onclick="
+                    const builder = PDBeMolstarPlugin.extensions.MVS.MVSData.createBuilder();
+                    builder.canvas({ background_color: '#110044' }).download({ url: 'https:/\/www.ebi.ac.uk/pdbe/entry-files/download/2e2n.bcif' }).parse({ format: 'bcif' }).modelStructure().component().representation().color({ color: '#adb0e6', selector: { label_asym_id: 'A' } });
+                    const state = builder.getState({ description: 'Example MVS state' });
+                    PDBeMolstarPlugin.extensions.MVS.loadMVS(viewerInstance.plugin, state);">
+                    Load MVS
+                </button>
             </div>
 
             <div>
