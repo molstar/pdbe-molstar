@@ -9,7 +9,6 @@ import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/sta
 import { PDBeMolstarPlugin } from '../..';
 import { QueryParam, queryParamsToMvsComponentExpressions } from '../../helpers';
 import { ExtensionCustomState } from '../../plugin-custom-state';
-import { getInteractionApiData, interactionsFromApiData } from './api';
 
 
 /** Name used when registering extension, custom state, etc. */
@@ -42,12 +41,6 @@ export interface StateObjectHandle {
 
 export function loadInteractions_example(viewer: PDBeMolstarPlugin, params?: { opacity?: number, color?: string, radius?: number, dash_length?: number }): Promise<StateObjectHandle> {
     return loadInteractions(viewer, { ...params, interactions: exampleData });
-}
-
-export async function loadInteractionsFromApi(viewer: PDBeMolstarPlugin, params: { pdbId: string, authAsymId: string, authSeqId: number, structureId?: string, opacity?: number, color?: string, radius?: number, dash_length?: number }): Promise<StateObjectHandle> {
-    const data = await getInteractionApiData({ ...params, pdbeBaseUrl: viewer.initParams.pdbeUrl });
-    const interactions = interactionsFromApiData(data, params.pdbId);
-    return await loadInteractions(viewer, { ...params, interactions });
 }
 
 /** Show custom atom interactions */
