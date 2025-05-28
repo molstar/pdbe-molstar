@@ -10,6 +10,7 @@ import { PreemptiveQueue, PreemptiveQueueResult, combineUrl, createIndex, distin
 import { StateGalleryCustomState } from './behavior';
 import { StateGalleryConfigValues, getStateGalleryConfig } from './config';
 import { ImageTitles } from './titles';
+import { StringLike } from 'molstar/lib/mol-io/common/string-like';
 
 
 /** Shape of data coming from `https://www.ebi.ac.uk/pdbe/static/entry/{entryId}.json`[entryId] */
@@ -216,7 +217,7 @@ export class StateGalleryManager {
     private async fetchSnapshot(filename: string): Promise<string> {
         const url = combineUrl(this.options.ServerUrl, `${filename}.molj`);
         const data = await this.plugin.runTask(this.plugin.fetch({ url, type: 'string' }));
-        return data;
+        return StringLike.toString(data);
     }
     /** Get MOLJ state for the image (get from cache or fetch from API) */
     async getSnapshot(filename: string): Promise<string> {
