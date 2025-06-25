@@ -7,7 +7,9 @@ import { CustomTooltipsProps, CustomTooltipsProvider } from 'molstar/lib/extensi
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe';
+import { Camera } from 'molstar/lib/mol-canvas3d/camera';
 import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
+import { Mat4, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci';
 import { StructureElement } from 'molstar/lib/mol-model/structure';
 import { AnimateAssemblyUnwind } from 'molstar/lib/mol-plugin-state/animation/built-in/assembly-unwind';
@@ -929,6 +931,23 @@ export class PDBeMolstarPlugin {
                 }
                 await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { renderer, marking } });
             }
+        },
+
+        /** @experimental Rotate camera to get front/top/right view with respect to XYZ axes. */
+        setViewDirection: (view: 'front' | 'top' | 'right', originalCamera: Camera.Snapshot, durationMs: number = 250) => {
+            // TODO Use this.plugin.canvas3d?.boundingSphere and friends instead of requiring originalCamera
+            const rotId = Mat4.identity();
+            const rotY90 = Mat4.fromRotation(Mat4(), 0.5 * Math.PI, Vec3.create(0, 1, 0));
+            const rotX270 = Mat4.fromRotation(Mat4(), -0.5 * Math.PI, Vec3.create(1, 0, 0));
+
+            const snapshot: Camera.Snapshot = { ...originalCamera };
+            const rot = (view === 'right') ? rotY90 : (view === 'top') ? rotX270 : rotId;
+            const dir = Vec3.sub(Vec3(), snapshot.target, snapshot.position);
+            Vec3.transformMat4(dir, dir, rot);
+            snapshot.position = Vec3.sub(dir, snapshot.target, dir);
+            snapshot.up = Vec3.transformMat4(Vec3(), snapshot.up, rot);
+
+            PluginCommands.Camera.SetSnapshot(this.plugin, { snapshot, durationMs: durationMs });
         },
 
         /** Change parameters of the plugin instance.
