@@ -189,6 +189,7 @@ export class PDBeMolstarPlugin {
             pdbePluginSpec.behaviors.push(PluginSpec.Behavior(GeometryExport));
         }
 
+        if (this.initParams.hideCanvasControls.includes('screenshot')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowScreenshotControls, false]);
         if (this.initParams.hideCanvasControls.includes('expand')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowExpand, false]);
         if (this.initParams.hideCanvasControls.includes('controlToggle')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowControls, false]);
         if (this.initParams.hideCanvasControls.includes('controlInfo')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSettings, false]);
@@ -974,6 +975,7 @@ export class PDBeMolstarPlugin {
             PluginCustomState(this.plugin).initParams = this.initParams;
 
             // Show/hide buttons in the viewport control panel
+            this.plugin.config.set(PluginConfig.Viewport.ShowScreenshotControls, !this.initParams.hideCanvasControls.includes('screenshot'));
             this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
             this.plugin.config.set(PluginConfig.Viewport.ShowControls, !this.initParams.hideCanvasControls.includes('controlToggle'));
             this.plugin.config.set(PluginConfig.Viewport.ShowSettings, !this.initParams.hideCanvasControls.includes('controlInfo'));

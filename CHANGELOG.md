@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
 ## [Unreleased]
+- Option `hideCanvasControls` accepts "screenshot" value
 
 ## [v3.5.0] - 2025-05-28
 - Mol* core dependency updated to 4.17.0

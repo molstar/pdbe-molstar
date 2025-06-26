@@ -182,7 +182,7 @@ export interface InitParams {
     /** Hide all control panels by default (can be shown by the Toggle Controls Panel button (wrench icon)) */
     hideControls: boolean,
     /** Hide individual icon buttons in the top-right corner of the canvas */
-    hideCanvasControls: ('expand' | 'controlToggle' | 'controlInfo' | 'selection' | 'animation' | 'trajectory')[],
+    hideCanvasControls: ('screenshot' | 'expand' | 'controlToggle' | 'controlInfo' | 'selection' | 'animation' | 'trajectory')[],
     /** Display Sequence panel */
     sequencePanel: boolean,
     /** Display Left control panel */
