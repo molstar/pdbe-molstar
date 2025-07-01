@@ -37,7 +37,6 @@ import { InitVolumeStreaming } from 'molstar/lib/mol-plugin/behavior/dynamic/vol
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginConfig } from 'molstar/lib/mol-plugin/config';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { PluginLayoutStateParams } from 'molstar/lib/mol-plugin/layout';
 import { PluginSpec } from 'molstar/lib/mol-plugin/spec';
 import { Representation } from 'molstar/lib/mol-repr/representation';
 import { StateObjectSelector, StateSelection, StateTransform } from 'molstar/lib/mol-state';
@@ -53,7 +52,7 @@ import * as Interactions from './extensions/interactions';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
 import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getStructureUrl, normalizeColor, pluginLayoutStateFromInitParams, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
@@ -137,17 +136,7 @@ export class PDBeMolstarPlugin {
 
 
         pdbePluginSpec.layout = {
-            initial: {
-                isExpanded: this.initParams.expanded,
-                showControls: !this.initParams.hideControls,
-                regionState: {
-                    left: this.initParams.leftPanel ? 'full' : 'hidden',
-                    right: this.initParams.rightPanel ? 'full' : 'hidden',
-                    top: this.initParams.sequencePanel ? 'full' : 'hidden',
-                    bottom: this.initParams.logPanel ? 'full' : 'hidden',
-                },
-                controlsDisplay: this.initParams.reactive ? 'reactive' : this.initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
-            },
+            initial: pluginLayoutStateFromInitParams(this.initParams),
         };
 
         pdbePluginSpec.components = {
@@ -973,6 +962,9 @@ export class PDBeMolstarPlugin {
             if (!this.initParams.moleculeId && !this.initParams.customData) return false;
             if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
             PluginCustomState(this.plugin).initParams = this.initParams;
+
+            // Update layout
+            PluginCommands.Layout.Update(this.plugin, { state: pluginLayoutStateFromInitParams(this.initParams) });
 
             // Show/hide buttons in the viewport control panel
             this.plugin.config.set(PluginConfig.Viewport.ShowScreenshotControls, !this.initParams.hideCanvasControls.includes('screenshot'));

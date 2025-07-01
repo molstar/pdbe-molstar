@@ -10,6 +10,7 @@ import { CreateVolumeStreamingInfo } from 'molstar/lib/mol-plugin/behavior/dynam
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginConfigItem } from 'molstar/lib/mol-plugin/config';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { PluginLayoutStateParams, PluginLayoutStateProps } from 'molstar/lib/mol-plugin/layout';
 import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
 import { Expression } from 'molstar/lib/mol-script/language/expression';
 import { compile } from 'molstar/lib/mol-script/runtime/query/compiler';
@@ -676,4 +677,18 @@ export namespace PluginConfigUtils {
         }
         return values;
     }
+}
+
+export function pluginLayoutStateFromInitParams(initParams: InitParams): PluginLayoutStateProps {
+    return {
+        isExpanded: initParams.expanded,
+        showControls: !initParams.hideControls,
+        regionState: {
+            left: initParams.leftPanel ? 'full' : 'hidden',
+            right: initParams.rightPanel ? 'full' : 'hidden',
+            top: initParams.sequencePanel ? 'full' : 'hidden',
+            bottom: initParams.logPanel ? 'full' : 'hidden',
+        },
+        controlsDisplay: initParams.reactive ? 'reactive' : initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
+    };
 }
