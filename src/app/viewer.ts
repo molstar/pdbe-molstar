@@ -47,6 +47,7 @@ import { Color } from 'molstar/lib/mol-util/color/color';
 import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
+import * as Complexes from './extensions/complexes';
 import * as Foldseek from './extensions/foldseek';
 import * as Interactions from './extensions/interactions';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
@@ -1002,6 +1003,7 @@ export class PDBeMolstarPlugin {
 
     /** Helper functions related to specific views or use cases */
     static extensions = {
+        Complexes: Complexes,
         Foldseek: Foldseek,
         Interactions: Interactions,
         MVS: { MVSData, loadMVS },

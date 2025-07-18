@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>PDBe Molstar</title>
+
+    <!-- Molstar CSS & JS -->
+    <link rel="stylesheet" type="text/css" href="./build/pdbe-molstar-light.css">
+    <script type="text/javascript" src="./build/pdbe-molstar-plugin.js"></script>
+
+    <style>
+        body {
+            padding: 30px;
+        }
+
+        #myViewer {
+            width: 450px;
+            height: 450px;
+            position: relative;
+            margin-top: 100px;
+            margin-right: 20px;
+        }
+
+        .spinner_aj0A {
+            transform-origin: center;
+            animation: spinner_KYSC .75s infinite linear
+        }
+
+        .item {
+            margin-block: 8px;
+            padding-block: 2px;
+            padding-inline: 8px;
+            background-color: gainsboro;
+            cursor: pointer;
+        }
+
+        @keyframes spinner_KYSC {
+            100% {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h3>PDBe Mol* JS Plugin Demo</h3>
+    <div class="viewerSection" style="display: flex; flex-direction: row;">
+        <!-- Molstar container -->
+        <div id="myViewer"></div>
+        <div style="display: block;">
+            <h4>Supercomplexes:</h4>
+            <div id="supercomplex-list"></div>
+            <h4>Subcomplexes:</h4>
+            <div id="subcomplex-list"></div>
+
+            <!-- <h4>Query color:</h4>
+            <div>
+                <input type="radio" name="color" id="color-plddt" onclick="setQueryColorPlddt()" checked /><label for="color-plddt">Model Confidence</label>
+                <input type="radio" name="color" id="color-uniform" onclick="setQueryColorUniform()" /><label for="color-uniform">Uniform</label>
+            </div>
+            <h4>Targets:</h4>
+            <div>
+                <input type="checkbox" id="7k36_I" onclick="handleCheckboxClick(this)" />
+                <label for="7k36_I">7k36_I</label>
+                <span id="7k36_I-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="6s9o_D" onclick="handleCheckboxClick(this)" />
+                <label for="6s9o_D">6s9o_D</label>
+                <span id="6s9o_D-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="4hxt_A" onclick="handleCheckboxClick(this)" />
+                <label for="4hxt_A">4hxt_A</label>
+                <span id="4hxt_A-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div>
+                <input type="checkbox" id="A0A182F163" onclick="handleCheckboxClick(this)" />
+                <label for="A0A182F163">A0A182F163</label>
+                <span id="A0A182F163-visibility" style="display: none;" onclick="handleVisibilityClick(this)">&nbsp;&#x1F441;&nbsp;</span>
+            </div>
+            <div style="height: 24px; margin-bottom: 24px;">
+                <svg id="loading-spinner" style="display: none;" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
+                </svg>
+            </div>
+            <button onclick="PDBeMolstarPlugin.extensions.Foldseek.exportModels(viewerInstance)">Export superposed models</button> -->
+        </div>
+
+    </div>
+
+    <script>
+        function getJsonParam(paramName) {
+            const paramString = new URL(window.location).searchParams.get(paramName);
+            const param = JSON.parse(paramString);
+            return param ?? undefined;
+        }
+
+        async function getApiData(complexId) {
+            const apiUrl = `https://www.ebi.ac.uk/pdbe/aggregated-api/complex/details/${complexId}?id_type=pdb_complex_id`;
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error(`Fetching API data failed with status code ${response.status}: ${apiUrl}`);
+            const data = await response.json();
+            if (data[complexId]?.length !== 1) throw new Error('API data must contain exactly one result.');
+            return data[complexId][0];
+        }
+
+        async function initComplexView(complexId) {
+            const data = await getApiData(complexId);
+            console.log('complexId:', complexId)
+            console.log('data:', data)
+            const { pdb_id, assembly_id } = data.representative_structure;
+            console.log(pdb_id, assembly_id)
+
+            // Create plugin instance
+            const viewerInstance = new PDBeMolstarPlugin();
+            const viewerContainer = document.getElementById('myViewer');
+
+            const defaultOptions = {
+                bgColor: 'white',
+                sequencePanel: true,
+                visualStyle: {
+                    // polymer: { type: 'putty', size: 'uniform' },
+                    // het: 'ball-and-stick',
+                    // nonStandard: 'ball-and-stick',
+                    // carbs: 'carbohydrate',
+                },
+                hideStructure: ['water'],
+            };
+            const options = {
+                ...defaultOptions,
+                ...getJsonParam('options'),
+
+                moleculeId: pdb_id,
+                assemblyId: assembly_id,
+                customData: undefined,
+            };
+            await viewerInstance.render(viewerContainer, options);
+
+            const supercomplexesDiv = document.getElementById('supercomplex-list');
+            for (const supercomplex of data.supercomplexes) {
+                console.log('Supercomplex', supercomplex)
+                // const superData = await getApiData(supercomplex);
+                addItem(supercomplexesDiv, supercomplex, viewerInstance);
+            }
+            const subcomplexesDiv = document.getElementById('subcomplex-list');
+            for (const subcomplex of data.subcomplexes) {
+                console.log('Subcomplex', subcomplex)
+                // const subData = await getApiData(subcomplex);
+                addItem(subcomplexesDiv, subcomplex, viewerInstance);
+            }
+        }
+
+        function addItem(listDiv, id, viewerInstance) {
+            const elem = document.createElement('div');
+            elem.classList.add('item');
+            elem.textContent = id;
+            elem.addEventListener('click', async () => {
+                const data = await getApiData(id);
+                const { pdb_id, assembly_id } = data.representative_structure;
+                PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { pdbId: pdb_id, assemblyId: assembly_id })
+            });
+            listDiv.append(elem);
+        }
+
+
+        const DEFAULT_COMPLEX_ID = 'PDB-CPX-159519';
+
+        const complexId = new URL(window.location).searchParams.get('complexId');
+        if (!complexId) {
+            const url = new URL(window.location);
+            url.searchParams.append('complexId', DEFAULT_COMPLEX_ID);
+            window.location = url;
+        }
+
+        initComplexView(complexId);
+
+
+
+        const loadingTargets = new Set(); // set of targets that are currently being processed (for the loading icon)
+
+        function loadTarget(id) {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.style.display = null;
+            loadingTargets.add(id);
+            return PDBeMolstarPlugin.extensions.Foldseek.loadFoldseekSuperposition(viewerInstance, id, apiData[id], targetColors[id])
+                .then(result => {
+                    console.log(`${id}: RMSD ${result.rmsd} on ${result.nAligned} residues`);
+                    loadingTargets.delete(id);
+                    if (loadingTargets.size === 0) {
+                        spinner.style.display = 'none';
+                    }
+                    viewerInstance.visual.highlight({ data: [{}], structureId: id });
+                    setTimeout(() => {
+                        viewerInstance.visual.clearHighlight();
+                    }, 1000);
+                });
+        }
+
+        function handleCheckboxClick(target) {
+            const { id, checked } = target;
+            if (checked) {
+                loadTarget(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = null;
+                    document.getElementById(`${id}-visibility`).style['text-decoration'] = 'none';
+                });
+            } else {
+                viewerInstance.deleteStructure(id).then(() => {
+                    document.getElementById(`${id}-visibility`).style['display'] = 'none';
+                });
+            }
+        }
+        function handleVisibilityClick(target) {
+            const structId = target.id.match(/(.+)-visibility/)[1];
+            const vis = target.style['text-decoration'] !== 'line-through';
+            if (vis) {
+                // hide
+                target.style['text-decoration'] = 'line-through';
+                viewerInstance.visual.structureVisibility(structId, false);
+            } else {
+                // show
+                target.style['text-decoration'] = 'none';
+                viewerInstance.visual.structureVisibility(structId, true);
+            }
+        }
+
+        function setQueryColorPlddt() {
+            viewerInstance.visual.clearSelection('main');
+        }
+        function setQueryColorUniform() {
+            viewerInstance.visual.select({ data: [{ color: UNIFORM_QUERY_COLOR }], structureId: 'main' });
+        }
+
+
+    </script>
+
+</body>
+
+</html>
