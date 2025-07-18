@@ -150,9 +150,9 @@
             <div id="myViewerCloseButton" onclick="closeFullscreen()">X</div>
             <div id="viewButtons">
                 View:
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('front', originalCamera, 500)">Front</span>
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('right', originalCamera, 500)">Right</span>
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('top', originalCamera, 500)">Top</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('front', 500)">Front</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('right', 500)">Right</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('top', 500)">Top</span>
             </div>
         </div>
 
@@ -179,7 +179,7 @@
         }
         function closeFullscreen() {
             document.getElementById('viewerSection')?.classList.add('molstar-frozen');
-            viewerInstance.visual.setViewDirection('front', originalCamera, 0)
+            viewerInstance.visual.setViewDirection('front', 0);
         }
 
         // Create plugin instance
@@ -208,13 +208,6 @@
 
         // Call render method to display the 3D view
         viewerInstance.render(viewerContainer, options);
-
-        let originalCamera = undefined;
-        viewerInstance.events.loadComplete.subscribe(() => {
-            setTimeout(() => { // let auto camera resolve first
-                originalCamera = viewerInstance.plugin.canvas3d?.camera.getSnapshot();
-            }, 10);
-        });
 
     </script>
 </body>

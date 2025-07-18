@@ -1,5 +1,6 @@
 import { QualityAssessment } from 'molstar/lib/extensions/model-archive/quality-assessment/prop';
 import { ComponentExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import { Mat3, Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'molstar/lib/mol-model/structure/query/query';
@@ -691,4 +692,20 @@ export function pluginLayoutStateFromInitParams(initParams: InitParams): PluginL
         },
         controlsDisplay: initParams.reactive ? 'reactive' : initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
     };
+}
+
+export function getRotationMat4(view: 'front' | 'back' | 'right' | 'left' | 'top' | 'bottom' | Mat3): Mat4 {
+    switch (view) {
+        case 'front': return Mat4.identity();
+        case 'back': return [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1] as any;
+        case 'right': return [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1] as any;
+        case 'left': return [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 0, 1] as any;
+        case 'top': return [1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1] as any;
+        case 'bottom': return [1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1] as any;
+        default: {
+            const out = Mat4.fromMat3(Mat4(), view);
+            out[15] = 1;
+            return out;
+        }
+    }
 }
