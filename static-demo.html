@@ -150,9 +150,9 @@
             <div id="myViewerCloseButton" onclick="closeFullscreen()">X</div>
             <div id="viewButtons">
                 View:
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('front', 500)">Front</span>
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('right', 500)">Right</span>
-                <span class="button" onclick="viewerInstance.visual.setViewDirection('top', 500)">Top</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('front', { durationMs: 500 })">Front</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('right', { durationMs: 500 })">Right</span>
+                <span class="button" onclick="viewerInstance.visual.setViewDirection('top', { durationMs: 500 })">Top</span>
             </div>
         </div>
 
@@ -179,7 +179,7 @@
         }
         function closeFullscreen() {
             document.getElementById('viewerSection')?.classList.add('molstar-frozen');
-            viewerInstance.visual.setViewDirection('front', 0);
+            viewerInstance.visual.setViewDirection('front', { durationMs: 0 });
         }
 
         // Create plugin instance

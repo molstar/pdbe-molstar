@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file, following t
 ## [Unreleased]
 - Option `hideCanvasControls` accepts "screenshot" value
 - Method `.visual.update` reflects changes in layout parameters (`expanded`, `hideCanvasControls`...)
+- Added `.visual.setViewDirection`
 
 ## [v3.5.0] - 2025-05-28
 - Mol* core dependency updated to 4.17.0

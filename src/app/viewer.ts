@@ -922,7 +922,7 @@ export class PDBeMolstarPlugin {
             }
         },
 
-        setViewDirection: (view: 'front' | 'back' | 'right' | 'left' | 'top' | 'bottom' | Mat3, durationMs: number = 250) => {
+        setViewDirection: async (view: 'front' | 'back' | 'right' | 'left' | 'top' | 'bottom' | Mat3, options?: { durationMs: number }) => {
             const visibleSphere = this.plugin.canvas3d?.boundingSphereVisible;
             if (!visibleSphere) return;
 
@@ -935,7 +935,7 @@ export class PDBeMolstarPlugin {
             snapshot.position = Vec3.sub(newDir, snapshot.target!, newDir);
             const newUp = Vec3.create(0, 1, 0);
             snapshot.up = Vec3.transformMat4(newUp, newUp, rot);
-            this.plugin.managers.camera.setSnapshot(snapshot, durationMs);
+            await PluginCommands.Camera.SetSnapshot(this.plugin, { snapshot, durationMs: options?.durationMs });
         },
 
         /** Change parameters of the plugin instance.
