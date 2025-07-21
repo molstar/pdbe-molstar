@@ -3,9 +3,9 @@
 // Color constants must be imported before importing this file
 // (from molstar/lib/mol-plugin-ui/skin/*.scss or molstar/lib/mol-plugin-ui/skin/colors/*.scss)
 
-.msp-plugin {
-    @import 'molstar/lib/mol-plugin-ui/skin/base/variables.scss';
+@use 'molstar/lib/mol-plugin-ui/skin/base/_vars.scss' as vars;
 
+.msp-plugin {
     ::-webkit-scrollbar-thumb {
         background-color: #80808080;
         border-radius: 10px;
@@ -43,7 +43,7 @@
         float: left;
 
         &:not(:empty) {
-            margin-right: $control-spacing;
+            margin-right: vars.$control-spacing;
         }
     }
 
@@ -52,11 +52,11 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-inline: calc(54px + 2 * $control-spacing); // 54px = PDBe logo box
+        padding-inline: calc(54px + 2 * vars.$control-spacing); // 54px = PDBe logo box
         pointer-events: none;
 
         >* {
-            margin-top: $control-spacing;
+            margin-top: vars.$control-spacing;
             pointer-events: auto;
             max-width: 100%;
         }
@@ -145,7 +145,7 @@
     .pdbemolstar-state-gallery-title-box {
         width: 500px;
         max-width: 100%;
-        background-color: $msp-form-control-background;
+        background-color: vars.$msp-form-control-background;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
