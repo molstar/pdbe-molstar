@@ -441,7 +441,7 @@ export class PDBeMolstarPlugin {
      * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
      * If `structureNumberOrId` is undefined, remove all structures.
      * You will likely need to call `await this.visual.reset({ camera: true })` afterwards. */
-    async deleteStructure(structureNumberOrId?: number) {
+    async deleteStructure(structureNumberOrId?: number | string) {
         const structs = this.getStructures(structureNumberOrId);
         if (structureNumberOrId !== undefined && structs.length === 0) {
             console.error(`Cannot delete structure: there is no structure with number or id ${structureNumberOrId}.`);

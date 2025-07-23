@@ -16,7 +16,7 @@
     "watch-tsc": "tsc --watch --incremental",
     "watch-extra": "cpx 'src/app/**/*.{scss,html,ico}' lib/ --watch",
     "watch-webpack": "webpack -w --mode development --stats minimal --config ./webpack.config.development.js",
-    "serve": "http-server -p 1338 -g -c-1",
+    "serve": "http-server -p 1339 -g -c-1",
     "bundle-webcomponent": "node scripts.js bundle-webcomponent"
   },
   "files": [
