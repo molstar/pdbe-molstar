@@ -16,8 +16,8 @@
         }
 
         #myViewer {
-            width: 450px;
-            height: 450px;
+            width: 600px;
+            height: 600px;
             position: relative;
             margin-top: 100px;
             margin-right: 20px;
@@ -55,13 +55,11 @@
                     <path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A" />
                 </svg>
             </div>
-            <h4>Supercomplexes:</h4>
-            <div id="supercomplex-list"></div>
             <h4>Subcomplexes:</h4>
             <div id="subcomplex-list"></div>
-
+            <h4>Supercomplexes:</h4>
+            <div id="supercomplex-list"></div>
         </div>
-
     </div>
 
     <script>
@@ -109,29 +107,30 @@
                 customData: undefined,
             };
             await viewerInstance.render(viewerContainer, options);
+            viewerInstance.events.loadComplete.subscribe(resetColoring);
 
             const supercomplexesDiv = document.getElementById('supercomplex-list');
             for (const supercomplex of data.supercomplexes) {
-                addItem(supercomplexesDiv, supercomplex);
+                addItem(supercomplexesDiv, supercomplex, 'supercomplex');
             }
             const subcomplexesDiv = document.getElementById('subcomplex-list');
             for (const subcomplex of data.subcomplexes) {
-                addItem(subcomplexesDiv, subcomplex);
+                addItem(subcomplexesDiv, subcomplex, 'subcomplex');
             }
         }
 
-        function addItem(listDiv, id) {
+        function addItem(listDiv, id, kind) {
             const item = document.createElement('div');
-            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked)" /> <label for="${id}">${id}</label>`;
+            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" /> <label for="${id}">${id}</label>`;
             listDiv.append(item);
         }
 
-        async function toggleComplex(id, on) {
+        async function toggleComplex(id, on, kind) {
             const checkbox = document.getElementById(id);
             checkbox.setAttribute('disabled', '');
             try {
                 if (on) {
-                    await loadComplex(id);
+                    await loadComplex(id, kind);
                 } else {
                     await deleteComplex(id);
                 }
@@ -140,16 +139,23 @@
             }
         }
 
-        async function loadComplex(id) {
+        async function loadComplex(id, kind) {
             const data = await getComplexApiData(id);
             const { pdb_id, assembly_id } = data.representative_structure;
-            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id})`);
-            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { id, pdbId: pdb_id, assemblyId: assembly_id, animationDuration: 500 });
+            // const components = data.participants.map(p => p.accession);
+            // console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${components}`);
+            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { id, pdbId: pdb_id, assemblyId: assembly_id, coloring: kind, postColoringWaitDuration: 300, animationDuration: 500 });
         }
 
         async function deleteComplex(id) {
             await viewerInstance.deleteStructure(id);
             await viewerInstance.visual.reset({ camera: true });
+            await new Promise(resolve => setTimeout(resolve, 300)); // 300ms = 50ms after camera reset completed
+            await resetColoring();
+        }
+
+        async function resetColoring() {
+            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance);
         }
 
 
