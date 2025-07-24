@@ -144,7 +144,7 @@
             const { pdb_id, assembly_id } = data.representative_structure;
             // const components = data.participants.map(p => p.accession);
             // console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${components}`);
-            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { id, pdbId: pdb_id, assemblyId: assembly_id, coloring: kind, postColoringWaitDuration: 300, animationDuration: 500 });
+            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { id, pdbId: pdb_id, assemblyId: assembly_id, coloring: kind, postColoringWaitDuration: 50, animationDuration: 250 });
         }
 
         async function deleteComplex(id) {
@@ -160,6 +160,8 @@
 
 
         const DEFAULT_COMPLEX_ID = 'PDB-CPX-159519';
+
+        // example of ugly superposition: PDB-CPX-159519 with supercomplex PDB-CPX-283620
 
         const complexId = new URL(window.location).searchParams.get('complexId');
         if (!complexId) {

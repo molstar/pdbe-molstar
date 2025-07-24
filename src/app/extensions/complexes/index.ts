@@ -22,7 +22,7 @@ const DEFAULT_COMPONENT_COLORS = [
 ];
 
 /** Load a structure and superpose onto the main structure, based on Uniprot residue numbers.
- * `postColoringWaitDuration` is time between applying coloring to base complex and actually showing the new complex (to help the user understand what's happening).
+ * `postColoringWaitDuration` is time between applying coloring to base complex and starting camera transition (before actually showing the new complex) (to help the user understand what's happening).
  */
 export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: { pdbId: string, assemblyId: string, id?: string, animationDuration?: number, postColoringWaitDuration?: number, coloring?: 'subcomplex' | 'supercomplex' | undefined, baseColor?: string, componentColors?: string[] }) {
     const staticStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
@@ -46,12 +46,24 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
         await Coloring.colorSupercomplex(viewer, staticStructId, mobileStructId, params.baseColor, params.componentColors);
     }
     if (params.postColoringWaitDuration) await sleep(params.postColoringWaitDuration);
-    await viewer.visual.structureVisibility(mobileStructId, true); // unhide structure
 
     // Adjust camera
-    await PluginCommands.Camera.Reset(viewer.plugin, { durationMs: params.animationDuration });
+    const staticStructRef = viewer.getStructure(staticStructId);
+    const mobileStructRef = viewer.getStructure(mobileStructId);
+    // viewer.plugin.canvas3d?.boundingSphere seems to not work properly so using the following workaround:
+    await PluginCommands.Camera.FocusObject(viewer.plugin, {
+        targets: [
+            { targetRef: staticStructRef?.cell.transform.ref, extraRadius: 0.3 },
+            { targetRef: (mobileStructRef?.transform ?? mobileStructRef)?.cell.transform.ref, extraRadius: 0.3 },
+            // 0.3 is amount by which bounding sphere algorithm usually underestimates actual visible bounding sphere
+        ],
+        durationMs: params.animationDuration ?? 250,
+    });
+    await sleep(params.animationDuration ?? 250); // wait until camera adjustment completed
 
-    // TODO adjust camera before unhiding the new complex
+    // Reveal new structure
+    await viewer.visual.structureVisibility(mobileStructId, true);
+    // await PluginCommands.Camera.Reset(viewer.plugin, { params.animationDuration });
 
     return {
         id: mobileStructId,
@@ -148,7 +160,6 @@ export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStruct
     }
     return superposition;
 }
-
 async function superposeStructures(viewer: PDBeMolstarPlugin, structRefs: StructureRef[]): Promise<AlignmentResult> {
     const structs = structRefs.map(ref => {
         const struct = ref.cell.obj?.data;
