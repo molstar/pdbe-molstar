@@ -729,7 +729,6 @@ export class PDBeMolstarPlugin {
         select: async (params: { data: QueryParam[], nonSelectedColor?: AnyColor, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
             const structureNumberOrId = params.structureId ?? params.structureNumber;
             await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
-            // TODO remove existing selection in the same commit (or at least just before applying new colors per structure), to avoid flickering
 
             // Structure list to apply selection
             const structures = this.getStructures(structureNumberOrId);

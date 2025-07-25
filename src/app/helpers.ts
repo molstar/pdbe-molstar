@@ -2,6 +2,7 @@ import { QualityAssessment } from 'molstar/lib/extensions/model-archive/quality-
 import { ComponentExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Mat3, Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { Model, Queries, QueryContext, ResidueIndex, Structure, StructureProperties, StructureSelection } from 'molstar/lib/mol-model/structure';
+import { QueryPredicate } from 'molstar/lib/mol-model/structure/query/context';
 import { AtomsQueryParams } from 'molstar/lib/mol-model/structure/query/queries/generators';
 import { StructureQuery } from 'molstar/lib/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
@@ -281,85 +282,107 @@ export namespace QueryHelper {
         let siftMappings: SIFTSMappingMapping | undefined;
         let currentAccession: string;
 
-        params.forEach(param => {
-            const selection: Partial<AtomsQueryParams> = {};
+        for (const param of params) {
+            const predicates = {
+                entity: [] as QueryPredicate[],
+                chain: [] as QueryPredicate[],
+                residue: [] as QueryPredicate[],
+                atom: [] as QueryPredicate[],
+            };
 
             // entity
-            if (param.entity_id) selection['entityTest'] = l => StructureProperties.entity.id(l.element) === param.entity_id;
+            if (param.entity_id !== undefined) {
+                predicates.entity.push(l => StructureProperties.entity.id(l.element) === param.entity_id);
+            }
 
             // chain
-            if (param.struct_asym_id) {
-                selection['chainTest'] = l => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id;
-            } else if (param.auth_asym_id) {
-                selection['chainTest'] = l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id;
+            if (param.struct_asym_id !== undefined) {
+                predicates.chain.push(l => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id);
+            }
+            if (param.auth_asym_id !== undefined) {
+                predicates.chain.push(l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id);
             }
 
             // residues
-            // TODO implement AND-logic here (now { residue_number: 50, label_comp_id: 'PHE' } selects all PHE)
-            if (param.label_comp_id) {
-                selection['residueTest'] = l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id;
-            } else if (param.uniprot_accession && param.uniprot_residue_number !== undefined) {
-                selection['residueTest'] = l => {
+            if (param.label_comp_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id);
+            }
+            if (param.uniprot_accession !== undefined && param.uniprot_residue_number !== undefined) {
+                predicates.residue.push(l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
-                };
-            } else if (param.uniprot_accession && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
-                selection['residueTest'] = l => {
+                });
+            }
+            if (param.uniprot_accession !== undefined && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
+                predicates.residue.push(l => {
                     if (!siftMappings || currentAccession !== param.uniprot_accession) {
                         siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
                         currentAccession = param.uniprot_accession!;
                     }
                     const rI = StructureProperties.residue.key(l.element);
                     return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
-                };
-            } else if (param.residue_number !== undefined) {
-                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number;
-            } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
-                selection['residueTest'] = l => {
+                });
+            }
+            if (param.residue_number !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number);
+            }
+            if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
+                predicates.residue.push(l => {
                     const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
                     return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
-                };
-
-            } else if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
-                selection['residueTest'] = l => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number;
-            } else if (param.auth_seq_id !== undefined) {
-                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id;
-            } else if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
-                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
-            } else if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
-                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number;
+                });
+            }
+            if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number);
+            }
+            if (param.auth_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id);
+            }
+            if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number);
+            }
+            if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number);
                 // TODO really check ins code, same for auth_seq_id, start_auth_ins_code_id, end_auth_ins_code_id
-            } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
-                selection['residueTest'] = l => {
+            }
+            if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
+                predicates.residue.push(l => {
                     const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
                     return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
-                };
-            } else if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
-                selection['residueTest'] = l => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number;
+                });
+            }
+            if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number);
             }
 
             // atoms
             if (param.atoms) {
-                selection['atomTest'] = l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element));
+                predicates.atom.push(l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element)));
             }
-
             if (param.atom_id) {
-                selection['atomTest'] = l => param.atom_id!.includes(StructureProperties.atom.id(l.element));
+                predicates.atom.push(l => param.atom_id!.includes(StructureProperties.atom.id(l.element)));
             }
 
-            selections.push(selection);
-        });
+            selections.push({
+                entityTest: predicateConjunction(predicates.entity),
+                chainTest: predicateConjunction(predicates.chain),
+                residueTest: predicateConjunction(predicates.residue),
+                atomTest: predicateConjunction(predicates.atom),
+            });
+        }
 
-        const atmGroupsQueries: StructureQuery[] = [];
-        selections.forEach(selection => {
-            atmGroupsQueries.push(Queries.generators.atoms(selection));
-        });
-
+        const atmGroupsQueries = selections.map(selection => Queries.generators.atoms(selection));
         return Queries.combinators.merge(atmGroupsQueries);
+    }
+
+    function predicateConjunction<X>(predicates: ((x: X) => boolean)[]): ((x: X) => boolean) | undefined {
+        if (predicates.length === 0) return undefined;
+        if (predicates.length === 1) return predicates[0];
+        return (x => predicates.every(pred => pred(x)));
     }
 
     export function getInteractivityLoci(params: QueryParam[], contextData: Structure) {

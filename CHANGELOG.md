@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file, following t
 - Mol* core dependency updated to 4.18.0
 - CSS building uses @use instead of @import
 - Complex superposition extension (PDBeMolstarPlugin.extensions.Complexes)
+- Selections with QueryParams implement AND-logic properly (all selector always taken into account)
 
 ## [v3.5.0] - 2025-05-28
 - Mol* core dependency updated to 4.17.0
