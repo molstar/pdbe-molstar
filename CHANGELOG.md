@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file, following t
 - Added `.visual.setViewDirection`
 - Mol* core dependency updated to 4.18.0
 - CSS building uses @use instead of @import
+- Complex superposition extension (PDBeMolstarPlugin.extensions.Complexes)
 
 ## [v3.5.0] - 2025-05-28
 - Mol* core dependency updated to 4.17.0

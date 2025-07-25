@@ -1,16 +1,14 @@
 /** Helper functions to allow superposition of complexes */
 
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
-import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
-import { Structure } from 'molstar/lib/mol-model/structure';
 import { alignAndSuperposeWithSIFTSMapping, AlignmentResult } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { Color } from 'molstar/lib/mol-util/color';
+import { sleep } from 'molstar/lib/mol-util/sleep';
 import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, normalizeColor, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
-import { sleep } from 'molstar/lib/mol-util/sleep';
 
 
 const DEFAULT_BASE_COLOR = '#cccccc';
@@ -21,120 +19,142 @@ const DEFAULT_COMPONENT_COLORS = [
     '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
 ];
 
-/** Load a structure and superpose onto the main structure, based on Uniprot residue numbers.
- * `postColoringWaitDuration` is time between applying coloring to base complex and starting camera transition (before actually showing the new complex) (to help the user understand what's happening).
- */
-export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: { pdbId: string, assemblyId: string, id?: string, animationDuration?: number, postColoringWaitDuration?: number, coloring?: 'subcomplex' | 'supercomplex' | undefined, baseColor?: string, componentColors?: string[] }) {
-    const staticStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
-    const mobileStructId = params.id ?? `${params.pdbId}_${params.assemblyId}`;
+export interface LoadComplexSuperpositionParams {
+    /** PDB identifier of complex structure */
+    pdbId: string,
+    /** Assembly identifier */
+    assemblyId: string,
+    /** Arbitrary string identifier to refer to the newly loaded structure later */
+    id?: string,
+    /** Duration of camera transition, in milliseconds. Default: 250. Do not use 0 (won't work because of bugs in Molstar), but you can use 1. */
+    animationDuration?: number,
+    /** Apply coloring to the base structure and newly loaded structure.
+     * 'subcomplex' = color the common components by unique entities (UniProt/Rfam accession); color remaining components by base color (gray).
+     * 'supercomplex' = color the common components by base color (gray); color additional components in the new structure (supercomplex) by unique entities. */
+    coloring?: 'subcomplex' | 'supercomplex' | undefined,
+    /** List of Uniprot accessions in the base complex. Mandatory when `coloring` is not `undefined`. */
+    baseComponents?: string[],
+    /** List of Uniprot accessions in the newly loaded complex. Mandatory when `coloring` is not `undefined`. */
+    otherComponents?: string[],
+    /** Base color for coloring "uninteresting" parts of structures. Default: gray. */
+    baseColor?: string,
+    /** List of colors for coloring unique entities. */
+    componentColors?: string[],
+}
 
-    // TODO apply coloring before load (based on API data from caller) to create smoother behavior
+/** Load a structure, superpose onto the main structure based on Uniprot residue numbers, and optionally apply coloring to show common/additional components. */
+export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams) {
+    const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseColor, componentColors } = params;
+    const baseStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
+    const otherStructId = params.id ?? `${pdbId}_${assemblyId}`;
 
-    // Load mobile structure
-    const mobileUrl = getStructureUrl(viewer.initParams, { pdbId: params.pdbId, queryType: 'full' });
-    await viewer.load({ url: mobileUrl, isBinary: viewer.initParams.encoding === 'bcif', assemblyId: params.assemblyId, id: mobileStructId }, false);
-    await viewer.visual.structureVisibility(mobileStructId, false); // hide structure until superposition complete, to avoid flickering
-
-    // Superpose mobile structure on static structure
-    const superposition = await superposeComplexes(viewer, staticStructId, mobileStructId);
-
-    // Apply coloring
-    if (params.coloring === 'subcomplex') {
-        await Coloring.colorSubcomplex(viewer, staticStructId, mobileStructId, params.baseColor, params.componentColors);
+    // Apply coloring to base structure
+    if (coloring) {
+        if (!baseComponents) throw new Error('`baseComponents` is required when `coloring` is not `undefined`');
+        if (!otherComponents) throw new Error('`otherComponents` is required when `coloring` is not `undefined`');
     }
-    if (params.coloring === 'supercomplex') {
-        await Coloring.colorSupercomplex(viewer, staticStructId, mobileStructId, params.baseColor, params.componentColors);
+    if (coloring === 'subcomplex') {
+        await Coloring.colorSubcomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
     }
-    if (params.postColoringWaitDuration) await sleep(params.postColoringWaitDuration);
+    if (coloring === 'supercomplex') {
+        await Coloring.colorSupercomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+    }
+
+    // Load other structure
+    const mobileUrl = getStructureUrl(viewer.initParams, { pdbId, queryType: 'full' });
+    await viewer.load({ url: mobileUrl, isBinary: viewer.initParams.encoding === 'bcif', assemblyId, id: otherStructId }, false);
+    await viewer.visual.structureVisibility(otherStructId, false); // hide structure until superposition complete, to avoid flickering
+
+    // Superpose other structure on base structure
+    const superposition = await superposeComplexes(viewer, baseStructId, otherStructId);
+
+    // Apply coloring to other structure
+    if (coloring === 'subcomplex') {
+        await Coloring.colorSubcomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+    }
+    if (coloring === 'supercomplex') {
+        await Coloring.colorSupercomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+    }
 
     // Adjust camera
-    const staticStructRef = viewer.getStructure(staticStructId);
-    const mobileStructRef = viewer.getStructure(mobileStructId);
-    // viewer.plugin.canvas3d?.boundingSphere seems to not work properly so using the following workaround:
+    const staticStructRef = viewer.getStructure(baseStructId);
+    const mobileStructRef = viewer.getStructure(otherStructId);
+    // Wanted to use PluginCommands.Camera.Focus with viewer.plugin.canvas3d?.boundingSphere, but seems to not work properly, so using the following workaround:
     await PluginCommands.Camera.FocusObject(viewer.plugin, {
         targets: [
             { targetRef: staticStructRef?.cell.transform.ref, extraRadius: 0.3 },
             { targetRef: (mobileStructRef?.transform ?? mobileStructRef)?.cell.transform.ref, extraRadius: 0.3 },
             // 0.3 is amount by which bounding sphere algorithm usually underestimates actual visible bounding sphere
         ],
-        durationMs: params.animationDuration ?? 250,
+        durationMs: animationDuration,
     });
-    await sleep(params.animationDuration ?? 250); // wait until camera adjustment completed
+    await sleep(animationDuration); // wait until camera adjustment completed
 
     // Reveal new structure
-    await viewer.visual.structureVisibility(mobileStructId, true);
-    // await PluginCommands.Camera.Reset(viewer.plugin, { params.animationDuration });
+    await viewer.visual.structureVisibility(otherStructId, true);
 
     return {
-        id: mobileStructId,
+        id: otherStructId,
         superposition,
-        delete: () => viewer.deleteStructure(mobileStructId),
+        delete: () => viewer.deleteStructure(otherStructId),
     };
 }
 
 export const Coloring = {
-    async colorComponents(viewer: PDBeMolstarPlugin, structId: string = PDBeMolstarPlugin.MAIN_STRUCTURE_ID, baseColor: string = DEFAULT_BASE_COLOR, componentColors: string[] = DEFAULT_COMPONENT_COLORS) {
-        const struct = viewer.getStructure(structId)?.cell.obj?.data;
-        if (!struct) throw new Error('Structure not loaded');
+    async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], baseColor?: string, componentColors?: string[] }) {
+        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components } = params;
 
-        const accessions = extractUniprotAccessionsFromMmcifStructRef(struct);
         const selectData: QueryParam[] = [];
-        for (let i = 0; i < accessions.length; i++) {
-            const acc = accessions[i];
+        for (let i = 0; i < components.length; i++) {
+            const acc = components[i];
             const color = componentColors[i % componentColors.length];
             selectData.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(color) });
         }
-        await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(baseColor), structureId: structId });
+        await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(baseColor), structureId: params.structId });
     },
-    async colorSubcomplex(viewer: PDBeMolstarPlugin, baseStructId: string, subcomplexStructId: string, baseColor: string = DEFAULT_BASE_COLOR, componentColors: string[] = DEFAULT_COMPONENT_COLORS) {
-        const baseStruct = viewer.getStructure(baseStructId)?.cell.obj?.data;
-        if (!baseStruct) throw new Error('Base structure not loaded');
-        const subcomplexStruct = viewer.getStructure(subcomplexStructId)?.cell.obj?.data;
-        if (!subcomplexStruct) throw new Error('Subcomplex structure not loaded');
-
-        const baseAccessions = extractUniprotAccessionsFromMmcifStructRef(baseStruct);
-        const subAccessions = new Set(extractUniprotAccessionsFromMmcifStructRef(subcomplexStruct));
+    async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, componentColors?: string[] }) {
+        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents } = params;
+        const subComponentsSet = new Set(params.otherComponents);
 
         const selectDataBase: QueryParam[] = [];
         const selectDataSub: QueryParam[] = [];
-        for (let i = 0; i < baseAccessions.length; i++) {
-            const acc = baseAccessions[i];
-            if (subAccessions.has(acc)) {
+        for (let i = 0; i < baseComponents.length; i++) {
+            const accession = baseComponents[i];
+            if (subComponentsSet.has(accession)) {
                 const color = componentColors[i % componentColors.length];
-                selectDataBase.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(color) });
-                selectDataSub.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(color) });
+                selectDataBase.push({ uniprot_accession: accession, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(color) });
+                selectDataSub.push({ uniprot_accession: accession, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(color) });
             }
         }
-        await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: baseStructId });
-        await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(baseColor), structureId: subcomplexStructId });
+        if (params.baseStructId) {
+            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: params.baseStructId });
+        }
+        if (params.otherStructId) {
+            await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(baseColor), structureId: params.otherStructId });
+        }
     },
-    async colorSupercomplex(viewer: PDBeMolstarPlugin, baseStructId: string, supercomplexStructId: string, baseColor: string = DEFAULT_BASE_COLOR, componentColors: string[] = DEFAULT_COMPONENT_COLORS) {
-        const baseStruct = viewer.getStructure(baseStructId)?.cell.obj?.data;
-        if (!baseStruct) throw new Error('Base structure not loaded');
-        const supercomplexStruct = viewer.getStructure(supercomplexStructId)?.cell.obj?.data;
-        if (!supercomplexStruct) throw new Error('Supercomplex structure not loaded');
-
-        const baseAccessions = extractUniprotAccessionsFromMmcifStructRef(baseStruct);
-        const baseAccessionSet = new Set(baseAccessions);
-        const _superAccessions = extractUniprotAccessionsFromMmcifStructRef(supercomplexStruct);
-        const superAccessions = baseAccessions.concat(_superAccessions.filter(acc => !baseAccessionSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
+    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, componentColors?: string[] }) {
+        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS } = params;
+        const baseComponentsSet = new Set(params.baseComponents);
+        const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
         const selectDataBase: QueryParam[] = [];
         const selectDataSuper: QueryParam[] = [];
-        for (let i = 0; i < superAccessions.length; i++) {
-            const acc = superAccessions[i];
-            if (baseAccessionSet.has(acc)) {
-                selectDataBase.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(baseColor) });
-                selectDataSuper.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(baseColor) });
-            } else {
+        for (let i = 0; i < superComponents.length; i++) {
+            const acc = superComponents[i];
+            if (!baseComponentsSet.has(acc)) {
                 const color = componentColors[i % componentColors.length];
                 selectDataSuper.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(color) });
             }
         }
-        await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: baseStructId });
-        await viewer.visual.select({ data: selectDataSuper, nonSelectedColor: adjustForOther(baseColor), structureId: supercomplexStructId });
+        if (params.baseStructId) {
+            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: params.baseStructId });
+        }
+        if (params.otherStructId) {
+            await viewer.visual.select({ data: selectDataSuper, nonSelectedColor: adjustForOther(baseColor), structureId: params.otherStructId });
+        }
     },
-}
+};
 
 /** Adjust color for use on the base structure (slightly lighten) */
 function adjustForBase(color: string) {
@@ -193,65 +213,3 @@ Coloring - supercomplexes:
 -> For both subcomplexes and supercomplexes, colors could be assigned based on UniprotID hash -> database-wide consistency but complexes with similar-color components will occur
 
 */
-
-function extractUniprotMappings(structure: Structure) {
-    const accessionLengths = extractUniprotAccessionLengthsFromMmcifStructRef(structure); // this is to a) filter out records in pdbx_sifts_unp_segments, b) sort accessions by decreasing length
-    const accessions = Object.keys(accessionLengths).sort((a, b) => accessionLengths[b] - accessionLengths[a]); // sort by decreasing length
-    const segments = extractUniprotSegmentsFromMmcifPdbxSiftsUnpSegments(structure, new Set(accessions));
-    return { accessions, segments };
-}
-
-function extractUniprotSegmentsFromMmcifPdbxSiftsUnpSegments(structure: Structure, allowedAccessions?: Set<string>) {
-    const src = structure.model.sourceData;
-    if (!MmcifFormat.is(src)) throw new Error('Source data must be mmCIF/BCIF');
-
-    const pdbx_sifts_unp_segments = src.data.frame.categories['pdbx_sifts_unp_segments'];
-    if (!pdbx_sifts_unp_segments) throw new Error('pdbx_sifts_unp_segments category not found');
-
-    const unp_acc = pdbx_sifts_unp_segments.getField('unp_acc');
-    const asym_id = pdbx_sifts_unp_segments.getField('asym_id');
-    const seq_id_start = pdbx_sifts_unp_segments.getField('seq_id_start');
-    const seq_id_end = pdbx_sifts_unp_segments.getField('seq_id_end');
-    if (!unp_acc || !asym_id || !seq_id_start || !seq_id_end) throw new Error('Missing fields in pdbx_sifts_unp_segments category');
-
-    const segmentMap: { [accession: string]: { asymId: string, seqIdStart: number, seqIdEnd: number }[] } = {};
-    for (let i = 0; i < pdbx_sifts_unp_segments.rowCount; i++) {
-        const accession = unp_acc.str(i);
-        if (allowedAccessions && !allowedAccessions.has(accession)) continue;
-        const asymId = asym_id.str(i);
-        const seqIdStart = seq_id_start.int(i);
-        const seqIdEnd = seq_id_end.int(i);
-        (segmentMap[accession] ??= []).push({ asymId, seqIdStart, seqIdEnd });
-    };
-    return segmentMap;
-}
-
-/** Return list of Uniprot accession in `structure`, sorted by decreasing matched length */
-function extractUniprotAccessionsFromMmcifStructRef(structure: Structure) {
-    const accessionLengths = extractUniprotAccessionLengthsFromMmcifStructRef(structure);
-    const accessions = Object.keys(accessionLengths).sort((a, b) => accessionLengths[b] - accessionLengths[a]);
-    return accessions;
-}
-
-function extractUniprotAccessionLengthsFromMmcifStructRef(structure: Structure) {
-    const src = structure.model.sourceData;
-    if (!MmcifFormat.is(src)) throw new Error('Source data must be mmCIF/BCIF');
-
-    const struct_ref = src.data.frame.categories['struct_ref'];
-    if (!struct_ref) throw new Error('struct_ref category not found');
-
-    const db_name = struct_ref.getField('db_name');
-    const db_accession = struct_ref.getField('pdbx_db_accession');
-    const pdbx_seq_one_letter_code = struct_ref.getField('pdbx_seq_one_letter_code');
-    if (!db_name || !db_accession || !pdbx_seq_one_letter_code) throw new Error('Missing fields in struct_ref category');
-
-    const accessions: { [accession: string]: number } = {};
-    for (let i = 0; i < struct_ref.rowCount; i++) {
-        const name = db_name.str(i);
-        if (name !== 'UNP') continue;
-        const accession = db_accession.str(i);
-        const length = pdbx_seq_one_letter_code.str(i).length; // this is length of the matched sequence chunk (listed in _struct_ref), not of the full Uniprot sequence
-        accessions[accession] = length;
-    };
-    return accessions;
-}

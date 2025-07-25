@@ -83,6 +83,7 @@
             console.log('Complex ID:', complexId);
             const { pdb_id, assembly_id } = data.representative_structure;
             console.log(`Structure: ${pdb_id}, assembly ${assembly_id}`);
+            baseComponents = data.participants.map(p => p.accession);
 
             // Create plugin instance
             viewerInstance = new PDBeMolstarPlugin();
@@ -107,7 +108,10 @@
                 customData: undefined,
             };
             await viewerInstance.render(viewerContainer, options);
-            viewerInstance.events.loadComplete.subscribe(resetColoring);
+            const sub = viewerInstance.events.loadComplete.subscribe(() => {
+                sub.unsubscribe();
+                resetColoring();
+            });
 
             const supercomplexesDiv = document.getElementById('supercomplex-list');
             for (const supercomplex of data.supercomplexes) {
@@ -142,9 +146,14 @@
         async function loadComplex(id, kind) {
             const data = await getComplexApiData(id);
             const { pdb_id, assembly_id } = data.representative_structure;
-            // const components = data.participants.map(p => p.accession);
-            // console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${components}`);
-            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, { id, pdbId: pdb_id, assemblyId: assembly_id, coloring: kind, postColoringWaitDuration: 50, animationDuration: 250 });
+            const otherComponents = data.participants.map(p => p.accession);
+            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}`);
+            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
+                id,
+                pdbId: pdb_id, assemblyId: assembly_id,
+                baseComponents, otherComponents,
+                coloring: kind, animationDuration: 250,
+            });
         }
 
         async function deleteComplex(id) {
@@ -155,12 +164,11 @@
         }
 
         async function resetColoring() {
-            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance);
+            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, { structId: 'main', components: baseComponents });
         }
 
 
         const DEFAULT_COMPLEX_ID = 'PDB-CPX-159519';
-
         // example of ugly superposition: PDB-CPX-159519 with supercomplex PDB-CPX-283620
 
         const complexId = new URL(window.location).searchParams.get('complexId');
@@ -170,7 +178,8 @@
             window.location = url;
         }
 
-        let viewerInstance;
+        let viewerInstance; // PDBeMolstarPlugin
+        let baseComponents; // string[]
 
         initComplexView(complexId);
 
