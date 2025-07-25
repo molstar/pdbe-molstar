@@ -330,33 +330,34 @@ export namespace QueryHelper {
             if (param.residue_number !== undefined) {
                 predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number);
             }
-            if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number > param.start_residue_number) {
-                predicates.residue.push(l => {
-                    const labelSeqId = StructureProperties.residue.label_seq_id(l.element);
-                    return labelSeqId >= param.start_residue_number! && labelSeqId <= param.end_residue_number!;
-                });
+            if (param.start_residue_number !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) >= param.start_residue_number!);
             }
-            if (param.start_residue_number !== undefined && param.end_residue_number !== undefined && param.end_residue_number === param.start_residue_number) {
-                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.start_residue_number);
+            if (param.end_residue_number !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) <= param.end_residue_number!);
             }
             if (param.auth_seq_id !== undefined) {
                 predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id);
             }
-            if (param.auth_residue_number !== undefined && !param.auth_ins_code_id) {
+            if (param.auth_residue_number !== undefined) {
                 predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number);
             }
-            if (param.auth_residue_number !== undefined && param.auth_ins_code_id) {
-                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number);
-                // TODO really check ins code, same for auth_seq_id, start_auth_ins_code_id, end_auth_ins_code_id
+            if (param.auth_ins_code_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.pdbx_PDB_ins_code(l.element) === param.auth_ins_code_id);
             }
-            if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number > param.start_auth_residue_number) {
-                predicates.residue.push(l => {
-                    const authSeqId = StructureProperties.residue.auth_seq_id(l.element);
-                    return authSeqId >= param.start_auth_residue_number! && authSeqId <= param.end_auth_residue_number!;
-                });
+            if (param.start_auth_residue_number !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) >= param.start_auth_residue_number!);
+                if (param.start_auth_ins_code_id !== undefined) {
+                    // This assumes insertion code come in alphabetical order, which is not always true (e.g. 1ucy chain A [auth L]). However, authors of such monstrosities do not deserve their structures to be displayed correctly.
+                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) > param.start_auth_residue_number! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) >= param.start_auth_ins_code_id!);
+                }
             }
-            if (param.start_auth_residue_number !== undefined && param.end_auth_residue_number !== undefined && param.end_auth_residue_number === param.start_auth_residue_number) {
-                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.start_auth_residue_number);
+            if (param.end_auth_residue_number !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) <= param.end_auth_residue_number!);
+                if (param.end_auth_ins_code_id !== undefined) {
+                    // This assumes insertion code come in alphabetical order, which is not always true (e.g. 1ucy chain A [auth L]). However, authors of such monstrosities do not deserve their structures to be displayed correctly.
+                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) < param.end_auth_residue_number! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) <= param.end_auth_ins_code_id!);
+                }
             }
 
             // atoms
@@ -373,6 +374,7 @@ export namespace QueryHelper {
                 residueTest: predicateConjunction(predicates.residue),
                 atomTest: predicateConjunction(predicates.atom),
             });
+            // console.log('predicates', predicates)
         }
 
         const atmGroupsQueries = selections.map(selection => Queries.generators.atoms(selection));
