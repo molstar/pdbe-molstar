@@ -279,8 +279,13 @@ export namespace QueryHelper {
 
     export function getQueryObject(params: QueryParam[], contextData: Structure): Expression {
         const selections: Partial<AtomsQueryParams>[] = [];
-        let siftMappings: SIFTSMappingMapping | undefined;
-        let currentAccession: string;
+
+        /** `undefined` means SIFTSMappingMapping has not been retrieved yet. `null` means SIFTSMappingMapping has been retrieved unsuccessfully.  */
+        let _siftMappings: SIFTSMappingMapping | null | undefined;
+        function getSiftsMappings(): SIFTSMappingMapping | null {
+            if (_siftMappings === undefined) _siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value ?? null;
+            return _siftMappings;
+        }
 
         for (const param of params) {
             const predicates = {
@@ -303,30 +308,11 @@ export namespace QueryHelper {
                 predicates.chain.push(l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id);
             }
 
-            // residues
+            // residue
             if (param.label_comp_id !== undefined) {
                 predicates.residue.push(l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id);
             }
-            if (param.uniprot_accession !== undefined && param.uniprot_residue_number !== undefined) {
-                predicates.residue.push(l => {
-                    if (!siftMappings || currentAccession !== param.uniprot_accession) {
-                        siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
-                        currentAccession = param.uniprot_accession!;
-                    }
-                    const rI = StructureProperties.residue.key(l.element);
-                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && param.uniprot_residue_number === +siftMappings.num[rI];
-                });
-            }
-            if (param.uniprot_accession !== undefined && param.start_uniprot_residue_number !== undefined && param.end_uniprot_residue_number !== undefined) {
-                predicates.residue.push(l => {
-                    if (!siftMappings || currentAccession !== param.uniprot_accession) {
-                        siftMappings = SIFTSMapping.Provider.get(contextData.models[0]).value;
-                        currentAccession = param.uniprot_accession!;
-                    }
-                    const rI = StructureProperties.residue.key(l.element);
-                    return !!siftMappings && param.uniprot_accession === siftMappings.accession[rI] && (param.start_uniprot_residue_number! <= +siftMappings.num[rI] && param.end_uniprot_residue_number! >= +siftMappings.num[rI]);
-                });
-            }
+
             if (param.residue_number !== undefined) {
                 predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number);
             }
@@ -360,7 +346,20 @@ export namespace QueryHelper {
                 }
             }
 
-            // atoms
+            if (param.uniprot_accession !== undefined) {
+                predicates.residue.push(l => getSiftsMappings()?.accession[StructureProperties.residue.key(l.element)] === param.uniprot_accession);
+            }
+            if (param.uniprot_residue_number !== undefined) {
+                predicates.residue.push(l => Number(getSiftsMappings()?.num[StructureProperties.residue.key(l.element)]) === param.uniprot_residue_number);
+            }
+            if (param.start_uniprot_residue_number !== undefined) {
+                predicates.residue.push(l => Number(getSiftsMappings()?.num[StructureProperties.residue.key(l.element)]) >= param.start_uniprot_residue_number!);
+            }
+            if (param.end_uniprot_residue_number !== undefined) {
+                predicates.residue.push(l => Number(getSiftsMappings()?.num[StructureProperties.residue.key(l.element)]) <= param.end_uniprot_residue_number!);
+            }
+
+            // atom
             if (param.atoms) {
                 predicates.atom.push(l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element)));
             }
@@ -374,7 +373,6 @@ export namespace QueryHelper {
                 residueTest: predicateConjunction(predicates.residue),
                 atomTest: predicateConjunction(predicates.atom),
             });
-            // console.log('predicates', predicates)
         }
 
         const atmGroupsQueries = selections.map(selection => Queries.generators.atoms(selection));

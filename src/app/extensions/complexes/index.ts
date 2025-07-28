@@ -108,7 +108,7 @@ export const Coloring = {
         for (let i = 0; i < components.length; i++) {
             const acc = components[i];
             const color = componentColors[i % componentColors.length];
-            selectData.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(color) });
+            selectData.push({ uniprot_accession: acc, color: adjustForBase(color) });
         }
         await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(baseColor), structureId: params.structId });
     },
