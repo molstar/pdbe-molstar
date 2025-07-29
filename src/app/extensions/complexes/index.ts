@@ -12,6 +12,7 @@ import { transform } from '../../superposition';
 
 
 const DEFAULT_BASE_COLOR = '#cccccc';
+const DEFAULT_UNMAPPED_COLOR = '#ff0000'; // TODO choose sensible value, or use different approach (opacity? texture?)
 const DEFAULT_COMPONENT_COLORS = [
     '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
     '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
@@ -36,8 +37,10 @@ export interface LoadComplexSuperpositionParams {
     baseComponents?: string[],
     /** List of Uniprot accessions in the newly loaded complex. Mandatory when `coloring` is not `undefined`. */
     otherComponents?: string[],
-    /** Base color for coloring "uninteresting" parts of structures. Default: gray. */
+    /** Base color for coloring "uninteresting" parts of structures (i.e. subcomplexes: additional components, supercomplexes: common components). Default: gray. */
     baseColor?: string,
+    /** Color for coloring unmapped additional components for supercomplexes. */
+    unmappedColor?: string,
     /** List of colors for coloring unique entities. */
     componentColors?: string[],
 }
@@ -122,8 +125,8 @@ export const Coloring = {
             const accession = baseComponents[i];
             if (subComponentsSet.has(accession)) {
                 const color = componentColors[i % componentColors.length];
-                selectDataBase.push({ uniprot_accession: accession, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForBase(color) });
-                selectDataSub.push({ uniprot_accession: accession, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(color) });
+                selectDataBase.push({ uniprot_accession: accession, color: adjustForBase(color) });
+                selectDataSub.push({ uniprot_accession: accession, color: adjustForOther(color) });
             }
         }
         if (params.baseStructId) {
@@ -133,8 +136,8 @@ export const Coloring = {
             await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(baseColor), structureId: params.otherStructId });
         }
     },
-    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, componentColors?: string[] }) {
-        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS } = params;
+    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, unmappedColor?: string, componentColors?: string[] }) {
+        const { baseColor = DEFAULT_BASE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS } = params;
         const baseComponentsSet = new Set(params.baseComponents);
         const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
@@ -142,16 +145,19 @@ export const Coloring = {
         const selectDataSuper: QueryParam[] = [];
         for (let i = 0; i < superComponents.length; i++) {
             const acc = superComponents[i];
-            if (!baseComponentsSet.has(acc)) {
+            if (baseComponentsSet.has(acc)) {
+                selectDataBase.push({ uniprot_accession: acc, color: adjustForBase(baseColor) });
+                selectDataSuper.push({ uniprot_accession: acc, color: adjustForOther(baseColor) });
+            } else {
                 const color = componentColors[i % componentColors.length];
-                selectDataSuper.push({ uniprot_accession: acc, start_uniprot_residue_number: -Infinity, end_uniprot_residue_number: Infinity, color: adjustForOther(color) });
+                selectDataSuper.push({ uniprot_accession: acc, color: adjustForOther(color) });
             }
         }
         if (params.baseStructId) {
-            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: params.baseStructId });
+            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(unmappedColor), structureId: params.baseStructId });
         }
         if (params.otherStructId) {
-            await viewer.visual.select({ data: selectDataSuper, nonSelectedColor: adjustForOther(baseColor), structureId: params.otherStructId });
+            await viewer.visual.select({ data: selectDataSuper, nonSelectedColor: adjustForOther(unmappedColor), structureId: params.otherStructId });
         }
     },
 };

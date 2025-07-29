@@ -125,7 +125,7 @@
 
         function addItem(listDiv, id, kind) {
             const item = document.createElement('div');
-            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" /> <label for="${id}">${id}</label>`;
+            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" /> <label for="${id}">${id}</label> <a href="${urlForComplex(id)}" style="text-decoration: none;">&#10138;</a>`;
             listDiv.append(item);
         }
 
@@ -167,15 +167,21 @@
             await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, { structId: 'main', components: baseComponents });
         }
 
+        function urlForComplex(complexId){
+            const url = new URL(window.location);
+            url.searchParams.set('complexId', complexId);
+            return url.toString();
+        }
 
         const DEFAULT_COMPLEX_ID = 'PDB-CPX-159519';
         // example of ugly superposition: PDB-CPX-159519 with supercomplex PDB-CPX-283620
 
         const complexId = new URL(window.location).searchParams.get('complexId');
         if (!complexId) {
-            const url = new URL(window.location);
-            url.searchParams.append('complexId', DEFAULT_COMPLEX_ID);
-            window.location = url;
+            // const url = new URL(window.location);
+            // url.searchParams.set('complexId', DEFAULT_COMPLEX_ID);
+            // window.location = url.toString();
+            window.location = urlForComplex(DEFAULT_COMPLEX_ID);
         }
 
         let viewerInstance; // PDBeMolstarPlugin
