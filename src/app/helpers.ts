@@ -224,6 +224,8 @@ export interface QueryParam {
     uniprot_residue_number?: number,
     start_uniprot_residue_number?: number,
     end_uniprot_residue_number?: number,
+    /** Instance identifier to distinguish instances of the same chain created by applying different symmetry operators, like 'ASM-X0-1' for assemblies or '1_555' for crystals */
+    instance_id?: string, // TODO implement
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
@@ -246,6 +248,7 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         atom_index: undefined,
         label_comp_id: item.label_comp_id,
         auth_comp_id: undefined,
+        instance_id: item.instance_id,
     }));
 }
 
@@ -306,6 +309,9 @@ export namespace QueryHelper {
             }
             if (param.auth_asym_id !== undefined) {
                 predicates.chain.push(l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id);
+            }
+            if (param.instance_id !== undefined) {
+                predicates.chain.push(l => StructureProperties.unit.instance_id(l.element) === param.instance_id);
             }
 
             // residue
