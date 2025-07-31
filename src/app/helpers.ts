@@ -241,18 +241,6 @@ export interface QueryParam {
 
     /** Selects by instance identifier to distinguish instances of the same chain created by applying different symmetry operators, like 'ASM-X0-1' for assemblies or '1_555' for crystals */
     instance_id?: string,
-
-    color?: any,
-    sideChain?: boolean,
-    representation?: string,
-    representationColor?: any,
-    focus?: boolean,
-    tooltip?: string,
-
-    /** @deprecated I don't know what this is */
-    start?: any,
-    /** @deprecated I don't know what this is */
-    end?: any,
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {

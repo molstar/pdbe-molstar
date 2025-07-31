@@ -538,8 +538,8 @@ export class PDBeMolstarPlugin {
     }
 
     /** For each item in params, get loci and bundle */
-    private getSelections(params: QueryParam[], structNumber: number) {
-        const result: { param: QueryParam, loci: StructureElement.Loci, bundle: StructureElement.Bundle }[] = [];
+    private getSelections<P extends QueryParam>(params: P[], structNumber: number) {
+        const result: { param: P, loci: StructureElement.Loci, bundle: StructureElement.Bundle }[] = [];
         for (const param of params) {
             const loci = this.getLociForParams([param], structNumber);
             if (Loci.isEmpty(loci) || !StructureElement.Loci.is(loci)) continue;
@@ -726,7 +726,14 @@ export class PDBeMolstarPlugin {
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
          * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
-        select: async (params: { data: QueryParam[], nonSelectedColor?: AnyColor, structureId?: string, structureNumber?: number, keepColors?: boolean, keepRepresentations?: boolean }) => {
+        select: async (params: {
+            data: (QueryParam & { color?: AnyColor, sideChain?: boolean, representation?: string, representationColor?: any, focus?: boolean })[],
+            nonSelectedColor?: AnyColor,
+            structureId?: string,
+            structureNumber?: number,
+            keepColors?: boolean,
+            keepRepresentations?: boolean,
+        }) => {
             const structureNumberOrId = params.structureId ?? params.structureNumber;
             await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
 
@@ -835,7 +842,7 @@ export class PDBeMolstarPlugin {
          * Repeated call to this function removes any previously added tooltips.
          * `structureNumber` counts from 1; if not provided, tooltips will be applied to all loaded structures.
          * Example: `await this.visual.tooltips({ data: [{ struct_asym_id: 'A', tooltip: 'Chain A' }, { struct_asym_id: 'B', tooltip: 'Chain B' }] });`. */
-        tooltips: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
+        tooltips: async (params: { data: (QueryParam & { tooltip?: string })[], structureId?: string, structureNumber?: number }) => {
             // Structure list to apply tooltips
             const structures = this.getStructures(params.structureId ?? params.structureNumber);
 

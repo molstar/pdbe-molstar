@@ -107,7 +107,7 @@ export const Coloring = {
     async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], baseColor?: string, componentColors?: string[] }) {
         const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components } = params;
 
-        const selectData: QueryParam[] = [];
+        const selectData: (QueryParam & { color: string })[] = [];
         for (let i = 0; i < components.length; i++) {
             const acc = components[i];
             const color = componentColors[i % componentColors.length];
@@ -119,8 +119,8 @@ export const Coloring = {
         const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents } = params;
         const subComponentsSet = new Set(params.otherComponents);
 
-        const selectDataBase: QueryParam[] = [];
-        const selectDataSub: QueryParam[] = [];
+        const selectDataBase: (QueryParam & { color: string })[] = [];
+        const selectDataSub: (QueryParam & { color: string })[] = [];
         for (let i = 0; i < baseComponents.length; i++) {
             const accession = baseComponents[i];
             if (subComponentsSet.has(accession)) {
@@ -141,8 +141,8 @@ export const Coloring = {
         const baseComponentsSet = new Set(params.baseComponents);
         const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
-        const selectDataBase: QueryParam[] = [];
-        const selectDataSuper: QueryParam[] = [];
+        const selectDataBase: (QueryParam & { color: string })[] = [];
+        const selectDataSuper: (QueryParam & { color: string })[] = [];
         for (let i = 0; i < superComponents.length; i++) {
             const acc = superComponents[i];
             if (baseComponentsSet.has(acc)) {
