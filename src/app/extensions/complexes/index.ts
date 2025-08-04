@@ -11,14 +11,20 @@ import { getStructureUrl, normalizeColor, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
 
 
-const DEFAULT_BASE_COLOR = '#cccccc';
-const DEFAULT_UNMAPPED_COLOR = '#ff0000'; // TODO choose sensible value, or use different approach (opacity? texture?)
+const DEFAULT_CORE_COLOR = '#d8d8d8';
+const DEFAULT_UNMAPPED_COLOR = '#222222';
 const DEFAULT_COMPONENT_COLORS = [
     '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
     '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
     '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
     '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
 ];
+// TODO compare color variants:
+// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23222222
+// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23ff0000
+
+/** How much lighter/darker colors should be for the base/other complex */
+const COLOR_ADJUSTMENT_STRENGTH = 0.75;
 
 export interface LoadComplexSuperpositionParams {
     /** PDB identifier of complex structure */
@@ -33,21 +39,25 @@ export interface LoadComplexSuperpositionParams {
      * 'subcomplex' = color the common components by unique entities (UniProt/Rfam accession); color remaining components by base color (gray).
      * 'supercomplex' = color the common components by base color (gray); color additional components in the new structure (supercomplex) by unique entities. */
     coloring?: 'subcomplex' | 'supercomplex' | undefined,
-    /** List of Uniprot accessions in the base complex. Mandatory when `coloring` is not `undefined`. */
+    /** List of Uniprot/Rfam accessions in the base complex. Mandatory when `coloring` is not `undefined`. */
     baseComponents?: string[],
-    /** List of Uniprot accessions in the newly loaded complex. Mandatory when `coloring` is not `undefined`. */
+    /** List of Uniprot/Rfam accessions in the newly loaded complex. Mandatory when `coloring` is not `undefined`. */
     otherComponents?: string[],
     /** Base color for coloring "uninteresting" parts of structures (i.e. subcomplexes: additional components, supercomplexes: common components). Default: gray. */
-    baseColor?: string,
+    coreColor?: string,
     /** Color for coloring unmapped additional components for supercomplexes. */
     unmappedColor?: string,
     /** List of colors for coloring unique entities. */
     componentColors?: string[],
+    /** Optional specification of which parts of the base complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    baseMappings?: { [accession: string]: QueryParam[] },
+    /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    otherMappings?: { [accession: string]: QueryParam[] },
 }
 
 /** Load a structure, superpose onto the main structure based on Uniprot residue numbers, and optionally apply coloring to show common/additional components. */
 export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams) {
-    const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseColor, componentColors } = params;
+    const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseMappings, otherMappings, coreColor, unmappedColor, componentColors } = params;
     const baseStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const otherStructId = params.id ?? `${pdbId}_${assemblyId}`;
 
@@ -57,10 +67,10 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
         if (!otherComponents) throw new Error('`otherComponents` is required when `coloring` is not `undefined`');
     }
     if (coloring === 'subcomplex') {
-        await Coloring.colorSubcomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+        await Coloring.colorSubcomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseMappings, otherMappings, coreColor, componentColors });
     }
     if (coloring === 'supercomplex') {
-        await Coloring.colorSupercomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+        await Coloring.colorSupercomplex(viewer, { baseStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseMappings, otherMappings, coreColor, unmappedColor, componentColors });
     }
 
     // Load other structure
@@ -73,10 +83,10 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
 
     // Apply coloring to other structure
     if (coloring === 'subcomplex') {
-        await Coloring.colorSubcomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+        await Coloring.colorSubcomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseMappings, otherMappings, coreColor, componentColors });
     }
     if (coloring === 'supercomplex') {
-        await Coloring.colorSupercomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseColor, componentColors });
+        await Coloring.colorSupercomplex(viewer, { otherStructId, baseComponents: baseComponents!, otherComponents: otherComponents!, baseMappings, otherMappings, coreColor, unmappedColor, componentColors });
     }
 
     // Adjust camera
@@ -104,19 +114,20 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
 }
 
 export const Coloring = {
-    async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], baseColor?: string, componentColors?: string[] }) {
-        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components } = params;
+    async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], mappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
+        const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components, mappings = {} } = params;
 
         const selectData: QueryParam[] = [];
         for (let i = 0; i < components.length; i++) {
-            const acc = components[i];
+            const accession = components[i];
             const color = componentColors[i % componentColors.length];
-            selectData.push({ uniprot_accession: acc, color: adjustForBase(color) });
+            selectData.push(...colorItems(accession, mappings[accession], adjustForBase(color)));
+            // TODO add tooltips
         }
-        await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(baseColor), structureId: params.structId });
+        await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(coreColor), structureId: params.structId });
     },
-    async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, componentColors?: string[] }) {
-        const { baseColor = DEFAULT_BASE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents } = params;
+    async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
+        const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
         const subComponentsSet = new Set(params.otherComponents);
 
         const selectDataBase: QueryParam[] = [];
@@ -125,32 +136,32 @@ export const Coloring = {
             const accession = baseComponents[i];
             if (subComponentsSet.has(accession)) {
                 const color = componentColors[i % componentColors.length];
-                selectDataBase.push({ uniprot_accession: accession, color: adjustForBase(color) });
-                selectDataSub.push({ uniprot_accession: accession, color: adjustForOther(color) });
+                selectDataBase.push(...colorItems(accession, baseMappings[accession], adjustForBase(color)));
+                selectDataSub.push(...colorItems(accession, otherMappings[accession], adjustForOther(color)));
             }
         }
         if (params.baseStructId) {
-            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(baseColor), structureId: params.baseStructId });
+            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(coreColor), structureId: params.baseStructId });
         }
         if (params.otherStructId) {
-            await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(baseColor), structureId: params.otherStructId });
+            await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(coreColor), structureId: params.otherStructId });
         }
     },
-    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseColor?: string, unmappedColor?: string, componentColors?: string[] }) {
-        const { baseColor = DEFAULT_BASE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS } = params;
+    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, unmappedColor?: string, componentColors?: string[] }) {
+        const { coreColor = DEFAULT_CORE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseMappings = {}, otherMappings = {} } = params;
         const baseComponentsSet = new Set(params.baseComponents);
         const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
         const selectDataBase: QueryParam[] = [];
         const selectDataSuper: QueryParam[] = [];
         for (let i = 0; i < superComponents.length; i++) {
-            const acc = superComponents[i];
-            if (baseComponentsSet.has(acc)) {
-                selectDataBase.push({ uniprot_accession: acc, color: adjustForBase(baseColor) });
-                selectDataSuper.push({ uniprot_accession: acc, color: adjustForOther(baseColor) });
+            const accession = superComponents[i];
+            if (baseComponentsSet.has(accession)) {
+                selectDataBase.push(...colorItems(accession, baseMappings[accession], adjustForBase(coreColor)));
+                selectDataSuper.push(...colorItems(accession, otherMappings[accession], adjustForOther(coreColor)));
             } else {
                 const color = componentColors[i % componentColors.length];
-                selectDataSuper.push({ uniprot_accession: acc, color: adjustForOther(color) });
+                selectDataSuper.push(...colorItems(accession, otherMappings[accession], adjustForOther(color)));
             }
         }
         if (params.baseStructId) {
@@ -164,12 +175,21 @@ export const Coloring = {
 
 /** Adjust color for use on the base structure (slightly lighten) */
 function adjustForBase(color: string) {
-    return Color.toHexStyle(Color.lighten(normalizeColor(color), 1));
+    return Color.toHexStyle(Color.lighten(normalizeColor(color), COLOR_ADJUSTMENT_STRENGTH));
 }
 /** Adjust color for use on the subcomplex/supercomplex structure (slightly darken) */
 function adjustForOther(color: string) {
-    return Color.toHexStyle(Color.darken(normalizeColor(color), 1));
+    return Color.toHexStyle(Color.darken(normalizeColor(color), COLOR_ADJUSTMENT_STRENGTH));
 }
+
+/** Create coloring items for `.visual.select`, preferrably based on `mappings`, or based on `uniprot_accession` if `mappings` not provided. */
+function colorItems(uniprot_accession: string, mappings: QueryParam[] | undefined, color: string): (QueryParam & { color: string })[] {
+    if (mappings) {
+        return mappings.map(m => ({ ...m, color }));
+    } else {
+        return [{ uniprot_accession, color }];
+    }
+};
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
 export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<MinimizeRmsd.Result | undefined> {
