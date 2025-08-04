@@ -117,58 +117,77 @@ export const Coloring = {
     async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], mappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
         const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components, mappings = {} } = params;
 
-        const selectData: QueryParam[] = [];
+        const colorData: QueryParam[] = [];
+        const tooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
         for (let i = 0; i < components.length; i++) {
             const accession = components[i];
             const color = componentColors[i % componentColors.length];
-            selectData.push(...colorItems(accession, mappings[accession], adjustForBase(color)));
-            // TODO add tooltips
+            colorData.push(...selectorItems(accession, mappings[accession], { color: adjustForBase(color) }));
+            tooltipData.push(...selectorItems(accession, mappings[accession], { tooltip: `<b>component ${accession}</b>` }));
         }
-        await viewer.visual.select({ data: selectData, nonSelectedColor: adjustForBase(coreColor), structureId: params.structId });
+        await viewer.visual.select({ data: colorData, nonSelectedColor: adjustForBase(coreColor), structureId: params.structId });
+        await viewer.visual.tooltips({ data: tooltipData, structureId: params.structId });
     },
+    
     async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
         const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
         const subComponentsSet = new Set(params.otherComponents);
 
-        const selectDataBase: QueryParam[] = [];
-        const selectDataSub: QueryParam[] = [];
+        const baseColorData: QueryParam[] = [];
+        const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
+        const subColorData: QueryParam[] = [];
+        const subTooltipData: QueryParam[] = [{ tooltip: '<b>Subcomplex</b>' }];
         for (let i = 0; i < baseComponents.length; i++) {
             const accession = baseComponents[i];
             if (subComponentsSet.has(accession)) {
                 const color = componentColors[i % componentColors.length];
-                selectDataBase.push(...colorItems(accession, baseMappings[accession], adjustForBase(color)));
-                selectDataSub.push(...colorItems(accession, otherMappings[accession], adjustForOther(color)));
+                baseColorData.push(...selectorItems(accession, baseMappings[accession], { color: adjustForBase(color) }));
+                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
+                subColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(color) }));
+                subTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
+            } else {
+                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>additional component ${accession}</b>` }));
             }
         }
         if (params.baseStructId) {
-            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(coreColor), structureId: params.baseStructId });
+            await viewer.visual.select({ data: baseColorData, nonSelectedColor: adjustForBase(coreColor), structureId: params.baseStructId });
+            await viewer.visual.tooltips({ data: baseTooltipData, structureId: params.baseStructId });
         }
         if (params.otherStructId) {
-            await viewer.visual.select({ data: selectDataSub, nonSelectedColor: adjustForOther(coreColor), structureId: params.otherStructId });
+            await viewer.visual.select({ data: subColorData, nonSelectedColor: adjustForOther(coreColor), structureId: params.otherStructId });
+            await viewer.visual.tooltips({ data: subTooltipData, structureId: params.otherStructId });
         }
     },
+
     async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, unmappedColor?: string, componentColors?: string[] }) {
         const { coreColor = DEFAULT_CORE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseMappings = {}, otherMappings = {} } = params;
         const baseComponentsSet = new Set(params.baseComponents);
         const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
-        const selectDataBase: QueryParam[] = [];
-        const selectDataSuper: QueryParam[] = [];
+        const baseColorData: QueryParam[] = [];
+        const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
+        const superColorData: QueryParam[] = [];
+        const superTooltipData: QueryParam[] = [{ tooltip: '<b>Supercomplex</b>' }];
         for (let i = 0; i < superComponents.length; i++) {
             const accession = superComponents[i];
             if (baseComponentsSet.has(accession)) {
-                selectDataBase.push(...colorItems(accession, baseMappings[accession], adjustForBase(coreColor)));
-                selectDataSuper.push(...colorItems(accession, otherMappings[accession], adjustForOther(coreColor)));
+                baseColorData.push(...selectorItems(accession, baseMappings[accession], { color: adjustForBase(coreColor) }));
+                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
+                superColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(coreColor) }));
+                superTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
             } else {
                 const color = componentColors[i % componentColors.length];
-                selectDataSuper.push(...colorItems(accession, otherMappings[accession], adjustForOther(color)));
+                superColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(color) }));
+                superTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>additional component ${accession}</b>` }));
             }
         }
         if (params.baseStructId) {
-            await viewer.visual.select({ data: selectDataBase, nonSelectedColor: adjustForBase(unmappedColor), structureId: params.baseStructId });
+            await viewer.visual.select({ data: baseColorData, nonSelectedColor: adjustForBase(unmappedColor), structureId: params.baseStructId });
+            await viewer.visual.tooltips({ data: baseTooltipData, structureId: params.baseStructId });
         }
         if (params.otherStructId) {
-            await viewer.visual.select({ data: selectDataSuper, nonSelectedColor: adjustForOther(unmappedColor), structureId: params.otherStructId });
+            await viewer.visual.select({ data: superColorData, nonSelectedColor: adjustForOther(unmappedColor), structureId: params.otherStructId });
+            await viewer.visual.tooltips({ data: superTooltipData, structureId: params.otherStructId });
         }
     },
 };
@@ -182,12 +201,12 @@ function adjustForOther(color: string) {
     return Color.toHexStyle(Color.darken(normalizeColor(color), COLOR_ADJUSTMENT_STRENGTH));
 }
 
-/** Create coloring items for `.visual.select`, preferrably based on `mappings`, or based on `uniprot_accession` if `mappings` not provided. */
-function colorItems(uniprot_accession: string, mappings: QueryParam[] | undefined, color: string): (QueryParam & { color: string })[] {
+/** Create items for `.visual.select` or `.visual.tooltip`, preferrably based on `mappings`, or based on `uniprot_accession` if `mappings` not provided. */
+function selectorItems<T extends object>(uniprot_accession: string, mappings: QueryParam[] | undefined, extras: T): (QueryParam & T)[] {
     if (mappings) {
-        return mappings.map(m => ({ ...m, color }));
+        return mappings.map(m => ({ ...m, ...extras }));
     } else {
-        return [{ uniprot_accession, color }];
+        return [{ uniprot_accession, ...extras }];
     }
 };
 
