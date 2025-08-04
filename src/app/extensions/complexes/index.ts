@@ -128,7 +128,7 @@ export const Coloring = {
         await viewer.visual.select({ data: colorData, nonSelectedColor: adjustForBase(coreColor), structureId: params.structId });
         await viewer.visual.tooltips({ data: tooltipData, structureId: params.structId });
     },
-    
+
     async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
         const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
         const subComponentsSet = new Set(params.otherComponents);
