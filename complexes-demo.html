@@ -146,7 +146,7 @@
             console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}`);
             rfamMappings[pdb_id] ??= await getRfamMappings(pdb_id);
             console.log(`Rfam mappings for ${pdb_id}:`, rfamMappings[pdb_id]);
-            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
+            const result = await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
                 id,
                 pdbId: pdb_id, assemblyId: assembly_id,
                 baseComponents, otherComponents,
@@ -155,6 +155,9 @@
                 baseMappings: baseRfamMappings,
                 otherMappings: rfamMappings[pdb_id],
             });
+            if (result.status === 'success') console.log(`Superposed complexes, RMSD ${result.superposition.rmsd}`);
+            if (result.status === 'zero-overlap') console.warn(`Failed to superpose complexes due to insufficient Uniprot overlap`);
+            if (result.status === 'failed') console.warn(`Failed to superpose complexed`);
         }
 
         async function deleteComplex(id) {

@@ -79,7 +79,7 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     await viewer.visual.structureVisibility(otherStructId, false); // hide structure until superposition complete, to avoid flickering
 
     // Superpose other structure on base structure
-    const superposition = await superposeComplexes(viewer, baseStructId, otherStructId);
+    const { status, superposition } = await superposeComplexes(viewer, baseStructId, otherStructId);
 
     // Apply coloring to other structure
     if (coloring === 'subcomplex') {
@@ -107,8 +107,13 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     await viewer.visual.structureVisibility(otherStructId, true);
 
     return {
+        /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
         id: otherStructId,
+        /** Status of pairwise superposition ('success' / 'zero-overlap' / 'failed') */
+        status,
+        /** Superposition RMSD and tranform (if status is 'success') */
         superposition,
+        /** Function that deletes the newly loaded complex structure */
         delete: () => viewer.deleteStructure(otherStructId),
     };
 }
@@ -210,8 +215,11 @@ function selectorItems<T extends object>(uniprot_accession: string, mappings: Qu
     }
 };
 
+/** Status of pairwise superposition (success = superposed, zero-overlap = failed to superpose because the two structures have no matchable elements, failed = failed to superpose for other reasons) */
+export type SuperpositionStatus = 'success' | 'zero-overlap' | 'failed';
+
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<MinimizeRmsd.Result | undefined> {
+export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<{ status: SuperpositionStatus, superposition: MinimizeRmsd.Result | undefined }> {
     const staticStructRef = viewer.getStructure(staticStructId);
     if (!staticStructRef) throw new Error('Static structure not loaded');
     const mobileStructRef = viewer.getStructure(mobileStructId);
@@ -219,11 +227,13 @@ export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStruct
 
     const aln = await superposeStructures(viewer, [staticStructRef, mobileStructRef]);
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
-    if (!superposition) {
-        const reason = aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1) ? 'due to insufficient overlap' : '';
-        console.warn(`Failed to superpose ${mobileStructId} onto ${staticStructId} ${reason}`);
+    let status: SuperpositionStatus;
+    if (superposition) {
+        status = 'success';
+    } else {
+        status = aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1) ? 'zero-overlap' : 'failed';
     }
-    return superposition;
+    return { status, superposition };
 }
 async function superposeStructures(viewer: PDBeMolstarPlugin, structRefs: StructureRef[]): Promise<AlignmentResult> {
     const structs = structRefs.map(ref => {
