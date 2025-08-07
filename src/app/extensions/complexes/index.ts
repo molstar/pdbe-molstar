@@ -1,7 +1,6 @@
 /** Helper functions to allow superposition of complexes */
 
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
-import { alignAndSuperposeWithSIFTSMapping, AlignmentResult } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { Color } from 'molstar/lib/mol-util/color';
@@ -9,6 +8,8 @@ import { sleep } from 'molstar/lib/mol-util/sleep';
 import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, normalizeColor, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
+import { alignAndSuperposeWithSIFTSMapping, AlignmentResult } from '../../superposition-sifts-mapping';
+import { superposeStructuresByBiggestCommonChain, SuperpositionResult, SuperpositionStatus } from './superpose-by-biggest-chain';
 
 
 const DEFAULT_CORE_COLOR = '#d8d8d8';
@@ -53,11 +54,13 @@ export interface LoadComplexSuperpositionParams {
     baseMappings?: { [accession: string]: QueryParam[] },
     /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
     otherMappings?: { [accession: string]: QueryParam[] },
+    /** Superposition method */
+    method?: 'biggest-matched-chain' | 'molstar-builtin',
 }
 
 /** Load a structure, superpose onto the main structure based on Uniprot residue numbers, and optionally apply coloring to show common/additional components. */
 export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams) {
-    const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseMappings, otherMappings, coreColor, unmappedColor, componentColors } = params;
+    const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseMappings, otherMappings, coreColor, unmappedColor, componentColors, method = 'biggest-matched-chain' } = params;
     const baseStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const otherStructId = params.id ?? `${pdbId}_${assemblyId}`;
 
@@ -74,12 +77,14 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     }
 
     // Load other structure
-    const mobileUrl = getStructureUrl(viewer.initParams, { pdbId, queryType: 'full' });
-    await viewer.load({ url: mobileUrl, isBinary: viewer.initParams.encoding === 'bcif', assemblyId, id: otherStructId }, false);
+    const otherStructUrl = getStructureUrl(viewer.initParams, { pdbId, queryType: 'full' });
+    await viewer.load({ url: otherStructUrl, isBinary: viewer.initParams.encoding === 'bcif', assemblyId, id: otherStructId }, false);
     await viewer.visual.structureVisibility(otherStructId, false); // hide structure until superposition complete, to avoid flickering
 
     // Superpose other structure on base structure
-    const { status, superposition } = await superposeComplexes(viewer, baseStructId, otherStructId);
+    const { status, superposition } = method === 'biggest-matched-chain' ?
+        await superposeComplexesByBiggestCommonChain(viewer, baseStructId, otherStructId, baseComponents, otherComponents)
+        : await superposeComplexesByMolstarDefault(viewer, baseStructId, otherStructId);
 
     // Apply coloring to other structure
     if (coloring === 'subcomplex') {
@@ -215,17 +220,15 @@ function selectorItems<T extends object>(uniprot_accession: string, mappings: Qu
     }
 };
 
-/** Status of pairwise superposition (success = superposed, zero-overlap = failed to superpose because the two structures have no matchable elements, failed = failed to superpose for other reasons) */
-export type SuperpositionStatus = 'success' | 'zero-overlap' | 'failed';
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<{ status: SuperpositionStatus, superposition: MinimizeRmsd.Result | undefined }> {
+export async function superposeComplexesByMolstarDefault(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<{ status: SuperpositionStatus, superposition: MinimizeRmsd.Result | undefined }> {
     const staticStructRef = viewer.getStructure(staticStructId);
     if (!staticStructRef) throw new Error('Static structure not loaded');
     const mobileStructRef = viewer.getStructure(mobileStructId);
     if (!mobileStructRef) throw new Error('Mobile structure not loaded');
 
-    const aln = await superposeStructures(viewer, [staticStructRef, mobileStructRef]);
+    const aln = await superposeStructuresByUniprot(viewer, [staticStructRef, mobileStructRef]);
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
     let status: SuperpositionStatus;
     if (superposition) {
@@ -235,7 +238,7 @@ export async function superposeComplexes(viewer: PDBeMolstarPlugin, staticStruct
     }
     return { status, superposition };
 }
-async function superposeStructures(viewer: PDBeMolstarPlugin, structRefs: StructureRef[]): Promise<AlignmentResult> {
+async function superposeStructuresByUniprot(viewer: PDBeMolstarPlugin, structRefs: StructureRef[]): Promise<AlignmentResult> {
     const structs = structRefs.map(ref => {
         const struct = ref.cell.obj?.data;
         if (struct === undefined) throw new Error('Missing structure');
@@ -247,6 +250,20 @@ async function superposeStructures(viewer: PDBeMolstarPlugin, structRefs: Struct
     }
     return aln;
 }
+
+export async function superposeComplexesByBiggestCommonChain(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string, staticComponents: string[] | undefined, mobileComponents: string[] | undefined): Promise<SuperpositionResult> {
+    const staticStruct = viewer.getStructure(staticStructId)?.cell.obj?.data;
+    if (!staticStruct) throw new Error('Static structure not loaded');
+    const mobileStruct = viewer.getStructure(mobileStructId)?.cell.obj?.data;
+    if (!mobileStruct) throw new Error('Mobile structure not loaded');
+
+    const superposition = await superposeStructuresByBiggestCommonChain(staticStruct, mobileStruct, staticComponents, mobileComponents);
+    if (superposition.status === 'success') {
+        await transform(viewer.plugin, viewer.getStructure(mobileStructId)!.cell, superposition.superposition.bTransform);
+    }
+    return superposition;
+}
+
 
 /*
 Coloring - subcomplexes:

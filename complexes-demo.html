@@ -154,8 +154,9 @@
                 coreColor, unmappedColor,
                 baseMappings: baseRfamMappings,
                 otherMappings: rfamMappings[pdb_id],
+                method: 'biggest-matched-chain', // TODO add URL param
             });
-            if (result.status === 'success') console.log(`Superposed complexes, RMSD ${result.superposition.rmsd}`);
+            if (result.status === 'success') console.log(`Superposed complexes, RMSD ${result.superposition.rmsd}`, result.superposition);
             if (result.status === 'zero-overlap') console.warn(`Failed to superpose complexes due to insufficient Uniprot overlap`);
             if (result.status === 'failed') console.warn(`Failed to superpose complexed`);
         }
