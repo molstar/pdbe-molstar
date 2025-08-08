@@ -1,6 +1,9 @@
+import { OrderedSet, SortedArray } from 'molstar/lib/mol-data/int';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
-import { Structure } from 'molstar/lib/mol-model/structure';
+import { ElementIndex, Structure } from 'molstar/lib/mol-model/structure';
+import { alignAndSuperpose } from 'molstar/lib/mol-model/structure/structure/util/superposition';
+import { QueryHelper, QueryParam } from '../../helpers';
 
 
 /** Uniprot index for specific accession in a structure */
@@ -54,8 +57,8 @@ function extractUniprotIndex(structure: Structure, allowedAccessions: string[] |
 }
 
 function bestUniprotMatch(a: UniprotIndex, b: UniprotIndex) {
-    const sortedA = sortAccessionAndChains(a);
-    const sortedB = sortAccessionAndChains(b);
+    const sortedA = sortAccessionsAndChains(a);
+    const sortedB = sortAccessionsAndChains(b);
     let bestMatch: { accession: string, unitA: string, unitB: string, nMatchedElements: number } | undefined = undefined;
     let bestScore = 0;
     for (const accession of sortedA.accessions) {
@@ -80,7 +83,7 @@ function bestUniprotMatch(a: UniprotIndex, b: UniprotIndex) {
 }
 
 /** Sort units for each accession by decreasing size and sort accessions by decreasing biggest unit size. */
-function sortAccessionAndChains(uniprotIndex: UniprotIndex) {
+function sortAccessionsAndChains(uniprotIndex: UniprotIndex): SortedAccessionsUnits {
     const unitsByAccession: { [accession: string]: { unitId: string, size: number }[] } = {};
 
     for (const accession in uniprotIndex) {
@@ -154,4 +157,83 @@ export function superposeStructuresByBiggestCommonChain(structA: Structure, stru
         return { status: 'failed', superposition: undefined };
     }
     return { status: 'success', superposition: { ...superposition, nAlignedElements: bestMatch.nMatchedElements } };
+}
+
+export function superposeStructuresBySeqAlignment(structA: Structure, structB: Structure, mappingsA: { [accession: string]: QueryParam[] }, mappingsB: { [accession: string]: QueryParam[] }): SuperpositionResult {
+    console.log('root', structA.atomicResidueCount, structA)
+    const sortedA = sortAccessionsAndChainsFromMappings(structA, mappingsA);
+    const sortedB = sortAccessionsAndChainsFromMappings(structB, mappingsB);
+    console.log('sortedA', sortedA)
+    console.log('sortedB', sortedB)
+    const bestMatch = bestMappingMatch(sortedA, sortedB);
+    console.log('best match', bestMatch)
+    if (!bestMatch) {
+        return { status: 'zero-overlap', superposition: undefined };
+    }
+
+    const accession = bestMatch.accession;
+    const lociA = QueryHelper.getInteractivityLoci(mappingsA[accession], structA);
+    const lociB = QueryHelper.getInteractivityLoci(mappingsB[accession], structB);
+    const aln = alignAndSuperpose([lociA, lociB])[0];
+    console.log('aligned', aln);
+    if (!isNaN(aln.rmsd)) {
+        return { status: 'success', superposition: { rmsd: aln.rmsd, bTransform: aln.bTransform, nAlignedElements: Number.NaN } };
+    } else {
+        return { status: 'failed', superposition: undefined };
+    }
+}
+
+interface SortedAccessionsUnits<T extends object = object> {
+    accessions: string[],
+    units: { [accession: string]: ({ unitId: string, size: number } & T)[] },
+}
+
+/** Sort units for each accession by decreasing size and sort accessions by decreasing biggest unit size. */
+function sortAccessionsAndChainsFromMappings(struct: Structure, mappings: { [accession: string]: QueryParam[] }): SortedAccessionsUnits<{ elements: SortedArray<ElementIndex> }> {
+    const unitsByAccession: { [accession: string]: { unitId: string, size: number, elements: SortedArray<ElementIndex> }[] } = {};
+
+    for (const accession in mappings) {
+        const loci = QueryHelper.getInteractivityLoci(mappings[accession], struct);
+        const units: (typeof unitsByAccession)[string] = [];
+        for (const u of loci.elements) {
+            const unitId = u.unit.id.toString();
+            const elements: ElementIndex[] = [];
+            OrderedSet.forEach(u.indices, elementUnitIndex => {
+                const elementIndex = u.unit.elements[elementUnitIndex];
+                if (SortedArray.has(u.unit.polymerElements, elementIndex)) elements.push(elementIndex);
+            })
+            units.push({ unitId, size: elements.length, elements: SortedArray.ofSortedArray(elements) });
+        }
+        units.sort((a, b) => b.size - a.size);
+        unitsByAccession[accession] = units;
+    }
+
+    return {
+        /** Accessions sorted by decreasing biggest unit size */
+        accessions: Object.keys(unitsByAccession).sort((a, b) => unitsByAccession[b][0].size - unitsByAccession[a][0].size),
+        /** Units per accession, sorted by decreasing unit size */
+        units: unitsByAccession,
+    };
+}
+
+function bestMappingMatch(sortedA: SortedAccessionsUnits<{ elements: SortedArray<ElementIndex> }>, sortedB: SortedAccessionsUnits<{ elements: SortedArray<ElementIndex> }>) {
+    let bestMatch: { accession: string, unitA: string, unitB: string, elementsA: SortedArray<ElementIndex>, elementsB: SortedArray<ElementIndex>, nMatchedElements: number } | undefined = undefined;
+    let bestScore = 0;
+    for (const accession of sortedA.accessions) {
+        const unitsA = sortedA.units[accession]!;
+        const unitsB = sortedB.units[accession];
+        if (!unitsB) continue;
+        for (const ua of unitsA) {
+            if (ua.size <= bestScore) break;
+            for (const ub of unitsB) {
+                if (ub.size <= bestScore || ua.size <= bestScore) break;
+                const score = Math.min(ua.size, ub.size);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = { accession, unitA: ua.unitId, unitB: ub.unitId, elementsA: ua.elements, elementsB: ub.elements, nMatchedElements: score };
+                }
+            }
+        }
+    }
+    return bestMatch;
 }

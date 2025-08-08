@@ -8,7 +8,7 @@ import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
 import * as Coloring from './coloring';
-import { superposeStructuresByBiggestCommonChain, SuperpositionResult } from './superpose-by-biggest-chain';
+import { superposeStructuresByBiggestCommonChain, superposeStructuresBySeqAlignment, SuperpositionResult } from './superpose-by-biggest-chain';
 
 
 export * as Coloring from './coloring';
@@ -74,11 +74,16 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     if (!otherStruct) throw new Error('Mobile structure not loaded');
 
     // Superpose other structure on base structure
-    const { status, superposition } = method === 'biggest-matched-chain' ?
+    let sup = (method === 'biggest-matched-chain') ?
         superposeStructuresByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
         : superposeStructuresByMolstarDefault(baseStruct, otherStruct);
-    if (superposition) {
-        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.bTransform);
+    if (sup.status !== 'success') {
+        console.log(`Superposition with ${method} method failed, trying sequence alignment superposition (RNAs)`)
+        const seqSup = superposeStructuresBySeqAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
+        if (seqSup.status === 'success') sup = seqSup;
+    }
+    if (sup.status === 'success') {
+        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, sup.superposition.bTransform);
     }
 
     // Apply coloring to other structure
@@ -110,9 +115,9 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
         /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
         id: otherStructId,
         /** Status of pairwise superposition ('success' / 'zero-overlap' / 'failed') */
-        status,
+        status: sup.status,
         /** Superposition RMSD and tranform (if status is 'success') */
-        superposition,
+        superposition: sup.superposition,
         /** Function that deletes the newly loaded complex structure */
         delete: () => viewer.deleteStructure(otherStructId),
     };
