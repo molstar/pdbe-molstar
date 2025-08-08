@@ -143,7 +143,7 @@
             const data = await getComplexApiData(id);
             const { pdb_id, assembly_id } = data.representative_structure;
             const otherComponents = data.participants.map(p => p.accession);
-            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}`);
+            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}, method: ${superpositionMethod}`);
             rfamMappings[pdb_id] ??= await getRfamMappings(pdb_id);
             console.log(`Rfam mappings for ${pdb_id}:`, rfamMappings[pdb_id]);
             const result = await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
@@ -154,7 +154,7 @@
                 coreColor, unmappedColor,
                 baseMappings: baseRfamMappings,
                 otherMappings: rfamMappings[pdb_id],
-                method: 'biggest-matched-chain', // TODO add URL param
+                method: superpositionMethod,
             });
             if (result.status === 'success') console.log(`Superposed complexes, RMSD ${result.superposition.rmsd}`, result.superposition);
             if (result.status === 'zero-overlap') console.warn(`Failed to superpose complexes due to insufficient Uniprot overlap`);
@@ -206,6 +206,7 @@
         }
         const coreColor = new URL(window.location).searchParams.get('coreColor') ?? undefined;
         const unmappedColor = new URL(window.location).searchParams.get('unmappedColor') ?? undefined;
+        const superpositionMethod = new URL(window.location).searchParams.get('method') ?? 'biggest-matched-chain';
 
 
         let viewerInstance; // PDBeMolstarPlugin

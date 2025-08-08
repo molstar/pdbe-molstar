@@ -1,31 +1,18 @@
 /** Helper functions to allow superposition of complexes */
 
-import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
-import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { Structure } from 'molstar/lib/mol-model/structure';
+import { alignAndSuperposeWithSIFTSMapping } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
-import { Color } from 'molstar/lib/mol-util/color';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { PDBeMolstarPlugin } from '../..';
-import { getStructureUrl, normalizeColor, QueryParam } from '../../helpers';
+import { getStructureUrl, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
-import { alignAndSuperposeWithSIFTSMapping, AlignmentResult } from '../../superposition-sifts-mapping';
-import { superposeStructuresByBiggestCommonChain, SuperpositionResult, SuperpositionStatus } from './superpose-by-biggest-chain';
+import * as Coloring from './coloring';
+import { superposeStructuresByBiggestCommonChain, SuperpositionResult } from './superpose-by-biggest-chain';
 
 
-const DEFAULT_CORE_COLOR = '#d8d8d8';
-const DEFAULT_UNMAPPED_COLOR = '#222222';
-const DEFAULT_COMPONENT_COLORS = [
-    '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
-    '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
-    '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
-    '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
-];
-// TODO compare color variants:
-// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23222222
-// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23ff0000
+export * as Coloring from './coloring';
 
-/** How much lighter/darker colors should be for the base/other complex */
-const COLOR_ADJUSTMENT_STRENGTH = 0.75;
 
 export interface LoadComplexSuperpositionParams {
     /** PDB identifier of complex structure */
@@ -81,10 +68,18 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     await viewer.load({ url: otherStructUrl, isBinary: viewer.initParams.encoding === 'bcif', assemblyId, id: otherStructId }, false);
     await viewer.visual.structureVisibility(otherStructId, false); // hide structure until superposition complete, to avoid flickering
 
+    const baseStruct = viewer.getStructure(baseStructId)?.cell.obj?.data;
+    if (!baseStruct) throw new Error('Static structure not loaded');
+    const otherStruct = viewer.getStructure(otherStructId)?.cell.obj?.data;
+    if (!otherStruct) throw new Error('Mobile structure not loaded');
+
     // Superpose other structure on base structure
     const { status, superposition } = method === 'biggest-matched-chain' ?
-        await superposeComplexesByBiggestCommonChain(viewer, baseStructId, otherStructId, baseComponents, otherComponents)
-        : await superposeComplexesByMolstarDefault(viewer, baseStructId, otherStructId);
+        superposeStructuresByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
+        : superposeStructuresByMolstarDefault(baseStruct, otherStruct);
+    if (superposition) {
+        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.bTransform);
+    }
 
     // Apply coloring to other structure
     if (coloring === 'subcomplex') {
@@ -96,7 +91,7 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
 
     // Adjust camera
     const staticStructRef = viewer.getStructure(baseStructId);
-    const mobileStructRef = viewer.getStructure(otherStructId);
+    const mobileStructRef = viewer.getStructure(otherStructId); // it is important to run this after superposition, to get correct coordinates for camera adjustment
     // Wanted to use PluginCommands.Camera.Focus with viewer.plugin.canvas3d?.boundingSphere, but seems to not work properly, so using the following workaround:
     await PluginCommands.Camera.FocusObject(viewer.plugin, {
         targets: [
@@ -123,145 +118,18 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     };
 }
 
-export const Coloring = {
-    async colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], mappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
-        const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components, mappings = {} } = params;
-
-        const colorData: QueryParam[] = [];
-        const tooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
-        for (let i = 0; i < components.length; i++) {
-            const accession = components[i];
-            const color = componentColors[i % componentColors.length];
-            colorData.push(...selectorItems(accession, mappings[accession], { color: adjustForBase(color) }));
-            tooltipData.push(...selectorItems(accession, mappings[accession], { tooltip: `<b>component ${accession}</b>` }));
-        }
-        await viewer.visual.select({ data: colorData, nonSelectedColor: adjustForBase(coreColor), structureId: params.structId });
-        await viewer.visual.tooltips({ data: tooltipData, structureId: params.structId });
-    },
-
-    async colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
-        const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
-        const subComponentsSet = new Set(params.otherComponents);
-
-        const baseColorData: QueryParam[] = [];
-        const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
-        const subColorData: QueryParam[] = [];
-        const subTooltipData: QueryParam[] = [{ tooltip: '<b>Subcomplex</b>' }];
-        for (let i = 0; i < baseComponents.length; i++) {
-            const accession = baseComponents[i];
-            if (subComponentsSet.has(accession)) {
-                const color = componentColors[i % componentColors.length];
-                baseColorData.push(...selectorItems(accession, baseMappings[accession], { color: adjustForBase(color) }));
-                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
-                subColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(color) }));
-                subTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
-            } else {
-                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>additional component ${accession}</b>` }));
-            }
-        }
-        if (params.baseStructId) {
-            await viewer.visual.select({ data: baseColorData, nonSelectedColor: adjustForBase(coreColor), structureId: params.baseStructId });
-            await viewer.visual.tooltips({ data: baseTooltipData, structureId: params.baseStructId });
-        }
-        if (params.otherStructId) {
-            await viewer.visual.select({ data: subColorData, nonSelectedColor: adjustForOther(coreColor), structureId: params.otherStructId });
-            await viewer.visual.tooltips({ data: subTooltipData, structureId: params.otherStructId });
-        }
-    },
-
-    async colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, unmappedColor?: string, componentColors?: string[] }) {
-        const { coreColor = DEFAULT_CORE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseMappings = {}, otherMappings = {} } = params;
-        const baseComponentsSet = new Set(params.baseComponents);
-        const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
-
-        const baseColorData: QueryParam[] = [];
-        const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
-        const superColorData: QueryParam[] = [];
-        const superTooltipData: QueryParam[] = [{ tooltip: '<b>Supercomplex</b>' }];
-        for (let i = 0; i < superComponents.length; i++) {
-            const accession = superComponents[i];
-            if (baseComponentsSet.has(accession)) {
-                baseColorData.push(...selectorItems(accession, baseMappings[accession], { color: adjustForBase(coreColor) }));
-                baseTooltipData.push(...selectorItems(accession, baseMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
-                superColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(coreColor) }));
-                superTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>common component ${accession}</b>` }));
-            } else {
-                const color = componentColors[i % componentColors.length];
-                superColorData.push(...selectorItems(accession, otherMappings[accession], { color: adjustForOther(color) }));
-                superTooltipData.push(...selectorItems(accession, otherMappings[accession], { tooltip: `<b>additional component ${accession}</b>` }));
-            }
-        }
-        if (params.baseStructId) {
-            await viewer.visual.select({ data: baseColorData, nonSelectedColor: adjustForBase(unmappedColor), structureId: params.baseStructId });
-            await viewer.visual.tooltips({ data: baseTooltipData, structureId: params.baseStructId });
-        }
-        if (params.otherStructId) {
-            await viewer.visual.select({ data: superColorData, nonSelectedColor: adjustForOther(unmappedColor), structureId: params.otherStructId });
-            await viewer.visual.tooltips({ data: superTooltipData, structureId: params.otherStructId });
-        }
-    },
-};
-
-/** Adjust color for use on the base structure (slightly lighten) */
-function adjustForBase(color: string) {
-    return Color.toHexStyle(Color.lighten(normalizeColor(color), COLOR_ADJUSTMENT_STRENGTH));
-}
-/** Adjust color for use on the subcomplex/supercomplex structure (slightly darken) */
-function adjustForOther(color: string) {
-    return Color.toHexStyle(Color.darken(normalizeColor(color), COLOR_ADJUSTMENT_STRENGTH));
-}
-
-/** Create items for `.visual.select` or `.visual.tooltip`, preferrably based on `mappings`, or based on `uniprot_accession` if `mappings` not provided. */
-function selectorItems<T extends object>(uniprot_accession: string, mappings: QueryParam[] | undefined, extras: T): (QueryParam & T)[] {
-    if (mappings) {
-        return mappings.map(m => ({ ...m, ...extras }));
-    } else {
-        return [{ uniprot_accession, ...extras }];
-    }
-};
-
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export async function superposeComplexesByMolstarDefault(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string): Promise<{ status: SuperpositionStatus, superposition: MinimizeRmsd.Result | undefined }> {
-    const staticStructRef = viewer.getStructure(staticStructId);
-    if (!staticStructRef) throw new Error('Static structure not loaded');
-    const mobileStructRef = viewer.getStructure(mobileStructId);
-    if (!mobileStructRef) throw new Error('Mobile structure not loaded');
-
-    const aln = await superposeStructuresByUniprot(viewer, [staticStructRef, mobileStructRef]);
+export function superposeStructuresByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): SuperpositionResult {
+    const aln = alignAndSuperposeWithSIFTSMapping([staticStruct, mobileStruct], { traceOnly: true });
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
-    let status: SuperpositionStatus;
     if (superposition) {
-        status = 'success';
+        return { status: 'success', superposition: { ...superposition, nAlignedElements: Number.NaN } };
+    } else if (aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1)) {
+        return { status: 'zero-overlap', superposition: undefined };
     } else {
-        status = aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1) ? 'zero-overlap' : 'failed';
+        return { status: 'failed', superposition: undefined };
     }
-    return { status, superposition };
-}
-async function superposeStructuresByUniprot(viewer: PDBeMolstarPlugin, structRefs: StructureRef[]): Promise<AlignmentResult> {
-    const structs = structRefs.map(ref => {
-        const struct = ref.cell.obj?.data;
-        if (struct === undefined) throw new Error('Missing structure');
-        return struct;
-    });
-    const aln = alignAndSuperposeWithSIFTSMapping(structs, { traceOnly: true });
-    for (const entry of aln.entries) {
-        await transform(viewer.plugin, structRefs[entry.other]!.cell, entry.transform.bTransform);
-    }
-    return aln;
-}
-
-export async function superposeComplexesByBiggestCommonChain(viewer: PDBeMolstarPlugin, staticStructId: string, mobileStructId: string, staticComponents: string[] | undefined, mobileComponents: string[] | undefined): Promise<SuperpositionResult> {
-    const staticStruct = viewer.getStructure(staticStructId)?.cell.obj?.data;
-    if (!staticStruct) throw new Error('Static structure not loaded');
-    const mobileStruct = viewer.getStructure(mobileStructId)?.cell.obj?.data;
-    if (!mobileStruct) throw new Error('Mobile structure not loaded');
-
-    const superposition = await superposeStructuresByBiggestCommonChain(staticStruct, mobileStruct, staticComponents, mobileComponents);
-    if (superposition.status === 'success') {
-        await transform(viewer.plugin, viewer.getStructure(mobileStructId)!.cell, superposition.superposition.bTransform);
-    }
-    return superposition;
 }
 
 
@@ -270,15 +138,16 @@ Coloring - subcomplexes:
 - base common -> by entity, lighter
 - base additional -> gray, lighter
 - sub common -> by entity, darker
-- sub additional -> gray, darker (includes antibodies and ligands)
+- sub additional -> gray, darker (these are all unmapped components, includes antibodies and ligands)
 
 -> Colors can be assigned based on base complex and applied to subcomplex
 
 Coloring - supercomplexes:
 - base common -> gray, lighter
-- base additional -> gray, lighter or a special color (white?) (includes antibodies and ligands)
+- base additional -> unmapped color, lighter (these are all unmapped components, includes antibodies and ligands)
 - super common -> gray, darker
-- super additional -> by entity, darker
+- super additional mapped -> by entity, darker
+- super additional unmapped -> unmapped color, darker
 
 -> Colors can be assigned based on supercomplex complex, consistency between supercomplexes is probably not necessary
 

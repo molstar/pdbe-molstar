@@ -122,7 +122,7 @@ export type SuperpositionResult =
 /** Status of pairwise superposition (success = superposed, zero-overlap = failed to superpose because the two structures have no matchable elements, failed = failed to superpose for other reasons) */
 export type SuperpositionStatus = SuperpositionResult['status'];
 
-export async function superposeStructuresByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): Promise<SuperpositionResult> {
+export function superposeStructuresByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): SuperpositionResult {
     const indexA = extractUniprotIndex(structA, allowedComponentsA);
     const indexB = extractUniprotIndex(structB, allowedComponentsB);
     const bestMatch = bestUniprotMatch(indexA, indexB);
