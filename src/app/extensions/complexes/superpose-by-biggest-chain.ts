@@ -2,8 +2,7 @@ import { OrderedSet, SortedArray } from 'molstar/lib/mol-data/int';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
 import { ElementIndex, Structure } from 'molstar/lib/mol-model/structure';
-import { alignAndSuperpose as alignAndSuperpose_orig } from 'molstar/lib/mol-model/structure/structure/util/superposition';
-import { alignAndSuperpose } from './seq-alignment';
+import { alignAndSuperpose } from './sequence-alignment';
 import { QueryHelper, QueryParam } from '../../helpers';
 
 
@@ -171,16 +170,13 @@ export function superposeStructuresBySeqAlignment(structA: Structure, structB: S
     if (!bestMatch) {
         return { status: 'zero-overlap', superposition: undefined };
     }
-    // TODO continue here implementing RNA alignment (impl below is ugly for PDB-CPX-303229 with PDB-CPX-303230; the issue is that it always takes full-chain sequence, not only mapped)
-
     const accession = bestMatch.accession;
     const lociA = QueryHelper.getInteractivityLoci(mappingsA[accession], structA);
     const lociB = QueryHelper.getInteractivityLoci(mappingsB[accession], structB);
-    // const aln = alignAndSuperpose_orig([lociA, lociB])[0];
-    const aln = alignAndSuperpose([lociA, lociB])[0];
-    console.log('aligned', aln);
-    if (!isNaN(aln.rmsd)) {
-        return { status: 'success', superposition: { rmsd: aln.rmsd, bTransform: aln.bTransform, nAlignedElements: Number.NaN } };
+    const superposition = alignAndSuperpose(lociA, lociB);
+    console.log('aligned', superposition);
+    if (!isNaN(superposition.rmsd)) {
+        return { status: 'success', superposition };
     } else {
         return { status: 'failed', superposition: undefined };
     }
