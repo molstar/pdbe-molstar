@@ -8,7 +8,8 @@ import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
 import * as Coloring from './coloring';
-import { superposeStructuresByBiggestCommonChain, superposeStructuresBySeqAlignment, SuperpositionResult } from './superpose-by-biggest-chain';
+import { superposeByBiggestCommonChain, SuperpositionResult } from './superpose-by-biggest-chain';
+import { superposeBySequenceAlignment } from './superpose-by-sequence-alignment';
 
 
 export * as Coloring from './coloring';
@@ -74,16 +75,16 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     if (!otherStruct) throw new Error('Mobile structure not loaded');
 
     // Superpose other structure on base structure
-    let sup = (method === 'biggest-matched-chain') ?
-        superposeStructuresByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
-        : superposeStructuresByMolstarDefault(baseStruct, otherStruct);
-    if (sup.status !== 'success') {
-        console.log(`Superposition with ${method} method failed, trying sequence alignment superposition (RNAs)`)
-        const seqSup = superposeStructuresBySeqAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
-        if (seqSup.status === 'success') sup = seqSup;
+    let superposition = (method === 'biggest-matched-chain') ?
+        superposeByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
+        : superposeByMolstarDefault(baseStruct, otherStruct);
+    if (superposition.status !== 'success') {
+        console.log(`Superposition with ${method} method failed, trying sequence alignment superposition (RNAs)`);
+        const seqSup = superposeBySequenceAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
+        if (seqSup.status === 'success') superposition = seqSup;
     }
-    if (sup.status === 'success') {
-        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, sup.superposition.bTransform);
+    if (superposition.status === 'success') {
+        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.superposition.bTransform);
     }
 
     // Apply coloring to other structure
@@ -115,9 +116,9 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
         /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
         id: otherStructId,
         /** Status of pairwise superposition ('success' / 'zero-overlap' / 'failed') */
-        status: sup.status,
+        status: superposition.status,
         /** Superposition RMSD and tranform (if status is 'success') */
-        superposition: sup.superposition,
+        superposition: superposition.superposition,
         /** Function that deletes the newly loaded complex structure */
         delete: () => viewer.deleteStructure(otherStructId),
     };
@@ -125,7 +126,7 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
 
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export function superposeStructuresByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): SuperpositionResult {
+export function superposeByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): SuperpositionResult {
     const aln = alignAndSuperposeWithSIFTSMapping([staticStruct, mobileStruct], { traceOnly: true });
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
     if (superposition) {
@@ -136,26 +137,3 @@ export function superposeStructuresByMolstarDefault(staticStruct: Structure, mob
         return { status: 'failed', superposition: undefined };
     }
 }
-
-
-/*
-Coloring - subcomplexes:
-- base common -> by entity, lighter
-- base additional -> gray, lighter
-- sub common -> by entity, darker
-- sub additional -> gray, darker (these are all unmapped components, includes antibodies and ligands)
-
--> Colors can be assigned based on base complex and applied to subcomplex
-
-Coloring - supercomplexes:
-- base common -> gray, lighter
-- base additional -> unmapped color, lighter (these are all unmapped components, includes antibodies and ligands)
-- super common -> gray, darker
-- super additional mapped -> by entity, darker
-- super additional unmapped -> unmapped color, darker
-
--> Colors can be assigned based on supercomplex complex, consistency between supercomplexes is probably not necessary
-
--> For both subcomplexes and supercomplexes, colors could be assigned based on UniprotID hash -> database-wide consistency but complexes with similar-color components will occur
-
-*/

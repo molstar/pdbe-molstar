@@ -34,6 +34,13 @@ export async function colorComponents(viewer: PDBeMolstarPlugin, params: { struc
     await viewer.visual.tooltips({ data: tooltipData, structureId: params.structId });
 }
 
+/**
+Coloring - subcomplexes:
+- base common -> by entity, lighter
+- base additional -> gray, lighter
+- sub common -> by entity, darker
+- sub additional -> gray, darker (these are all unmapped components, includes antibodies and ligands)
+*/
 export async function colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
     const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
     const subComponentsSet = new Set(params.otherComponents);
@@ -64,6 +71,14 @@ export async function colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseS
     }
 }
 
+/**
+Coloring - supercomplexes:
+- base common -> gray, lighter
+- base additional -> unmapped color, lighter (these are all unmapped components, includes antibodies and ligands)
+- super common -> gray, darker
+- super additional mapped -> by entity, darker
+- super additional unmapped -> unmapped color, darker
+*/
 export async function colorSupercomplex(viewer: PDBeMolstarPlugin, params: { baseStructId?: string, otherStructId?: string, baseComponents: string[], otherComponents: string[], baseMappings?: { [accession: string]: QueryParam[] }, otherMappings?: { [accession: string]: QueryParam[] }, coreColor?: string, unmappedColor?: string, componentColors?: string[] }) {
     const { coreColor = DEFAULT_CORE_COLOR, unmappedColor = DEFAULT_UNMAPPED_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseMappings = {}, otherMappings = {} } = params;
     const baseComponentsSet = new Set(params.baseComponents);
