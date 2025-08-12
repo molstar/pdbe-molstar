@@ -22,7 +22,7 @@
     }
 
     .msp-viewport-controls-panel .msp-viewport-controls-panel-controls {
-        max-height: calc(100cqh - 41px - 24px - 10px); // 100cqh = viewport container, 41px = control buttons offset, 24px = header, 10px = space below
+        max-height: calc(100cqh - 46px - 24px - 10px); // 100cqh = viewport container, 46px = control buttons offset, 24px = header, 10px = space below
     }
 
     // Avoid wraping headers in left panel help
