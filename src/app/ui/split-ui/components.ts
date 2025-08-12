@@ -1,12 +1,12 @@
 import { ControlsWrapper, Log } from 'molstar/lib/mol-plugin-ui/plugin';
 import { SequenceView } from 'molstar/lib/mol-plugin-ui/sequence';
 import { JSXElementConstructor } from 'react';
-import { PDBeViewport } from '../pdbe-viewport';
 import { DefaultLeftPanelControls, PDBeLeftPanelControls } from '../left-panel/pdbe-left-panel';
+import { PDBeViewport } from '../pdbe-viewport';
 
 
 export const UIComponents = {
-    /** Component containing 3D canvas, button in top left and top right corners, and tooltip box (center panel in default layout) */
+    /** Component containing 3D canvas, button in top left and top right corners, and tooltip box (center panel in default layout). Changes to fullscreen view by "Toggle Expanded Viewport" button, or "expanded" option. */
     PDBeViewport,
 
     /** Component containing 1D view of the sequences (top panel in default layout) */

@@ -61,7 +61,7 @@ import { initSuperposition } from './superposition';
 import { SuperpositionFocusRepresentation } from './superposition-focus-representation';
 import { DefaultLeftPanelControls, PDBeLeftPanelControls } from './ui/left-panel/pdbe-left-panel';
 import { PDBeLigandViewStructureTools, PDBeStructureTools, PDBeSuperpositionStructureTools } from './ui/pdbe-structure-controls';
-import { PDBeViewport } from './ui/pdbe-viewport';
+import { PDBeViewport_NoFullscreen } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
@@ -145,7 +145,7 @@ export class PDBeMolstarPlugin {
             },
             viewport: {
                 controls: PDBeViewportControls,
-                view: PDBeViewport,
+                view: PDBeViewport_NoFullscreen,
             },
             remoteState: 'none',
             structureTools: this.initParams.superposition ? PDBeSuperpositionStructureTools
