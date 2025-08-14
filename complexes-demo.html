@@ -163,9 +163,11 @@
                 otherMappings: rfamMappings[pdb_id],
                 method: superpositionMethod,
             });
-            if (result.status === 'success') console.log(`Superposed complexes, RMSD ${result.superposition.rmsd}`, result.superposition);
-            if (result.status === 'zero-overlap') console.warn(`Failed to superpose complexes due to insufficient Uniprot overlap`);
-            if (result.status === 'failed') console.warn(`Failed to superpose complexed`);
+            if (result.superposition) {
+                console.log(`Superposed complexes with RMSD ${result.superposition.rmsd} on ${result.superposition.nAlignedElements} residues`);
+            } else {
+                console.warn(`Failed to superpose complexes`);
+            }
         }
 
         async function deleteComplex(id) {

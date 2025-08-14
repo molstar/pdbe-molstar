@@ -1,5 +1,6 @@
 /** Helper functions to allow superposition of complexes */
 
+import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { Structure } from 'molstar/lib/mol-model/structure';
 import { alignAndSuperposeWithSIFTSMapping } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
@@ -8,13 +9,14 @@ import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
 import * as Coloring from './coloring';
-import { superposeByBiggestCommonChain, SuperpositionResult } from './superpose-by-biggest-chain';
+import { superposeByBiggestCommonChain } from './superpose-by-biggest-chain';
 import { superposeBySequenceAlignment } from './superpose-by-sequence-alignment';
 
 
 export * as Coloring from './coloring';
 
 
+/** Parameters to `loadComplexSuperposition` */
 export interface LoadComplexSuperpositionParams {
     /** PDB identifier of complex structure */
     pdbId: string,
@@ -46,8 +48,24 @@ export interface LoadComplexSuperpositionParams {
     method?: 'biggest-matched-chain' | 'molstar-builtin',
 }
 
-/** Load a structure, superpose onto the main structure based on Uniprot residue numbers, and optionally apply coloring to show common/additional components. */
-export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams) {
+/** Result type of `loadComplexSuperposition` */
+export interface LoadComplexSuperpositionResult {
+    /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
+    id: string,
+    /** Superposition RMSD, number of aligned residues, and tranform; if superposition was successful */
+    superposition: _MinimizeRmsdResult | undefined,
+    /** Function that deletes the newly loaded complex structure */
+    delete: () => Promise<void>,
+}
+
+/** Temporary type until `nAlignedElements` gets into `MinimizeRmsd.Result` in core Molstar */
+export interface _MinimizeRmsdResult extends MinimizeRmsd.Result {
+    nAlignedElements: number,
+    // TODO remove explicit nAlignedElements, once in core Molstar
+}
+
+/** Load a structure, superpose onto the main structure based on Uniprot residue numbers (or seq alignment if numbers not available), and optionally apply coloring to show common/additional components. */
+export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams): Promise<LoadComplexSuperpositionResult> {
     const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseMappings, otherMappings, coreColor, unmappedColor, componentColors, method = 'biggest-matched-chain' } = params;
     const baseStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const otherStructId = params.id ?? `${pdbId}_${assemblyId}`;
@@ -78,13 +96,12 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     let superposition = (method === 'biggest-matched-chain') ?
         superposeByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
         : superposeByMolstarDefault(baseStruct, otherStruct);
-    if (superposition.status !== 'success') {
+    if (!superposition) {
         console.log(`Superposition with ${method} method failed, trying sequence alignment superposition (RNAs)`);
-        const seqSup = superposeBySequenceAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
-        if (seqSup.status === 'success') superposition = seqSup;
+        superposition = superposeBySequenceAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
     }
-    if (superposition.status === 'success') {
-        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.superposition.bTransform);
+    if (superposition) {
+        await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.bTransform);
     }
 
     // Apply coloring to other structure
@@ -113,27 +130,21 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     await viewer.visual.structureVisibility(otherStructId, true);
 
     return {
-        /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
         id: otherStructId,
-        /** Status of pairwise superposition ('success' / 'zero-overlap' / 'failed') */
-        status: superposition.status,
-        /** Superposition RMSD and tranform (if status is 'success') */
-        superposition: superposition.superposition,
-        /** Function that deletes the newly loaded complex structure */
+        superposition,
         delete: () => viewer.deleteStructure(otherStructId),
     };
 }
 
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export function superposeByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): SuperpositionResult {
+export function superposeByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): _MinimizeRmsdResult | undefined {
     const aln = alignAndSuperposeWithSIFTSMapping([staticStruct, mobileStruct], { traceOnly: true });
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
-    if (superposition) {
-        return { status: 'success', superposition: { ...superposition, nAlignedElements: Number.NaN } };
-    } else if (aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1)) {
-        return { status: 'zero-overlap', superposition: undefined };
+    if (superposition && !isNaN(superposition.rmsd)) {
+        return { ...superposition, nAlignedElements: Number.NaN };
+        // TODO remove explicit nAlignedElements, once in core Molstar
     } else {
-        return { status: 'failed', superposition: undefined };
+        return undefined;
     }
 }

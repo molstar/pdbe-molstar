@@ -5,24 +5,25 @@ import { ElementIndex, Structure, StructureElement, StructureProperties } from '
 import { UnitIndex } from 'molstar/lib/mol-model/structure/structure/element/util';
 import { getPositionTable } from 'molstar/lib/mol-model/structure/structure/util/superposition';
 import { QueryHelper, QueryParam } from '../../helpers';
-import { SortedAccessionsAndUnits, SuperpositionResult } from './superpose-by-biggest-chain';
+import { _MinimizeRmsdResult } from './index';
+import { SortedAccessionsAndUnits } from './superpose-by-biggest-chain';
 
 
-export function superposeBySequenceAlignment(structA: Structure, structB: Structure, mappingsA: { [accession: string]: QueryParam[] }, mappingsB: { [accession: string]: QueryParam[] }): SuperpositionResult {
+export function superposeBySequenceAlignment(structA: Structure, structB: Structure, mappingsA: { [accession: string]: QueryParam[] }, mappingsB: { [accession: string]: QueryParam[] }): _MinimizeRmsdResult | undefined {
     const sortedA = sortAccessionsAndUnits(structA, mappingsA);
     const sortedB = sortAccessionsAndUnits(structB, mappingsB);
     const bestMatch = bestMappingMatch(sortedA, sortedB);
     if (!bestMatch) {
-        return { status: 'zero-overlap', superposition: undefined };
+        return undefined;
     }
     const accession = bestMatch.accession;
     const lociA = QueryHelper.getInteractivityLoci(mappingsA[accession], structA);
     const lociB = QueryHelper.getInteractivityLoci(mappingsB[accession], structB);
     const superposition = alignAndSuperpose(lociA, lociB);
     if (!isNaN(superposition.rmsd)) {
-        return { status: 'success', superposition: superposition as any };
+        return superposition;
     } else {
-        return { status: 'failed', superposition: undefined };
+        return undefined;
     }
 }
 
@@ -79,7 +80,7 @@ function bestMappingMatch(sortedA: SortedAccessionsAndUnits<{ elements: SortedAr
 
 const reProtein = /(polypeptide|cyclic-pseudo-peptide)/i;
 
-function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): MinimizeRmsd.Result & { nAlignedElements: number } {
+function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): _MinimizeRmsdResult {
     const location = StructureElement.Loci.getFirstLocation(lociA)!;
     const subtype = StructureProperties.entity.subtype(location);
     const substMatrix = subtype.match(reProtein) ? 'blosum62' : 'default';
@@ -91,6 +92,7 @@ function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement
     const coordsB = getPositionTable(StructureElement.Loci(lociB.structure, [matchedB]), n);
     const superposition = MinimizeRmsd.compute({ a: coordsA, b: coordsB });
     return { ...superposition, nAlignedElements: n };
+    // TODO remove explicit nAlignedElements, once in core Molstar
 }
 
 /** `a` and `b` contain matching pairs, i.e. `a.indices[0]` aligns with `b.indices[0]` */

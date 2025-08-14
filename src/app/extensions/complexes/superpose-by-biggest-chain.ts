@@ -1,23 +1,15 @@
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
 import { Structure } from 'molstar/lib/mol-model/structure';
+import { _MinimizeRmsdResult } from './index';
 
 
-export type SuperpositionResult =
-    | { status: 'success', superposition: MinimizeRmsd.Result & { nAlignedElements: number } }
-    | { status: 'zero-overlap', superposition: undefined }
-    | { status: 'failed', superposition: undefined }
-    ;
-
-/** Status of pairwise superposition (success = superposed, zero-overlap = failed to superpose because the two structures have no matchable elements, failed = failed to superpose for other reasons) */
-export type SuperpositionStatus = SuperpositionResult['status'];
-
-export function superposeByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): SuperpositionResult {
+export function superposeByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): _MinimizeRmsdResult | undefined {
     const indexA = extractUniprotIndex(structA, allowedComponentsA);
     const indexB = extractUniprotIndex(structB, allowedComponentsB);
     const bestMatch = bestUniprotMatch(indexA, indexB);
     if (!bestMatch) {
-        return { status: 'zero-overlap', superposition: undefined };
+        return undefined;
     }
     const unitA = structA.unitMap.get(Number(bestMatch.unitA));
     const unitB = structB.unitMap.get(Number(bestMatch.unitB));
@@ -40,10 +32,13 @@ export function superposeByBiggestCommonChain(structA: Structure, structB: Struc
         i++;
     }
     const superposition = MinimizeRmsd.compute({ a: positionsA, b: positionsB });
-    if (isNaN(superposition.rmsd)) {
-        return { status: 'failed', superposition: undefined };
+
+    if (!isNaN(superposition.rmsd)) {
+        return { ...superposition, nAlignedElements: bestMatch.nMatchedElements };
+        // TODO remove explicit nAlignedElements, once in core Molstar
+    } else {
+        return undefined;
     }
-    return { status: 'success', superposition: { ...superposition, nAlignedElements: bestMatch.nMatchedElements } };
 }
 
 
