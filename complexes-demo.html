@@ -23,14 +23,6 @@
             margin-right: 20px;
         }
 
-        .item {
-            margin-block: 8px;
-            padding-block: 2px;
-            padding-inline: 8px;
-            background-color: gainsboro;
-            cursor: pointer;
-        }
-
         .spinner_aj0A {
             transform-origin: center;
             animation: spinner_KYSC .75s infinite linear
@@ -104,25 +96,40 @@
                 customData: undefined,
             };
             await viewerInstance.render(viewerContainer, options);
+
+            addControls(data.supercomplexes.sort(), data.subcomplexes.sort());
+
             const sub = viewerInstance.events.loadComplete.subscribe(() => {
                 sub.unsubscribe();
                 resetColoring();
+                enableControls(); // only allow superposition once the base structure has been loaded
             });
+        }
 
+        function addControls(supercomplexes, subcomplexes) {
             const supercomplexesDiv = document.getElementById('supercomplex-list');
-            for (const supercomplex of data.supercomplexes) {
+            for (const supercomplex of supercomplexes) {
                 addItem(supercomplexesDiv, supercomplex, 'supercomplex');
             }
             const subcomplexesDiv = document.getElementById('subcomplex-list');
-            for (const subcomplex of data.subcomplexes) {
+            for (const subcomplex of subcomplexes) {
                 addItem(subcomplexesDiv, subcomplex, 'subcomplex');
             }
         }
 
         function addItem(listDiv, id, kind) {
             const item = document.createElement('div');
-            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" /> <label for="${id}">${id}</label> <a href="${urlForComplex(id)}" style="text-decoration: none;">&#10138;</a>`;
+            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" disabled /> <label for="${id}">${id}</label> <a href="${urlForComplex(id)}" style="text-decoration: none;">&#10138;</a>`;
             listDiv.append(item);
+        }
+
+        function enableControls() {
+            for (const elem of document.getElementById('supercomplex-list').getElementsByTagName('input')) {
+                elem.removeAttribute('disabled');
+            }
+            for (const elem of document.getElementById('subcomplex-list').getElementsByTagName('input')) {
+                elem.removeAttribute('disabled');
+            }
         }
 
         async function toggleComplex(id, on, kind) {
