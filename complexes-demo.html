@@ -157,11 +157,11 @@
                 id,
                 pdbId: pdb_id, assemblyId: assembly_id,
                 baseComponents, otherComponents,
-                coloring: kind, animationDuration: 250,
-                coreColor, unmappedColor,
+                coloring: kind,
                 baseMappings: baseRfamMappings,
                 otherMappings: rfamMappings[pdb_id],
-                method: superpositionMethod,
+                method: superpositionMethod, // optionals
+                coreColor, unmappedColor, animationDuration: 250, // optionals
             });
             if (result.superposition) {
                 console.log(`Superposed complexes with RMSD ${result.superposition.rmsd} on ${result.superposition.nAlignedElements} residues`);
@@ -178,7 +178,12 @@
         }
 
         async function resetColoring() {
-            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, { structId: 'main', components: baseComponents, mappings: baseRfamMappings, coreColor, unmappedColor });
+            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, {
+                structId: 'main',
+                components: baseComponents,
+                mappings: baseRfamMappings,
+                coreColor, unmappedColor, // optionals
+            });
         }
 
         async function getRfamMappings(pdbId) {

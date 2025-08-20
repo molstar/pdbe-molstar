@@ -40,11 +40,16 @@ export interface LoadComplexSuperpositionParams {
     unmappedColor?: string,
     /** List of colors for coloring unique entities. */
     componentColors?: string[],
-    /** Optional specification of which parts of the base complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    /** Optional specification of which parts of the base complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided).
+     * It is recommended to provide this for nucleic acids as they don't have mapping in atom_site. */
     baseMappings?: { [accession: string]: QueryParam[] },
-    /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided).
+     * It is recommended to provide this for nucleic acids as they don't have mapping in atom_site. */
     otherMappings?: { [accession: string]: QueryParam[] },
-    /** Superposition method */
+    /** Superposition method. 
+     * 'biggest-matched-chain' (default): align the biggest chains of biggest common component (measured as number of residues), based on Uniprot mappings in mmCIF atom_site category.
+     * 'molstar-builtin': Molstar Uniprot superposition - align the first occurrences of each UniprotID-UniprotResidueNumber combination regardless of which chain they belong to, based on Uniprot mappings in mmCIF atom_site category.
+     * In case this method fails, will fall back to sequence-alignment-based superposition using `baseMappings` and `otherMappings`. */
     method?: 'biggest-matched-chain' | 'molstar-builtin',
 }
 
