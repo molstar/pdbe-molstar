@@ -224,10 +224,12 @@ export interface QueryParam {
     uniprot_residue_number?: number,
     start_uniprot_residue_number?: number,
     end_uniprot_residue_number?: number,
+    /** List of element type symbols (e.g. ['C', 'N', 'FE']) */
+    type_symbol?: string[],
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
-    const broadcasted = broadcast(params, ['atoms', 'atom_id']);
+    const broadcasted = broadcast(params, ['atoms', 'atom_id', 'type_symbol']);
     return broadcasted.map(item => ({
         label_entity_id: item.entity_id,
         label_asym_id: item.struct_asym_id,
@@ -241,7 +243,7 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         end_auth_seq_id: item.end_auth_residue_number,
         label_atom_id: item.atoms,
         auth_atom_id: undefined,
-        type_symbol: undefined,
+        type_symbol: item.type_symbol,
         atom_id: item.atom_id,
         atom_index: undefined,
         label_comp_id: item.label_comp_id,
@@ -365,6 +367,9 @@ export namespace QueryHelper {
             }
             if (param.atom_id) {
                 predicates.atom.push(l => param.atom_id!.includes(StructureProperties.atom.id(l.element)));
+            }
+            if (param.type_symbol) {
+                predicates.atom.push(l => param.type_symbol!.includes(StructureProperties.atom.type_symbol(l.element)));
             }
 
             selections.push({
