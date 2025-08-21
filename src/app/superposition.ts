@@ -149,14 +149,14 @@ async function getAfUrls(plugin: PluginContext, accession: string): Promise<AfAp
     return undefined;
 }
 
-export async function loadAfStructure(plugin: PluginContext) {
+export async function loadAfStructure(plugin: PluginContext): Promise<string | undefined> {
     const customState = PluginCustomState(plugin);
     if (!customState.superpositionState) throw new Error('customState.superpositionState has not been initialized');
     const isBinary = customState.initParams?.encoding === 'bcif';
     const url = isBinary ? customState.superpositionState.alphafold.apiData.bcif : customState.superpositionState.alphafold.apiData.cif;
     const { structure } = await loadStructure(plugin, url, 'mmcif', isBinary);
     const strInstance = structure;
-    if (!strInstance) return false;
+    if (!strInstance) return undefined;
 
     // Store Refs in state
     const spState = customState.superpositionState;
@@ -171,20 +171,22 @@ export async function loadAfStructure(plugin: PluginContext) {
         return strInstance?.ref;
     }
 
-    return false;
+    return undefined;
 }
 
-export async function superposeAf(plugin: PluginContext, traceOnly: boolean, segmentIndex?: number) {
+export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Promise<boolean> {
     const customState = PluginCustomState(plugin);
     const spState = customState.superpositionState;
-    if (!spState?.segmentData) return;
+    if (!spState?.segmentData) return false;
 
     // Load AF structure
-    const afStrRef = spState.alphafold.ref || await loadAfStructure(plugin);
-    if (!afStrRef) return;
-    const afStr: any = plugin.managers.structure.hierarchy.current.refs.get(afStrRef!);
+    const afStructRefString = spState.alphafold.ref || await loadAfStructure(plugin);
+    if (!afStructRefString) return false;
 
-    const segmentNum = segmentIndex ? segmentIndex : spState.activeSegment - 1;
+    const afStructRef = plugin.managers.structure.hierarchy.current.refs.get(afStructRefString!);
+    if (afStructRef?.kind !== 'structure') return false;
+
+    const segmentNum = spState.activeSegment - 1;
     if (!spState.alphafold.transforms[segmentNum]) {
 
         // Create representative list
@@ -197,48 +199,43 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
         let minIndex = 0;
         const rmsdList: string[] = [];
         const segmentClusters = spState.segmentData[segmentNum].clusters;
+
         segmentClusters.forEach((cluster: any) => {
-
             const modelRef = spState.models[`${cluster[0].pdb_id}_${cluster[0].struct_asym_id}`];
-            if (modelRef) {
-                const structHierarchy: any = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
-                if (structHierarchy) {
-                    const input = [structHierarchy.components[0], afStr];
-                    const structures = input.map(s => s.cell.obj?.data);
-                    let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, {
-                        traceOnly,
-                        includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
-                        applyTestIndex: [1],
-                    });
+            if (!modelRef) return;
 
-                    if (entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
-                        const alignWithoutPlddt = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly });
-                        entries = alignWithoutPlddt.entries;
-                    }
+            const structRef = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
+            if (structRef?.kind !== 'structure') return;
 
-                    if (entries && entries[0]) {
-                        mappingResult.push(entries[0]);
-                        coordinateSystems.push(input[0]?.transform?.cell.obj?.data.coordinateSystem);
-                        const totalMappings = mappingResult.length;
-                        if (totalMappings === 1 || entries[0].transform.rmsd < minRmsd) {
-                            minRmsd = entries[0].transform.rmsd;
-                            minIndex = totalMappings === 1 ? 0 : mappingResult.length - 1;
-                        }
+            const structComponentRef = structRef.components[0];
+            const structures = [structComponentRef.cell.obj!.data, afStructRef.cell.obj!.data];
+            let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, {
+                traceOnly,
+                includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
+                applyTestIndex: [1],
+            });
 
-                        rmsdList.push(`${cluster[0].pdb_id} chain ${cluster[0].struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
+            if (entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
+                const alignWithoutPlddt = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly });
+                entries = alignWithoutPlddt.entries;
+            }
 
-                    } else {
-                        if (failedPairs.length > 0) failedPairsResult.push(failedPairs);
-                        if (zeroOverlapPairs.length > 0) zeroOverlapPairsResult.push(zeroOverlapPairs);
-                        // rmsdList.push(`${cluster[0].pdb_id} ${cluster[0].struct_asym_id}:-`)
-                    }
-
+            if (entries && entries[0]) {
+                mappingResult.push(entries[0]);
+                coordinateSystems.push((structComponentRef as any)?.transform?.cell.obj?.data.coordinateSystem);
+                if (mappingResult.length === 1 || entries[0].transform.rmsd < minRmsd) {
+                    minRmsd = entries[0].transform.rmsd;
+                    minIndex = mappingResult.length - 1;
                 }
+
+                rmsdList.push(`${cluster[0].pdb_id} chain ${cluster[0].struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
+
+            } else {
+                if (failedPairs.length > 0) failedPairsResult.push(failedPairs);
+                if (zeroOverlapPairs.length > 0) zeroOverlapPairsResult.push(zeroOverlapPairs);
             }
         });
 
-        // console.log(failedPairsResult);
-        // console.log(zeroOverlapPairsResult);
         if (mappingResult.length > 0) {
             spState.alphafold.visibility[segmentNum] = true;
             spState.alphafold.transforms[segmentNum] = mappingResult[minIndex].transform.bTransform;
@@ -248,8 +245,8 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean, seg
 
     }
 
-    await afTransform(plugin, afStr.cell, spState.alphafold.transforms[segmentNum], spState.alphafold.coordinateSystems[segmentNum]);
-    applyAFTransparency(plugin, afStr, 0.8, 70);
+    await afTransform(plugin, afStructRef.cell, spState.alphafold.transforms[segmentNum], spState.alphafold.coordinateSystems[segmentNum]);
+    await applyAFTransparency(plugin, afStructRef, 0.8, 70);
 
     return true;
 }
