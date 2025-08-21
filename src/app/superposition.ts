@@ -15,7 +15,7 @@ import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
-import { alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
+import { alignAndSuperposeWithSIFTSMapping, AlignmentResultEntry } from './superposition-sifts-mapping';
 
 
 function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
@@ -66,7 +66,6 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
                 visibility: [],
                 transforms: [],
                 rmsds: [],
-                coordinateSystems: [],
             },
         };
 
@@ -190,17 +189,14 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Pr
     if (!spState.alphafold.transforms[segmentNum]) {
 
         // Create representative list
-        const mappingResult: any = [];
-        const coordinateSystems: any = [];
-        const failedPairsResult: any = [];
-        const zeroOverlapPairsResult: any = [];
+        const mappingResult: AlignmentResultEntry[] = [];
 
-        let minRmsd = 0;
+        let minRmsd = Infinity;
         let minIndex = 0;
         const rmsdList: string[] = [];
         const segmentClusters = spState.segmentData[segmentNum].clusters;
 
-        segmentClusters.forEach((cluster: any) => {
+        segmentClusters.forEach(cluster => {
             const modelRef = spState.models[`${cluster[0].pdb_id}_${cluster[0].struct_asym_id}`];
             if (!modelRef) return;
 
@@ -209,43 +205,35 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Pr
 
             const structComponentRef = structRef.components[0];
             const structures = [structComponentRef.cell.obj!.data, afStructRef.cell.obj!.data];
-            let { entries, failedPairs, zeroOverlapPairs } = alignAndSuperposeWithSIFTSMapping(structures, {
+            let { entries } = alignAndSuperposeWithSIFTSMapping(structures, {
                 traceOnly,
                 includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
                 applyTestIndex: [1],
             });
 
-            if (entries.length === 0 || (entries && entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
+            if (entries.length === 0 || (entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
                 const alignWithoutPlddt = alignAndSuperposeWithSIFTSMapping(structures, { traceOnly });
                 entries = alignWithoutPlddt.entries;
             }
 
-            if (entries && entries[0]) {
+            if (entries[0]) {
                 mappingResult.push(entries[0]);
-                coordinateSystems.push((structComponentRef as any)?.transform?.cell.obj?.data.coordinateSystem);
-                if (mappingResult.length === 1 || entries[0].transform.rmsd < minRmsd) {
+                if (entries[0].transform.rmsd < minRmsd) {
                     minRmsd = entries[0].transform.rmsd;
                     minIndex = mappingResult.length - 1;
                 }
-
                 rmsdList.push(`${cluster[0].pdb_id} chain ${cluster[0].struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
-
-            } else {
-                if (failedPairs.length > 0) failedPairsResult.push(failedPairs);
-                if (zeroOverlapPairs.length > 0) zeroOverlapPairsResult.push(zeroOverlapPairs);
             }
         });
 
         if (mappingResult.length > 0) {
             spState.alphafold.visibility[segmentNum] = true;
             spState.alphafold.transforms[segmentNum] = mappingResult[minIndex].transform.bTransform;
-            spState.alphafold.coordinateSystems[segmentNum] = coordinateSystems[minIndex];
             spState.alphafold.rmsds[segmentNum] = rmsdList.sort((a: string, b: string) => parseFloat(a.split(':')[1]) - parseFloat(b.split(':')[1]));
         }
-
     }
 
-    await afTransform(plugin, afStructRef.cell, spState.alphafold.transforms[segmentNum], spState.alphafold.coordinateSystems[segmentNum]);
+    await afTransform(plugin, afStructRef.cell, spState.alphafold.transforms[segmentNum]);
     await applyAFTransparency(plugin, afStructRef, 0.8, 70);
 
     return true;
@@ -326,10 +314,6 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                     await plugin.builders.structure.representation.addRepresentation(chainSel, { type: 'putty', color: 'uniform', colorParams: { value: uniformColor2 }, size: 'uniform' }, { tag: `superposition-visual` });
                     spState.refMaps[chainSel.ref] = `${s.pdb_id}_${s.struct_asym_id}`;
                 }
-                // // const addTooltipUpdate = plugin.state.behaviors.build().to(BestDatabaseSequenceMapping.id).update(BestDatabaseSequenceMapping, (old: any) => { old.showTooltip = true; });
-                // // await plugin.runTask(plugin.state.behaviors.updateTree(addTooltipUpdate));
-                // BestDatabaseSequenceMapping
-                // console.log(plugin.state.data.select(modelRef)[0])
             }
 
             let invalidStruct = chainSel ? false : true;

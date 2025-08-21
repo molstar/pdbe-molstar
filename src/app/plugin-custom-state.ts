@@ -1,4 +1,3 @@
-import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
 import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { StateSelection, StateTransform } from 'molstar/lib/mol-state';
@@ -45,7 +44,6 @@ export interface PluginCustomState {
             visibility: boolean[],
             transforms: Mat4[],
             rmsds: string[][],
-            coordinateSystems: (SymmetryOperator | undefined)[],
         },
     },
     superpositionError?: string,
