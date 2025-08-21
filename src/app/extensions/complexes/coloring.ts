@@ -4,19 +4,15 @@ import { normalizeColor, QueryParam } from '../../helpers';
 
 
 const DEFAULT_CORE_COLOR = '#d8d8d8';
-const DEFAULT_UNMAPPED_COLOR = '#222222';
+const DEFAULT_UNMAPPED_COLOR = '#f000f0';
 const DEFAULT_COMPONENT_COLORS = [
-    '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2
-    '#7f3c8d', '#11a579', '#3969ac', '#f2b701', '#e73f74', '#80ba5a', '#e68310', '#008695', '#cf1c90', '#f97b72', // Bold
-    '#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', // Pastel
-    '#e5c494', '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', // Set-2
+    '#1b9e77', '#d95f02', '#7570b3', '#66a61e', '#e6ab02', '#a6761d',    // Dark-2 without gray and magenta
+    '#1f77b4', '#2ca02c', '#d62728', '#927ba7', '#8c564b', '#e377c2', '#bcbd22', '#17becf', // More non-conflicting colors from other palettes
+    '#fc8d62', '#9eb9f3', '#ff9da7', '#ffff33', '#8be0a4', '#e15759', '#c69fbb', '#76b7b2', // More non-conflicting colors from other palettes
 ];
-// TODO compare color variants:
-// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23222222
-// http://127.0.0.1:1339/complexes-demo.html?complexId=PDB-CPX-159519&unmappedColor=%23ff0000
 
 /** How much lighter/darker colors should be for the base/other complex */
-const COLOR_ADJUSTMENT_STRENGTH = 0.75;
+const COLOR_ADJUSTMENT_STRENGTH = 0.8;
 
 
 export async function colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], mappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
