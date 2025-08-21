@@ -3,7 +3,7 @@ import { scaleLinear as d3ScaleLinear } from 'd3-scale';
 import { select as d3Select } from 'd3-selection';
 import { CollapsableControls, PurePluginUIComponent } from 'molstar/lib/mol-plugin-ui/base';
 import { Button, ToggleButton } from 'molstar/lib/mol-plugin-ui/controls/common';
-import { Icon, SuperposeChainsSvg, SuperpositionSvg, TuneSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
+import { AddSvg, Icon, SuperpositionSvg, TuneSvg } from 'molstar/lib/mol-plugin-ui/controls/icons';
 import { ParameterControls } from 'molstar/lib/mol-plugin-ui/controls/parameters';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import React from 'react';
@@ -204,7 +204,7 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
 
     superposeByDbMapping() {
         return <>
-            <Button icon={SuperposeChainsSvg} title='Superpose AlphaFold structure using intersection of residues from SIFTS UNIPROT mapping.' className='msp-btn msp-btn-block' onClick={this.superposeDb} style={{ marginTop: '1px', textAlign: 'left' }} disabled={this.state.isBusy}>
+            <Button icon={AddSvg} title='Superpose AlphaFold structure using intersection of residues from SIFTS UNIPROT mapping.' className='msp-btn msp-btn-block' onClick={this.superposeDb} style={{ marginTop: '1px', textAlign: 'left' }} disabled={this.state.isBusy}>
                 Load AlphaFold structure
             </Button>
         </>;
@@ -216,7 +216,6 @@ export class AfSuperpositionControls extends PurePluginUIComponent<{}, AfSuperpo
 
     render() {
         return <>
-            <div style={{ backgroundColor: '#dce54e', fontWeight: 500, padding: '5px 12px' }}>New Feature!</div>
             <div className='msp-help-text' style={{ margin: '2px 0' }}>
                 <div className='msp-help-description'><Icon svg={InfoIconSvg} inline />Load and superpose AlphaFold structure against representative chains.</div>
             </div>
