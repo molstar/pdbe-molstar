@@ -1,6 +1,6 @@
 import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
 import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
-import { StructureProperties } from 'molstar/lib/mol-model/structure';
+import { Structure, StructureProperties } from 'molstar/lib/mol-model/structure';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { PluginStateObject as PSO, PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
@@ -15,7 +15,7 @@ import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
-import { alignAndSuperposeWithSIFTSMapping, AlignmentResultEntry } from './superposition-sifts-mapping';
+import { AlignmentResultEntry, alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
 
 function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
@@ -119,7 +119,7 @@ export async function initSuperposition(plugin: PluginContext, completeSubject?:
     }
 }
 
-function createCarbVisLabel(carbLigNamesAndCount: any) {
+function createCarbVisLabel(carbLigNamesAndCount: Record<string, number>): string {
     const compList = [];
     for (const carbCompId in carbLigNamesAndCount) {
         compList.push(`${carbCompId} (${carbLigNamesAndCount[carbCompId]})`);
@@ -270,8 +270,8 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
             const strUrl = getStructureUrl(customState.initParams, request);
 
             // Load Data
-            let strInstance: any;
-            let modelRef: any;
+            let strInstance: StateObjectRef<PSO.Molecule.Structure> | undefined;
+            let modelRef: string;
             let clearOnFail = true;
             if (superpositionParams && superpositionParams.ligandView && spState.entries[s.pdb_id]) {
                 const polymerInstance = plugin.state.data.select(spState.entries[s.pdb_id])[0];
@@ -374,12 +374,12 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                             by: carbEntityChain,
                         });
 
-                        const data = (plugin.state.data.select(strInstance.ref)[0].obj).data;
+                        const data = plugin.state.data.select(strInstance.ref)[0].obj!.data;
                         const carbChainSel = Script.getStructureSelection(carbEntityChainInVicinity, data);
                         if (carbChainSel && carbChainSel.kind === 'sequence') {
                             // console.log(carbEntityChainId + ' chain present in 5 A radius');
                             const carbLigands = [];
-                            const carbLigNamesAndCount: any = {};
+                            const carbLigNamesAndCount: Record<string, number> = {};
                             const carbLigList = [];
 
                             for (const carbLigs of allCarbPolymers.branchedLigands[i]) {
@@ -448,7 +448,7 @@ async function getLigandNamesFromModelData(plugin: PluginContext, state: State, 
     const model = cell.obj.data;
     if (!model) return;
 
-    const structures: any[] = [];
+    const structures: Structure[] = [];
     for (const s of plugin.managers.structure.hierarchy.selection.structures) {
         const structure = s.cell.obj?.data;
         if (structure) structures.push(structure);
@@ -549,7 +549,29 @@ async function getSegmentData(plugin: PluginContext) {
     }
 }
 
-function getChainLigands(carbEntity: any) {
+interface CarbohydrateEntityRecord {
+    entity_id: number,
+    molecule_name: string,
+    chem_comp_list: {
+        chem_comp_id: string,
+        chem_comp_name: string,
+        count: number,
+    }[],
+    chains: {
+        chain_id: string,
+        struct_asym_id: string,
+        residues: {
+            alternate_conformers: number,
+            author_insertion_code: string,
+            author_residue_number: number,
+            chem_comp_id: string,
+            chem_comp_name: string,
+            residue_number: number,
+        }[],
+    }[],
+}
+
+function getChainLigands(carbEntity: CarbohydrateEntityRecord) {
     const ligandChain: string[] = [];
     const ligandLabels: string[] = [];
     const ligands: string[][] = [];
