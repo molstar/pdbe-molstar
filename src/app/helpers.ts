@@ -380,7 +380,7 @@ export namespace QueryHelper {
             });
         }
 
-        const atmGroupsQueries = selections.map(selection => Queries.generators.atoms(selection));
+        const atmGroupsQueries = selections.map(selection => Queries.modifiers.union(Queries.generators.atoms(selection)));
         return Queries.combinators.merge(atmGroupsQueries);
     }
 

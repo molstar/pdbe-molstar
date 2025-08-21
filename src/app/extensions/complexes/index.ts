@@ -1,5 +1,6 @@
 /** Helper functions to allow superposition of complexes */
 
+import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { Structure } from 'molstar/lib/mol-model/structure';
 import { alignAndSuperposeWithSIFTSMapping } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
@@ -8,12 +9,14 @@ import { PDBeMolstarPlugin } from '../..';
 import { getStructureUrl, QueryParam } from '../../helpers';
 import { transform } from '../../superposition';
 import * as Coloring from './coloring';
-import { superposeStructuresByBiggestCommonChain, SuperpositionResult } from './superpose-by-biggest-chain';
+import { superposeByBiggestCommonChain } from './superpose-by-biggest-chain';
+import { superposeBySequenceAlignment } from './superpose-by-sequence-alignment';
 
 
 export * as Coloring from './coloring';
 
 
+/** Parameters to `loadComplexSuperposition` */
 export interface LoadComplexSuperpositionParams {
     /** PDB identifier of complex structure */
     pdbId: string,
@@ -37,16 +40,37 @@ export interface LoadComplexSuperpositionParams {
     unmappedColor?: string,
     /** List of colors for coloring unique entities. */
     componentColors?: string[],
-    /** Optional specification of which parts of the base complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    /** Optional specification of which parts of the base complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided).
+     * It is recommended to provide this for nucleic acids as they don't have mapping in atom_site. */
     baseMappings?: { [accession: string]: QueryParam[] },
-    /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided) */
+    /** Optional specification of which parts of the other complex structure belong to individual Uniprot/Rfam accessions (will be inferred from mmCIF atom_site if not provided).
+     * It is recommended to provide this for nucleic acids as they don't have mapping in atom_site. */
     otherMappings?: { [accession: string]: QueryParam[] },
-    /** Superposition method */
+    /** Superposition method.
+     * 'biggest-matched-chain' (default): align the biggest chains of biggest common component (measured as number of residues), based on Uniprot mappings in mmCIF atom_site category.
+     * 'molstar-builtin': Molstar Uniprot superposition - align the first occurrences of each UniprotID-UniprotResidueNumber combination regardless of which chain they belong to, based on Uniprot mappings in mmCIF atom_site category.
+     * In case this method fails, will fall back to sequence-alignment-based superposition using `baseMappings` and `otherMappings`. */
     method?: 'biggest-matched-chain' | 'molstar-builtin',
 }
 
-/** Load a structure, superpose onto the main structure based on Uniprot residue numbers, and optionally apply coloring to show common/additional components. */
-export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams) {
+/** Result type of `loadComplexSuperposition` */
+export interface LoadComplexSuperpositionResult {
+    /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
+    id: string,
+    /** Superposition RMSD, number of aligned residues, and tranform; if superposition was successful */
+    superposition: _MinimizeRmsdResult | undefined,
+    /** Function that deletes the newly loaded complex structure */
+    delete: () => Promise<void>,
+}
+
+/** Temporary type until `nAlignedElements` gets into `MinimizeRmsd.Result` in core Molstar */
+export interface _MinimizeRmsdResult extends MinimizeRmsd.Result {
+    nAlignedElements: number,
+    // TODO remove explicit nAlignedElements, once in core Molstar
+}
+
+/** Load a structure, superpose onto the main structure based on Uniprot residue numbers (or seq alignment if numbers not available), and optionally apply coloring to show common/additional components. */
+export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params: LoadComplexSuperpositionParams): Promise<LoadComplexSuperpositionResult> {
     const { pdbId, assemblyId, animationDuration = 250, coloring, baseComponents, otherComponents, baseMappings, otherMappings, coreColor, unmappedColor, componentColors, method = 'biggest-matched-chain' } = params;
     const baseStructId = PDBeMolstarPlugin.MAIN_STRUCTURE_ID;
     const otherStructId = params.id ?? `${pdbId}_${assemblyId}`;
@@ -74,9 +98,13 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     if (!otherStruct) throw new Error('Mobile structure not loaded');
 
     // Superpose other structure on base structure
-    const { status, superposition } = method === 'biggest-matched-chain' ?
-        superposeStructuresByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
-        : superposeStructuresByMolstarDefault(baseStruct, otherStruct);
+    let superposition = (method === 'biggest-matched-chain') ?
+        superposeByBiggestCommonChain(baseStruct, otherStruct, baseComponents, otherComponents)
+        : superposeByMolstarDefault(baseStruct, otherStruct);
+    if (!superposition) {
+        console.log(`Superposition with ${method} method failed, trying sequence alignment superposition (RNAs)`);
+        superposition = superposeBySequenceAlignment(baseStruct, otherStruct, baseMappings ?? {}, otherMappings ?? {});
+    }
     if (superposition) {
         await transform(viewer.plugin, viewer.getStructure(otherStructId)!.cell, superposition.bTransform);
     }
@@ -107,50 +135,21 @@ export async function loadComplexSuperposition(viewer: PDBeMolstarPlugin, params
     await viewer.visual.structureVisibility(otherStructId, true);
 
     return {
-        /** Structure identifier of the newly loaded complex structure, to refer to this structure later */
         id: otherStructId,
-        /** Status of pairwise superposition ('success' / 'zero-overlap' / 'failed') */
-        status,
-        /** Superposition RMSD and tranform (if status is 'success') */
         superposition,
-        /** Function that deletes the newly loaded complex structure */
         delete: () => viewer.deleteStructure(otherStructId),
     };
 }
 
 
 /** Superpose mobile structure onto static structure, based on Uniprot residue numbers. */
-export function superposeStructuresByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): SuperpositionResult {
+export function superposeByMolstarDefault(staticStruct: Structure, mobileStruct: Structure): _MinimizeRmsdResult | undefined {
     const aln = alignAndSuperposeWithSIFTSMapping([staticStruct, mobileStruct], { traceOnly: true });
     const superposition = aln.entries.find(e => e.pivot === 0 && e.other === 1)?.transform;
-    if (superposition) {
-        return { status: 'success', superposition: { ...superposition, nAlignedElements: Number.NaN } };
-    } else if (aln.zeroOverlapPairs.find(e => e[0] === 0 && e[1] === 1)) {
-        return { status: 'zero-overlap', superposition: undefined };
+    if (superposition && !isNaN(superposition.rmsd)) {
+        return { ...superposition, nAlignedElements: Number.NaN };
+        // TODO remove explicit nAlignedElements, once in core Molstar
     } else {
-        return { status: 'failed', superposition: undefined };
+        return undefined;
     }
 }
-
-
-/*
-Coloring - subcomplexes:
-- base common -> by entity, lighter
-- base additional -> gray, lighter
-- sub common -> by entity, darker
-- sub additional -> gray, darker (these are all unmapped components, includes antibodies and ligands)
-
--> Colors can be assigned based on base complex and applied to subcomplex
-
-Coloring - supercomplexes:
-- base common -> gray, lighter
-- base additional -> unmapped color, lighter (these are all unmapped components, includes antibodies and ligands)
-- super common -> gray, darker
-- super additional mapped -> by entity, darker
-- super additional unmapped -> unmapped color, darker
-
--> Colors can be assigned based on supercomplex complex, consistency between supercomplexes is probably not necessary
-
--> For both subcomplexes and supercomplexes, colors could be assigned based on UniprotID hash -> database-wide consistency but complexes with similar-color components will occur
-
-*/
