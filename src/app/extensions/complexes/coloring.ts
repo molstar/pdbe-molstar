@@ -6,7 +6,7 @@ import { normalizeColor, QueryParam } from '../../helpers';
 const DEFAULT_CORE_COLOR = '#d8d8d8';
 const DEFAULT_UNMAPPED_COLOR = '#f000f0';
 const DEFAULT_COMPONENT_COLORS = [
-    '#1b9e77', '#d95f02', '#7570b3', '#66a61e', '#e6ab02', '#a6761d',    // Dark-2 without gray and magenta
+    '#1b9e77', '#d95f02', '#7570b3', '#66a61e', '#e6ab02', '#a6761d', // Dark-2 without gray and magenta
     '#1f77b4', '#2ca02c', '#d62728', '#927ba7', '#8c564b', '#e377c2', '#bcbd22', '#17becf', // More non-conflicting colors from other palettes
     '#fc8d62', '#9eb9f3', '#ff9da7', '#ffff33', '#8be0a4', '#e15759', '#c69fbb', '#76b7b2', // More non-conflicting colors from other palettes
 ];
