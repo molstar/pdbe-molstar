@@ -1,10 +1,13 @@
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
 import { Structure } from 'molstar/lib/mol-model/structure';
-import { _MinimizeRmsdResult } from './index';
+import { SuperpositionResult } from './index';
 
 
-export function superposeByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): _MinimizeRmsdResult | undefined {
+/** Superpose structures based on the largest common component (measured the by number of residues) with a UniProt mapping (taken from atom_site mmCIF category).
+ * Residue-residue correspondence is determined by UniProt residue numbers.
+ * This differs from UniProt-based superposition in core Molstar (`alignAndSuperposeWithSIFTSMapping`) which takes all components (regardless of their spacial arrangement). */
+export function superposeByBiggestCommonChain(structA: Structure, structB: Structure, allowedComponentsA: string[] | undefined, allowedComponentsB: string[] | undefined): SuperpositionResult | undefined {
     const indexA = extractUniprotIndex(structA, allowedComponentsA);
     const indexB = extractUniprotIndex(structB, allowedComponentsB);
     const bestMatch = bestUniprotMatch(indexA, indexB);
@@ -34,7 +37,7 @@ export function superposeByBiggestCommonChain(structA: Structure, structB: Struc
     const superposition = MinimizeRmsd.compute({ a: positionsA, b: positionsB });
 
     if (!isNaN(superposition.rmsd)) {
-        return { ...superposition, nAlignedElements: bestMatch.nMatchedElements };
+        return { ...superposition, nAlignedElements: bestMatch.nMatchedElements, method: 'uniprot-numbering', accession: bestMatch.accession };
         // TODO remove explicit nAlignedElements, once in core Molstar
     } else {
         return undefined;

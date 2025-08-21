@@ -5,11 +5,12 @@ import { ElementIndex, Structure, StructureElement, StructureProperties } from '
 import { UnitIndex } from 'molstar/lib/mol-model/structure/structure/element/util';
 import { getPositionTable } from 'molstar/lib/mol-model/structure/structure/util/superposition';
 import { QueryHelper, QueryParam } from '../../helpers';
-import { _MinimizeRmsdResult } from './index';
+import { SuperpositionResult } from './index';
 import { SortedAccessionsAndUnits } from './superpose-by-biggest-chain';
 
-
-export function superposeBySequenceAlignment(structA: Structure, structB: Structure, mappingsA: { [accession: string]: QueryParam[] }, mappingsB: { [accession: string]: QueryParam[] }): _MinimizeRmsdResult | undefined {
+/** Superpose structures based on the largest common component (measured the by number of residues), components being defined by `mappingsA` and `mappingsB`.
+ * Residue-residue correspondence is determined by sequence alignment. */
+export function superposeBySequenceAlignment(structA: Structure, structB: Structure, mappingsA: { [accession: string]: QueryParam[] }, mappingsB: { [accession: string]: QueryParam[] }): SuperpositionResult | undefined {
     const sortedA = sortAccessionsAndUnits(structA, mappingsA);
     const sortedB = sortAccessionsAndUnits(structB, mappingsB);
     const bestMatch = bestMappingMatch(sortedA, sortedB);
@@ -21,7 +22,7 @@ export function superposeBySequenceAlignment(structA: Structure, structB: Struct
     const lociB = QueryHelper.getInteractivityLoci(mappingsB[accession], structB);
     const superposition = alignAndSuperpose(lociA, lociB);
     if (!isNaN(superposition.rmsd)) {
-        return superposition;
+        return { ...superposition, method: 'sequence-alignment', accession: bestMatch.accession };
     } else {
         return undefined;
     }
@@ -80,7 +81,7 @@ function bestMappingMatch(sortedA: SortedAccessionsAndUnits<{ elements: SortedAr
 
 const reProtein = /(polypeptide|cyclic-pseudo-peptide)/i;
 
-function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): _MinimizeRmsdResult {
+function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): MinimizeRmsd.Result & { nAlignedElements: number } {
     const location = StructureElement.Loci.getFirstLocation(lociA)!;
     const subtype = StructureProperties.entity.subtype(location);
     const substMatrix = subtype.match(reProtein) ? 'blosum62' : 'default';

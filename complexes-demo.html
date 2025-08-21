@@ -150,7 +150,7 @@
             const data = await getComplexApiData(id);
             const { pdb_id, assembly_id } = data.representative_structure;
             const otherComponents = data.participants.map(p => p.accession);
-            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}, method: ${superpositionMethod}`);
+            console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}`);
             rfamMappings[pdb_id] ??= await getRfamMappings(pdb_id);
             console.log(`Rfam mappings for ${pdb_id}:`, rfamMappings[pdb_id]);
             const result = await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
@@ -160,11 +160,10 @@
                 coloring: kind,
                 baseMappings: baseRfamMappings,
                 otherMappings: rfamMappings[pdb_id],
-                method: superpositionMethod, // optionals
                 coreColor, unmappedColor, animationDuration: 250, // optionals
             });
             if (result.superposition) {
-                console.log(`Superposed complexes with RMSD ${result.superposition.rmsd} on ${result.superposition.nAlignedElements} residues`);
+                console.log(`Superposed complexes with RMSD ${result.superposition.rmsd} on ${result.superposition.nAlignedElements} residues`, result.superposition);
             } else {
                 console.warn(`Failed to superpose complexes`);
             }
@@ -220,8 +219,6 @@
         }
         const coreColor = new URL(window.location).searchParams.get('coreColor') ?? undefined;
         const unmappedColor = new URL(window.location).searchParams.get('unmappedColor') ?? undefined;
-        const superpositionMethod = new URL(window.location).searchParams.get('method') ?? 'biggest-matched-chain';
-
 
         let viewerInstance; // PDBeMolstarPlugin
         let baseComponents; // string[]
