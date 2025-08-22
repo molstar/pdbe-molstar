@@ -14,6 +14,7 @@ import { Transparency } from 'molstar/lib/mol-theme/transparency';
 type TransparencyEachReprCallback = (update: StateBuilder.Root, repr: StateObjectCell<PluginStateObject.Molecule.Structure.Representation3D, StateTransform<typeof StateTransforms.Representation.StructureRepresentation3D>>, transparency?: StateObjectCell<any, StateTransform<typeof StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle>>) => Promise<void>;
 const TransparencyManagerTag = 'transparency-controls';
 
+/** Select part of the structure with pLDDT <= score. */
 function getLociBelowPLDDT(score: number, contextData: Structure) {
     const queryExp = MS.struct.modifier.union([
         MS.struct.modifier.wholeResidues([

@@ -1,6 +1,7 @@
 import { SymmetryOperator } from 'molstar/lib/mol-math/geometry';
 import { Mat4 } from 'molstar/lib/mol-math/linear-algebra';
 import { Structure, StructureProperties } from 'molstar/lib/mol-model/structure';
+import { AlignmentResultEntry, alignAndSuperposeWithSIFTSMapping } from 'molstar/lib/mol-model/structure/structure/util/superposition-sifts-mapping';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { PluginStateObject as PSO, PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
@@ -15,7 +16,6 @@ import { Subject } from 'rxjs';
 import { applyAFTransparency } from './alphafold-transparency';
 import { ModelInfo, ModelServerRequest, getStructureUrl, normalizeColor } from './helpers';
 import { ClusterMember, PluginCustomState } from './plugin-custom-state';
-import { AlignmentResultEntry, alignAndSuperposeWithSIFTSMapping } from './superposition-sifts-mapping';
 
 
 function combinedColorPalette(palettes: ColorListName[]): ColorListEntry[] {
@@ -207,8 +207,7 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Pr
             const structures = [structComponentRef.cell.obj!.data, afStructRef.cell.obj!.data];
             let { entries } = alignAndSuperposeWithSIFTSMapping(structures, {
                 traceOnly,
-                includeResidueTest: loc => StructureProperties.atom.B_iso_or_equiv(loc) > 70,
-                applyTestIndex: [1],
+                includeResidueTest: loc => !(loc.structure === structures[1] && StructureProperties.atom.B_iso_or_equiv(loc) <= 70), // exclude AlphaFold residues with pLDDT <= 70
             });
 
             if (entries.length === 0 || (entries[0] && entries[0].transform.rmsd.toFixed(1) === '0.0')) {
