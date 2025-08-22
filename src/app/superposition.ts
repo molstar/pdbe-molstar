@@ -187,21 +187,20 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Pr
 
     const segmentNum = spState.activeSegment - 1;
     if (!spState.alphafold.transforms[segmentNum]) {
-
         // Create representative list
         const mappingResult: AlignmentResultEntry[] = [];
-
         let minRmsd = Infinity;
         let minIndex = 0;
         const rmsdList: string[] = [];
         const segmentClusters = spState.segmentData[segmentNum].clusters;
 
-        segmentClusters.forEach(cluster => {
-            const modelRef = spState.models[`${cluster[0].pdb_id}_${cluster[0].struct_asym_id}`];
-            if (!modelRef) return;
+        for (const cluster of segmentClusters) {
+            const representative = cluster[0];
+            const structRefString = spState.models[`${representative.pdb_id}_${representative.struct_asym_id}`];
+            if (!structRefString) continue;
 
-            const structRef = plugin.managers.structure.hierarchy.current.refs.get(modelRef!);
-            if (structRef?.kind !== 'structure') return;
+            const structRef = plugin.managers.structure.hierarchy.current.refs.get(structRefString!);
+            if (structRef?.kind !== 'structure') continue;
 
             const structComponentRef = structRef.components[0];
             const structures = [structComponentRef.cell.obj!.data, afStructRef.cell.obj!.data];
@@ -221,9 +220,9 @@ export async function superposeAf(plugin: PluginContext, traceOnly: boolean): Pr
                     minRmsd = entries[0].transform.rmsd;
                     minIndex = mappingResult.length - 1;
                 }
-                rmsdList.push(`${cluster[0].pdb_id} chain ${cluster[0].struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
+                rmsdList.push(`${representative.pdb_id} chain ${representative.struct_asym_id}:${entries[0].transform.rmsd.toFixed(2)}`);
             }
-        });
+        }
 
         if (mappingResult.length > 0) {
             spState.alphafold.visibility[segmentNum] = true;
