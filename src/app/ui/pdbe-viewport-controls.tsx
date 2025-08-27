@@ -15,9 +15,8 @@ export class PDBeViewportControls extends ViewportControls {
         const showPDBeLink = initParams?.moleculeId && initParams?.pdbeLink && !initParams?.superposition;
         const pdbeLinkColor = this.isBlack() ? '#fff' : '#555';
         const pdbeLink = {
-            parentStyle: { width: 'auto' },
-            bgStyle: { position: 'absolute', height: '27px', width: '54px', marginLeft: '-33px' },
-            containerStyle: { position: 'absolute', right: '10px', top: '10px', padding: '3px 3px 3px 18px' },
+            containerStyle: { position: 'absolute', right: '10px', top: '10px', padding: '6px', paddingRight: '3px', paddingLeft: '18px' },
+            bgStyle: { position: 'absolute', height: '32px', width: '54px', marginLeft: '-33px' },
             style: { display: 'inline-block', fontSize: '14px', color: pdbeLinkColor, borderBottom: 'none', cursor: 'pointer', textDecoration: 'none', position: 'absolute', right: '5px' },
             pdbeImg: {
                 src: 'https://www.ebi.ac.uk/pdbe/entry/static/images/logos/PDBe/logo_T_64.png',
@@ -34,7 +33,7 @@ export class PDBeViewportControls extends ViewportControls {
                     {initParams!.moleculeId}
                 </a>
             </div>}
-            <div style={{ position: 'absolute', top: showPDBeLink ? (27 + 4) : 0, right: 0 }}>
+            <div style={{ position: 'absolute', top: showPDBeLink ? (32 + 4) : 0, right: 0 }}>
                 {super.render()}
             </div>
         </>;

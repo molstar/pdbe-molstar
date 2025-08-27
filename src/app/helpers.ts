@@ -8,7 +8,7 @@ import { StructureQuery } from 'molstar/lib/mol-model/structure/query/query';
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
-import { CreateVolumeStreamingInfo } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
+import { CreateVolumeStreamingInfo, InitVolumeStreaming } from 'molstar/lib/mol-plugin/behavior/dynamic/volume-streaming/transformers';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginConfigItem } from 'molstar/lib/mol-plugin/config';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
@@ -39,9 +39,15 @@ export interface LoadParams {
 }
 
 export interface MapParams {
+    /** Volume streaming view type (`'off' | 'box' | 'selection-box' | 'camera-target' | 'cell' | 'auto'`) */
+    defaultView?: PDBeVolumes.InitVolumeStreamingProps['defaultView'],
+    /** Style for EM map */
     'em'?: MapStyle,
+    /** Style for X-ray 2Fo-Fc map */
     '2fo-fc'?: MapStyle,
+    /** Style for X-ray Fo-Fc(+ve) map */
     'fo-fc(+ve)'?: MapStyle,
+    /** Style for X-ray Fo-Fc(-ve) map */
     'fo-fc(-ve)'?: MapStyle,
 }
 interface MapStyle {
@@ -51,10 +57,15 @@ interface MapStyle {
 
 
 export namespace PDBeVolumes {
+    export type InitVolumeStreamingProps = ReturnType<(typeof InitVolumeStreaming)['createDefaultParams']>;
 
-    export function mapParams(defaultParams: any, mapParams?: MapParams, ref?: string | number) {
+    export function mapParams(defaultParams: InitVolumeStreamingProps, mapParams?: MapParams): InitVolumeStreamingProps {
         const pdbeParams = { ...defaultParams };
-        pdbeParams.options.behaviorRef = 'volume-streaming' + '' + Math.floor(Math.random() * Math.floor(100));
+
+        if (mapParams?.defaultView) {
+            pdbeParams.defaultView = mapParams.defaultView;
+        }
+        pdbeParams.options.behaviorRef = `volume-streaming${Math.floor(Math.random() * 100)}`;
         pdbeParams.options.emContourProvider = 'pdbe';
         pdbeParams.options.serverUrl = 'https://www.ebi.ac.uk/pdbe/volume-server';
         const MAIN_MAP_DEFAULTS: MapStyle = { opacity: 0.49, wireframe: false };
@@ -238,13 +249,15 @@ export interface QueryParam {
     atoms?: string[],
     /** Selects by unique atom identifiers (`id`) */
     atom_id?: number[],
+    /** List of element type symbols (e.g. ['C', 'N', 'FE']) */
+    type_symbol?: string[],
 
     /** Selects by instance identifier to distinguish instances of the same chain created by applying different symmetry operators, like 'ASM-X0-1' for assemblies or '1_555' for crystals */
     instance_id?: string,
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
-    const broadcasted = broadcast(params, ['atoms', 'atom_id']);
+    const broadcasted = broadcast(params, ['atoms', 'atom_id', 'type_symbol']);
     return broadcasted.map(item => ({
         label_entity_id: item.entity_id,
         label_asym_id: item.struct_asym_id,
@@ -258,7 +271,7 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         end_auth_seq_id: item.end_auth_residue_number,
         label_atom_id: item.atoms,
         auth_atom_id: undefined,
-        type_symbol: undefined,
+        type_symbol: item.type_symbol,
         atom_id: item.atom_id,
         atom_index: undefined,
         label_comp_id: item.label_comp_id,
@@ -387,6 +400,9 @@ export namespace QueryHelper {
             if (param.atom_id) {
                 predicates.atom.push(l => param.atom_id!.includes(StructureProperties.atom.id(l.element)));
             }
+            if (param.type_symbol) {
+                predicates.atom.push(l => param.type_symbol!.includes(StructureProperties.atom.type_symbol(l.element)));
+            }
 
             selections.push({
                 entityTest: predicateConjunction(predicates.entity),
@@ -396,7 +412,7 @@ export namespace QueryHelper {
             });
         }
 
-        const atmGroupsQueries = selections.map(selection => Queries.generators.atoms(selection));
+        const atmGroupsQueries = selections.map(selection => Queries.modifiers.union(Queries.generators.atoms(selection)));
         return Queries.combinators.merge(atmGroupsQueries);
     }
 

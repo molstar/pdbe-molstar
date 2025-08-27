@@ -154,6 +154,10 @@
                     Select Uniprot
                 </button>
                 <br>
+                <button onclick="viewerInstance.visual.select({ data: [{ label_comp_id: 'HEM', type_symbol: ['C'], color: '#ffff00' }]})">
+                    Select HEM, carbon atoms
+                </button>
+                <br>
                 <button onclick="viewerInstance.visual.clearSelection()">
                     Clear Selection
                 </button>
@@ -271,6 +275,8 @@
             // subscribeEvents: true,
             // loadingOverlay: true,
             // hideCanvasControls: ['expand', 'selection', 'animation', 'controlToggle', 'controlInfo']
+            // loadMaps: true,
+            // mapSettings: { defaultView: 'selection-box', 'em': { wireframe: true, opacity: 0.4 }, '2fo-fc': { wireframe: true, opacity: 0.4 } }
         };
         const options = { ...defaultOptions, ...getJsonParam('options') };
 

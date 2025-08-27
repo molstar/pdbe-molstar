@@ -23,14 +23,6 @@
             margin-right: 20px;
         }
 
-        .item {
-            margin-block: 8px;
-            padding-block: 2px;
-            padding-inline: 8px;
-            background-color: gainsboro;
-            cursor: pointer;
-        }
-
         .spinner_aj0A {
             transform-origin: center;
             animation: spinner_KYSC .75s infinite linear
@@ -84,6 +76,8 @@
             const { pdb_id, assembly_id } = data.representative_structure;
             console.log(`Structure: ${pdb_id}, assembly ${assembly_id}`);
             baseComponents = data.participants.map(p => p.accession);
+            baseRfamMappings = await getRfamMappings(pdb_id);
+            console.log(`Rfam mappings for ${pdb_id}:`, baseRfamMappings);
 
             // Create plugin instance
             viewerInstance = new PDBeMolstarPlugin();
@@ -92,12 +86,6 @@
             const defaultOptions = {
                 bgColor: 'white',
                 sequencePanel: true,
-                visualStyle: {
-                    // polymer: { type: 'putty', size: 'uniform' },
-                    // het: 'ball-and-stick',
-                    // nonStandard: 'ball-and-stick',
-                    // carbs: 'carbohydrate',
-                },
                 hideStructure: ['water'],
             };
             const options = {
@@ -108,25 +96,40 @@
                 customData: undefined,
             };
             await viewerInstance.render(viewerContainer, options);
+
+            addControls(data.supercomplexes.sort(), data.subcomplexes.sort());
+
             const sub = viewerInstance.events.loadComplete.subscribe(() => {
                 sub.unsubscribe();
                 resetColoring();
+                enableControls(); // only allow superposition once the base structure has been loaded
             });
+        }
 
+        function addControls(supercomplexes, subcomplexes) {
             const supercomplexesDiv = document.getElementById('supercomplex-list');
-            for (const supercomplex of data.supercomplexes) {
+            for (const supercomplex of supercomplexes) {
                 addItem(supercomplexesDiv, supercomplex, 'supercomplex');
             }
             const subcomplexesDiv = document.getElementById('subcomplex-list');
-            for (const subcomplex of data.subcomplexes) {
+            for (const subcomplex of subcomplexes) {
                 addItem(subcomplexesDiv, subcomplex, 'subcomplex');
             }
         }
 
         function addItem(listDiv, id, kind) {
             const item = document.createElement('div');
-            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" /> <label for="${id}">${id}</label> <a href="${urlForComplex(id)}" style="text-decoration: none;">&#10138;</a>`;
+            item.innerHTML = `<input type="checkbox" id="${id}" onclick="toggleComplex(id, this.checked, '${kind}')" disabled /> <label for="${id}">${id}</label> <a href="${urlForComplex(id)}" style="text-decoration: none;">&#10138;</a>`;
             listDiv.append(item);
+        }
+
+        function enableControls() {
+            for (const elem of document.getElementById('supercomplex-list').getElementsByTagName('input')) {
+                elem.removeAttribute('disabled');
+            }
+            for (const elem of document.getElementById('subcomplex-list').getElementsByTagName('input')) {
+                elem.removeAttribute('disabled');
+            }
         }
 
         async function toggleComplex(id, on, kind) {
@@ -148,12 +151,22 @@
             const { pdb_id, assembly_id } = data.representative_structure;
             const otherComponents = data.participants.map(p => p.accession);
             console.log(`Superposing ${id} (${pdb_id}, assembly ${assembly_id}) containing ${otherComponents}`);
-            await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
+            rfamMappings[pdb_id] ??= await getRfamMappings(pdb_id);
+            console.log(`Rfam mappings for ${pdb_id}:`, rfamMappings[pdb_id]);
+            const result = await PDBeMolstarPlugin.extensions.Complexes.loadComplexSuperposition(viewerInstance, {
                 id,
                 pdbId: pdb_id, assemblyId: assembly_id,
                 baseComponents, otherComponents,
-                coloring: kind, animationDuration: 250,
+                coloring: kind,
+                baseMappings: baseRfamMappings,
+                otherMappings: rfamMappings[pdb_id],
+                coreColor, unmappedColor, animationDuration: 250, // optionals
             });
+            if (result.superposition) {
+                console.log(`Superposed complexes with RMSD ${result.superposition.rmsd} on ${result.superposition.nAlignedElements} residues`, result.superposition);
+            } else {
+                console.warn(`Failed to superpose complexes`);
+            }
         }
 
         async function deleteComplex(id) {
@@ -164,10 +177,34 @@
         }
 
         async function resetColoring() {
-            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, { structId: 'main', components: baseComponents });
+            await PDBeMolstarPlugin.extensions.Complexes.Coloring.colorComponents(viewerInstance, {
+                structId: 'main',
+                components: baseComponents,
+                mappings: baseRfamMappings,
+                coreColor, unmappedColor, // optionals
+            });
         }
 
-        function urlForComplex(complexId){
+        async function getRfamMappings(pdbId) {
+            const url = `https://www.ebi.ac.uk/pdbe/api/nucleic_mappings/${pdbId}`;
+            const response = await fetch(url);
+            if (!response.ok && response.status !== 404) throw new Error(`API call failed with code ${response.status} (${url})`);
+            const js = response.status === 404 ? {} : await response.json();
+            const rfamData = js[pdbId]?.Rfam ?? {};
+
+            const result = {};
+            for (const family of Object.keys(rfamData).sort()) {
+                result[family] = rfamData[family].mappings.map(chunk => ({
+                    entity_id: String(chunk.entity_id),
+                    struct_asym_id: chunk.struct_asym_id,
+                    start_residue_number: chunk.start.residue_number,
+                    end_residue_number: chunk.end.residue_number,
+                }));
+            }
+            return result;
+        }
+
+        function urlForComplex(complexId) {
             const url = new URL(window.location);
             url.searchParams.set('complexId', complexId);
             return url.toString();
@@ -178,14 +215,15 @@
 
         const complexId = new URL(window.location).searchParams.get('complexId');
         if (!complexId) {
-            // const url = new URL(window.location);
-            // url.searchParams.set('complexId', DEFAULT_COMPLEX_ID);
-            // window.location = url.toString();
             window.location = urlForComplex(DEFAULT_COMPLEX_ID);
         }
+        const coreColor = new URL(window.location).searchParams.get('coreColor') ?? undefined;
+        const unmappedColor = new URL(window.location).searchParams.get('unmappedColor') ?? undefined;
 
         let viewerInstance; // PDBeMolstarPlugin
         let baseComponents; // string[]
+        let baseRfamMappings = {}; // { [accession: string]: QueryParam[] }
+        const rfamMappings = {}; // { [pdbId: string]: { [accession: string]: QueryParam[] } }
 
         initComplexView(complexId);
 
