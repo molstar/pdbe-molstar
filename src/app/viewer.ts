@@ -418,7 +418,7 @@ export class PDBeMolstarPlugin {
                     if (this.assemblyRef === '') return;
                     const asm = this.state.select(this.assemblyRef)[0].obj!;
                     const defaultMapParams = InitVolumeStreaming.createDefaultParams(asm, this.plugin);
-                    const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings, '');
+                    const pdbeMapParams = PDBeVolumes.mapParams(defaultMapParams, this.initParams.mapSettings);
                     if (pdbeMapParams) {
                         await this.plugin.runTask(this.state.applyAction(InitVolumeStreaming, pdbeMapParams, this.assemblyRef));
                         if (pdbeMapParams.method !== 'em' && !this.initParams.ligandView) PDBeVolumes.displayUsibilityMessage(this.plugin);

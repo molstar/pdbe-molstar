@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, following t
 
 - Selections support `type_symbol`
 - Complex superposition extension allows RNA superposition
+- Option `mapSettings.defaultView` to set Volume Streaming view type
 
 ## [v3.6.0] - 2025-08-12
 - Option `hideCanvasControls` accepts "screenshot" value
