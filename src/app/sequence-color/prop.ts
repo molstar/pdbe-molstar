@@ -52,6 +52,7 @@ export namespace SequenceColorProperty {
         obtain: async (ctx: CustomProperty.Context, data: Structure, props: Partial<Props>) => {
             const fullProps = { ...PD.getDefaultValues(Params), ...props };
             const items = fullProps.colors.map(t => ({
+                // creating a copy, so we don't polute props later
                 selector: t.selector,
                 color: t.color,
             } satisfies Data['items'][number]));

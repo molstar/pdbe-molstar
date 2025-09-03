@@ -162,6 +162,18 @@
                     Clear Selection
                 </button>
 
+                <h4>Sequence color</h4>
+                <button onclick="viewerInstance.visual.sequenceColor({ data: [
+                        { struct_asym_id: 'A', start_residue_number: 51, end_residue_number: 60, color: '#ffc040' }, 
+                        { struct_asym_id: 'A', start_residue_number: 61, end_residue_number: 70, color: '#ffff40' },
+                        { struct_asym_id: 'A', start_residue_number: 71, end_residue_number: 80, color: '#80ff80' },
+                    ] })">
+                    Color sequence
+                </button>
+                <button onclick="viewerInstance.visual.clearSequenceColor()">
+                    Clear sequence color
+                </button>
+
                 <h4>Set highlight / selection colour</h4>
                 <button onclick="viewerInstance.visual.setColor({ highlight: '#ffff00' })">
                     Yellow highlight

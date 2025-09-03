@@ -54,6 +54,8 @@ import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getRotationMat4, getStructureUrl, normalizeColor, pluginLayoutStateFromInitParams, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
+import { SequenceColor } from './sequence-color/behavior';
+import { SequenceColorProperty } from './sequence-color/prop';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -116,6 +118,7 @@ export class PDBeMolstarPlugin {
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeStructureQualityReport, { autoAttach: false, showTooltip: false }));
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(PDBeDomainAnnotations, { autoAttach: false, showTooltip: false }));
         pdbePluginSpec.behaviors.push(PluginSpec.Behavior(AssemblySymmetry));
+        pdbePluginSpec.behaviors.push(PluginSpec.Behavior(SequenceColor));
         pdbePluginSpec.config.push(
             [AssemblySymmetryConfig.DefaultServerType, 'pdbe'],
             [AssemblySymmetryConfig.DefaultServerUrl, 'https://www.ebi.ac.uk/pdbe/aggregated-api/pdb/symmetry'],
@@ -836,6 +839,69 @@ export class PDBeMolstarPlugin {
                     }
                 }
             }
+        },
+
+        /** Color the parts of sequence in the sequence panel defined by `data`. Color the rest of the sequence in `nonSelectedColor` if provided.
+         * If `structureId` or `structureNumber` is provided, apply to the specified structure (`structureNumber` numbered from 1!); otherwise apply to all loaded structures.
+         * Remove any previously added coloring, unless `keepColors` is set. */
+        sequenceColor: async (params: {
+            data: (QueryParam & { color?: AnyColor })[],
+            nonSelectedColor?: AnyColor,
+            structureId?: string,
+            structureNumber?: number,
+            keepColors?: boolean,
+        }) => {
+            const SequenceColorPropName = SequenceColorProperty.Provider.descriptor.name;
+            const structureNumberOrId = params.structureId ?? params.structureNumber;
+            const update = this.plugin.build();
+            for (const struct of this.getStructures(structureNumberOrId)) {
+                const propsCell = struct.structureRef.properties?.cell;
+                if (!propsCell) {
+                    console.warn(`Custom structure properties not found (structure node ref "${struct.structureRef.cell.transform.ref}")`);
+                    continue;
+                }
+                if (propsCell.transform.transformer.id !== CustomStructureProperties.id) {
+                    console.warn(`Custom structure properties node is of wrong type "${propsCell.transform.transformer.id}"`);
+                    continue;
+                }
+                const newColors: SequenceColorProperty.Props['colors'] = [];
+                if (params.nonSelectedColor) {
+                    newColors.push({
+                        selector: { name: 'static', params: 'all' },
+                        color: normalizeColor(params.nonSelectedColor),
+                    });
+                }
+                for (const selection of this.getSelections(params.data, struct.number)) {
+                    if (!selection.param.color) continue;
+                    newColors.push({
+                        selector: { name: 'bundle', params: selection.bundle },
+                        color: normalizeColor(selection.param.color),
+                    });
+                }
+                update.to(propsCell).update(CustomStructureProperties, old => {
+                    const colors = (params.keepColors && !params.nonSelectedColor) ?
+                        (old.properties?.[SequenceColorPropName]?.colors ?? []).concat(newColors)
+                        : newColors;
+                    return {
+                        ...old,
+                        properties: {
+                            ...old.properties,
+                            [SequenceColorPropName]: { colors } satisfies SequenceColorProperty.Props,
+                        },
+                    };
+                });
+            }
+            await update.commit();
+        },
+
+        /** Remove any sequence coloring previously added by the `sequenceColor` method.
+         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * if not provided, will apply to all loaded structures. */
+        clearSequenceColor: async (structureNumberOrId?: number | string) => {
+            if (typeof structureNumberOrId === 'number')
+                await this.visual.sequenceColor({ data: [], structureNumber: structureNumberOrId });
+            else
+                await this.visual.sequenceColor({ data: [], structureId: structureNumberOrId });
         },
 
         /** Add interactive tooltips to parts of the structure. The added tooltips will be shown on a separate line in the tooltip box.
