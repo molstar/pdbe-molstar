@@ -78,7 +78,7 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "lit": "^3.1.1",
-    "molstar": "5.0.0-dev.13",
+    "molstar": "file:///Users/midlik/Workspace/MolStar/molstar/molstar-5.0.0-dev.13.tgz",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",
     "vm-browserify": "^1.1.2"
