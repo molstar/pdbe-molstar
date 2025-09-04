@@ -43,6 +43,7 @@ import { ElementSymbolColorThemeParams } from 'molstar/lib/mol-theme/color/eleme
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
 import { Asset } from 'molstar/lib/mol-util/assets';
 import { Color } from 'molstar/lib/mol-util/color/color';
+import { ColorNames } from 'molstar/lib/mol-util/color/names';
 import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
@@ -56,6 +57,7 @@ import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes,
 import { PluginCustomState } from './plugin-custom-state';
 import { SequenceColor } from './sequence-color/behavior';
 import { SequenceColorAnnotationsProperty } from './sequence-color/sequence-color-annotations-prop';
+import { SequenceColorThemeProperty } from './sequence-color/sequence-color-theme-prop';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -847,6 +849,7 @@ export class PDBeMolstarPlugin {
         sequenceColor: async (params: {
             data: (QueryParam & { color?: AnyColor })[],
             nonSelectedColor?: AnyColor,
+            theme?: { name: string, params?: any, themeStrength?: number, dilutionColor?: AnyColor },
             structureId?: string,
             structureNumber?: number,
             keepColors?: boolean,
@@ -878,14 +881,30 @@ export class PDBeMolstarPlugin {
                     });
                 }
                 update.to(propsCell).update(CustomStructureProperties, old => {
-                    const colors = (params.keepColors && !params.nonSelectedColor) ?
-                        (old.properties?.[SequenceColorAnnotationsProperty.Name]?.colors ?? []).concat(newColors)
-                        : newColors;
+                    const annotProps: SequenceColorAnnotationsProperty.Props = { colors: newColors };
+                    const oldColors = old.properties?.[SequenceColorAnnotationsProperty.Name]?.colors as SequenceColorAnnotationsProperty.Props['colors'] | undefined;
+                    if (params.keepColors && !params.nonSelectedColor && oldColors) {
+                        annotProps.colors = oldColors.concat(newColors);
+                    }
+                    let themeProps: Partial<SequenceColorThemeProperty.Props>;
+                    if (params.theme) {
+                        themeProps = {
+                            useTheme: true,
+                            theme: { name: params.theme.name, params: params.theme.params ?? {} },
+                            themeStrength: params.theme.themeStrength ?? 1,
+                            dilutionColor: normalizeColor(params.theme.dilutionColor, ColorNames.white),
+                        };
+                    } else if (params.keepColors) {
+                        themeProps = old.properties?.[SequenceColorThemeProperty.Name] ?? { useTheme: false };
+                    } else {
+                        themeProps = { useTheme: false };
+                    }
                     return {
                         ...old,
                         properties: {
                             ...old.properties,
-                            [SequenceColorAnnotationsProperty.Name]: { colors } satisfies SequenceColorAnnotationsProperty.Props,
+                            [SequenceColorAnnotationsProperty.Name]: annotProps,
+                            [SequenceColorThemeProperty.Name]: themeProps,
                         },
                     };
                 });
