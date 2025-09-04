@@ -176,4 +176,40 @@
         }
     }
 
+    .msp-pdbe-link-box {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        padding: 6px;
+        padding-right: 3px;
+        padding-left: 18px;
+    }
+
+    .msp-pdbe-link-bg {
+        position: absolute !important;
+        height: 32px;
+        width: 54px;
+        margin-left: -33px;
+    }
+
+    .msp-pdbe-link {
+        position: absolute;
+        right: 5px;
+        display: inline-block;
+        font-size: 14px;
+        text-decoration: none; // because it is <a>
+        color: vars.$msp-btn-link-toggle-on-font-color;
+
+        &:hover {
+            color: vars.$msp-btn-link-toggle-on-hover-font-color;
+        }
+    }
+
+    .msp-pdbe-logo {
+        height: 12px;
+        width: 12px;
+        border: 0;
+        position: absolute;
+        margin: 4px 0 0 -13px;
+    }
 }
