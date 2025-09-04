@@ -55,7 +55,7 @@ import { StateGalleryControls } from './extensions/state-gallery/ui';
 import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getRotationMat4, getStructureUrl, normalizeColor, pluginLayoutStateFromInitParams, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
 import { SequenceColor } from './sequence-color/behavior';
-import { SequenceColorProperty } from './sequence-color/prop';
+import { SequenceColorAnnotationsProperty } from './sequence-color/sequence-color-annotations-prop';
 import { AnyColor, ComponentType, DefaultParams, DefaultPluginUISpec, InitParams, VisualStylesSpec, resolveVisualStyleSpec, validateInitParams } from './spec';
 import { initParamsFromHtmlAttributes } from './spec-from-html';
 import { subscribeToComponentEvents } from './subscribe-events';
@@ -851,7 +851,6 @@ export class PDBeMolstarPlugin {
             structureNumber?: number,
             keepColors?: boolean,
         }) => {
-            const SequenceColorPropName = SequenceColorProperty.Provider.descriptor.name;
             const structureNumberOrId = params.structureId ?? params.structureNumber;
             const update = this.plugin.build();
             for (const struct of this.getStructures(structureNumberOrId)) {
@@ -864,7 +863,7 @@ export class PDBeMolstarPlugin {
                     console.warn(`Custom structure properties node is of wrong type "${propsCell.transform.transformer.id}"`);
                     continue;
                 }
-                const newColors: SequenceColorProperty.Props['colors'] = [];
+                const newColors: SequenceColorAnnotationsProperty.Props['colors'] = [];
                 if (params.nonSelectedColor) {
                     newColors.push({
                         selector: { name: 'static', params: 'all' },
@@ -880,13 +879,13 @@ export class PDBeMolstarPlugin {
                 }
                 update.to(propsCell).update(CustomStructureProperties, old => {
                     const colors = (params.keepColors && !params.nonSelectedColor) ?
-                        (old.properties?.[SequenceColorPropName]?.colors ?? []).concat(newColors)
+                        (old.properties?.[SequenceColorAnnotationsProperty.Name]?.colors ?? []).concat(newColors)
                         : newColors;
                     return {
                         ...old,
                         properties: {
                             ...old.properties,
-                            [SequenceColorPropName]: { colors } satisfies SequenceColorProperty.Props,
+                            [SequenceColorAnnotationsProperty.Name]: { colors } satisfies SequenceColorAnnotationsProperty.Props,
                         },
                     };
                 });

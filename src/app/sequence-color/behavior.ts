@@ -7,7 +7,8 @@ import { ThemeDataContext } from 'molstar/lib/mol-theme/theme';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 import { BehaviorSubject, Unsubscribable } from 'rxjs';
 import { CustomSequenceColorTheme } from './color';
-import { SequenceColorProperty } from './prop';
+import { SequenceColorAnnotationsProperty } from './sequence-color-annotations-prop';
+import { SequenceColorThemeProperty } from './sequence-color-theme-prop';
 
 
 interface ColorThemeSpec<P extends PD.Params = any> {
@@ -27,13 +28,15 @@ export const SequenceColor = PluginBehavior.create<{ autoAttach: boolean }>({
         sub?: Unsubscribable;
 
         register(): void {
-            this.ctx.customStructureProperties.register(SequenceColorProperty.Provider, this.params.autoAttach);
+            const colorThemeRegistry = this.ctx.representation.structure.themes.colorThemeRegistry;
+            this.ctx.customStructureProperties.register(SequenceColorThemeProperty.makeProvider(colorThemeRegistry), this.params.autoAttach);
+            this.ctx.customStructureProperties.register(SequenceColorAnnotationsProperty.Provider, this.params.autoAttach);
+            const customColorThemeProvider = CustomSequenceColorTheme.makeProvider(colorThemeRegistry);
             if (this.ctx instanceof PluginUIContext) {
-                const customUIState = (this.ctx as any).customUIState ?? {}; // TODO remove this hack once `customUIState` is available in core Molstar
-                const theme: BehaviorSubject<ColorThemeSpec | undefined> = customUIState.experimentalSequenceColorTheme ??= new BehaviorSubject<ColorThemeSpec | undefined>(undefined);
+                const theme: BehaviorSubject<ColorThemeSpec | undefined> = this.ctx.customUIState.experimentalSequenceColorTheme ??= new BehaviorSubject<ColorThemeSpec | undefined>(undefined);
                 this.sub = this.ctx.state.events.cell.stateUpdated.subscribe(s => {
                     if (s.cell.transform.transformer === CustomStructureProperties) {
-                        theme.next({ provider: CustomSequenceColorTheme.Provider });
+                        theme.next({ provider: customColorThemeProvider });
                     }
                 });
             }
@@ -41,16 +44,17 @@ export const SequenceColor = PluginBehavior.create<{ autoAttach: boolean }>({
         update(p: { autoAttach: boolean }) {
             const updated = this.params.autoAttach !== p.autoAttach;
             this.params.autoAttach = p.autoAttach;
-            this.ctx.customStructureProperties.setDefaultAutoAttach(SequenceColorProperty.Provider.descriptor.name, this.params.autoAttach);
+            this.ctx.customStructureProperties.setDefaultAutoAttach(SequenceColorThemeProperty.Name, this.params.autoAttach);
+            this.ctx.customStructureProperties.setDefaultAutoAttach(SequenceColorAnnotationsProperty.Name, this.params.autoAttach);
             return updated;
         }
         unregister() {
-            this.ctx.customStructureProperties.unregister(SequenceColorProperty.Provider.descriptor.name);
+            this.ctx.customStructureProperties.unregister(SequenceColorThemeProperty.Name);
+            this.ctx.customStructureProperties.unregister(SequenceColorAnnotationsProperty.Name);
             this.sub?.unsubscribe();
             this.sub = undefined;
             if (this.ctx instanceof PluginUIContext) {
-                const customUIState = (this.ctx as any).customUIState ?? {}; // TODO remove this hack once `customUIState` is available in core Molstar
-                const theme: BehaviorSubject<ColorThemeSpec | undefined> | undefined = customUIState.experimentalSequenceColorTheme;
+                const theme: BehaviorSubject<ColorThemeSpec | undefined> | undefined = this.ctx.customUIState.experimentalSequenceColorTheme;
                 theme?.next(undefined);
             }
         }
