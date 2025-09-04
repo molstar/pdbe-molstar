@@ -8,8 +8,11 @@ import { ColorNames } from 'molstar/lib/mol-util/color/names';
 import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 
 
-export namespace SequenceColorProperty {
-    /** Parameter definition for custom structure property `SequenceColorProperty` */
+export namespace SequenceColorAnnotationsProperty {
+    /** Provider name (key) for this custom property */
+    export const Name = 'sequence-color-annotations';
+
+    /** Parameter definition for this custom property */
     export type Params = typeof Params;
     export const Params = {
         colors: PD.ObjectList(
@@ -22,10 +25,10 @@ export namespace SequenceColorProperty {
         ),
     };
 
-    /** Parameter values of custom structure property `SequenceColorProperty` */
+    /** Type of parameter values for this custom property */
     export type Props = PD.Values<Params>;
 
-    /** Values of custom structure property `SequenceColorProperty` */
+    /** Type of values of this custom property */
     export interface Data {
         items: {
             selector: Selector,
@@ -39,11 +42,11 @@ export namespace SequenceColorProperty {
         },
     }
 
-    /** Provider for custom structure property `SequenceColorProperty` */
+    /** Provider for this custom property */
     export const Provider: CustomStructureProperty.Provider<Params, Data> = CustomStructureProperty.createProvider({
-        label: 'Sequence Color',
+        label: 'Sequence Color Annotations',
         descriptor: CustomPropertyDescriptor<any, any>({
-            name: 'sequence-color',
+            name: Name,
         }),
         type: 'root',
         defaultParams: Params,
@@ -52,6 +55,7 @@ export namespace SequenceColorProperty {
         obtain: async (ctx: CustomProperty.Context, data: Structure, props: Partial<Props>) => {
             const fullProps = { ...PD.getDefaultValues(Params), ...props };
             const items = fullProps.colors.map(t => ({
+                // creating a copy, so we don't polute props later
                 selector: t.selector,
                 color: t.color,
             } satisfies Data['items'][number]));

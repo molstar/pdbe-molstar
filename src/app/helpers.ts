@@ -205,38 +205,55 @@ export namespace LigandView {
 
 
 export interface QueryParam {
-    auth_seq_id?: number,
+    /** Selects by entity (`label_entity_id`) */
     entity_id?: string,
-    auth_asym_id?: string,
+
+    /** Selects by chain identifier (`label_asym_id`) */
     struct_asym_id?: string,
+    /** Selects by author chain identifier (`auth_asym_id`) */
+    auth_asym_id?: string,
+
+    /** Selects by residue number (`label_seq_id`) */
     residue_number?: number,
+    /** Selects by residue number range (`label_seq_id`) */
     start_residue_number?: number,
+    /** Selects by residue number range (`label_seq_id`) */
     end_residue_number?: number,
+    /** Selects by author residue number (`auth_seq_id`) */
     auth_residue_number?: number,
+    /** Selects by author residue number (`auth_seq_id`), duplicate of `auth_residue_number` */
+    auth_seq_id?: number,
+    /** Selects by author residue insertion code (`pdbx_PDB_ins_code`) */
     auth_ins_code_id?: string,
+    /** Selects by author residue number range (`auth_seq_id`) */
     start_auth_residue_number?: number,
+    /** Selects by author residue number range with author residue insertion codes (`pdbx_PDB_ins_code`) */
     start_auth_ins_code_id?: string,
+    /** Selects by author residue number range (`auth_seq_id`) */
     end_auth_residue_number?: number,
+    /** Selects by author residue number range with author residue insertion codes (`pdbx_PDB_ins_code`) */
     end_auth_ins_code_id?: string,
-    atoms?: string[],
+    /** Selects by residue type (`label_comp_id`) */
     label_comp_id?: string,
-    color?: any,
-    sideChain?: boolean,
-    representation?: string,
-    representationColor?: any,
-    focus?: boolean,
-    tooltip?: string,
-    /** @deprecated I don't know what this is */
-    start?: any,
-    /** @deprecated I don't know what this is */
-    end?: any,
-    atom_id?: number[],
+
+    /** Selects by Uniprot accession (`pdbx_sifts_xref_db_acc`) */
     uniprot_accession?: string,
+    /** Selects by Uniprot residue number (`pdbx_sifts_xref_db_num`) */
     uniprot_residue_number?: number,
+    /** Selects by Uniprot residue number range (`pdbx_sifts_xref_db_num`) */
     start_uniprot_residue_number?: number,
+    /** Selects by Uniprot residue number range (`pdbx_sifts_xref_db_num`) */
     end_uniprot_residue_number?: number,
+
+    /** Selects by atom names (`label_atom_id`) */
+    atoms?: string[],
+    /** Selects by unique atom identifiers (`id`) */
+    atom_id?: number[],
     /** List of element type symbols (e.g. ['C', 'N', 'FE']) */
     type_symbol?: string[],
+
+    /** Selects by instance identifier to distinguish instances of the same chain created by applying different symmetry operators, like 'ASM-X0-1' for assemblies or '1_555' for crystals */
+    instance_id?: string,
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
@@ -259,6 +276,7 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         atom_index: undefined,
         label_comp_id: item.label_comp_id,
         auth_comp_id: undefined,
+        instance_id: item.instance_id,
     }));
 }
 
@@ -319,6 +337,9 @@ export namespace QueryHelper {
             }
             if (param.auth_asym_id !== undefined) {
                 predicates.chain.push(l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id);
+            }
+            if (param.instance_id !== undefined) {
+                predicates.chain.push(l => StructureProperties.unit.instance_id(l.element) === param.instance_id);
             }
 
             // residue
