@@ -5,6 +5,8 @@
 
 @use 'molstar/lib/mol-plugin-ui/skin/base/_vars.scss' as vars;
 
+$viewport-button-spacing: 4px;
+
 .msp-plugin {
     ::-webkit-scrollbar-thumb {
         background-color: #80808080;
@@ -52,7 +54,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding-inline: calc(54px + 2 * vars.$control-spacing); // 54px = PDBe logo box
+        padding-inline: calc(vars.$control-spacing + 68px + $viewport-button-spacing); // 68px = roughly max width of PDBe logo box
         pointer-events: none;
 
         >* {
@@ -176,40 +178,40 @@
         }
     }
 
-    .msp-pdbe-link-box {
-        position: absolute;
-        right: 10px;
-        top: 10px;
-        padding: 6px;
-        padding-right: 3px;
-        padding-left: 18px;
-    }
+    // PDBe link button (using nested selector to increase specificity and beat core Molstar styles)
+    .msp-viewport-controls-buttons {
+        .pdbemolstar-pdbe-link-box {
+            position: absolute;
+            right: 0px;
+            width: fit-content;
+        }
 
-    .msp-pdbe-link-bg {
-        position: absolute !important;
-        height: 32px;
-        width: 54px;
-        margin-left: -33px;
-    }
+        .pdbemolstar-pdbe-link {
+            width: fit-content;
+            min-width: 32px;
+            padding-inline: 6px;
+            background: transparent;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
 
-    .msp-pdbe-link {
-        position: absolute;
-        right: 5px;
-        display: inline-block;
-        font-size: 14px;
-        text-decoration: none; // because it is <a>
-        color: vars.$msp-btn-link-toggle-on-font-color;
-
-        &:hover {
-            color: vars.$msp-btn-link-toggle-on-hover-font-color;
+        .pdbemolstar-pdbe-logo {
+            height: 14px;
+            width: 14px;
+            margin-right: 3px;
         }
     }
 
-    .msp-pdbe-logo {
-        height: 12px;
-        width: 12px;
-        border: 0;
+    .pdbemolstar-viewport-controls-normal {
         position: absolute;
-        margin: 4px 0 0 -13px;
+        right: 0px;
+        top: 0px;
+    }
+
+    .pdbemolstar-viewport-controls-shifted {
+        position: absolute;
+        right: 0px;
+        top: vars.$row-height + $viewport-button-spacing;
     }
 }
