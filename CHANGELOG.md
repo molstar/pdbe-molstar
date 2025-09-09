@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+- Modular layout: added `FullLayoutNoControlsUnlessExpanded`
+
 ## [v3.7.0] - 2025-09-02
 - Selections support `type_symbol`
 - Complex superposition extension allows RNA superposition

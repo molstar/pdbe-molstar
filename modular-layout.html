@@ -87,15 +87,16 @@
 
             <div style="display: flex; flex-direction: row;">
                 <div class="panelBox" style="width: 20%;">
-                    Left panel
+                    PDBeLeftPanelControls
                     <div id="leftPanel" style="height: 450px; width: 100%;"></div>
                 </div>
                 <div class="panelBox" style="width: 50%;">
-                    PDBeViewport
-                    <div id="centerPanel" style=" height: 450px; position: relative;"></div>
+                    <!-- PDBeViewport -->
+                    FullLayoutNoControlsUnlessExpanded
+                    <div id="centerPanel" style=" height: 450px; position: relative; z-index: 1;"></div>
                 </div>
                 <div class="panelBox" style="width: 30%;">
-                    ControlsWrapper
+                    DefaultRightPanelControls
                     <div id="rightPanel" style=" height: 450px;"></div>
                 </div>
             </div>
@@ -282,6 +283,8 @@
         const defaultOptions = {
             moleculeId: '1hda',
             loadingOverlay: true,
+            sequencePanel: true,
+            logPanel: true,
             hideCanvasControls: ['controlToggle'], // 'controlToggle' icon makes no sense in modular layout
         };
         const options = { ...defaultOptions, ...getJsonParam('options') };
@@ -294,7 +297,8 @@
 
         // Call render method to display the 3D view
         const layout = [
-            { target: 'centerPanel', component: PDBeMolstarPlugin.UIComponents.PDBeViewport },
+            // { target: 'centerPanel', component: PDBeMolstarPlugin.UIComponents.PDBeViewport }, // Viewport that can be expanded
+            { target: 'centerPanel', component: PDBeMolstarPlugin.UIComponents.FullLayoutNoControlsUnlessExpanded }, // Viewport that can be expanded and becomes full UI layout 
             { target: 'seqPanel', component: PDBeMolstarPlugin.UIComponents.SequenceView, props: { defaultMode: 'polymers' } },
             { target: 'logPanel', component: PDBeMolstarPlugin.UIComponents.Log },
             { target: 'leftPanel', component: PDBeMolstarPlugin.UIComponents.PDBeLeftPanelControls, props: { defaultMode: 'all' } },
