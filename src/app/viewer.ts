@@ -962,9 +962,6 @@ export class PDBeMolstarPlugin {
             if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
             PluginCustomState(this.plugin).initParams = this.initParams;
 
-            // Update layout
-            PluginCommands.Layout.Update(this.plugin, { state: pluginLayoutStateFromInitParams(this.initParams) });
-
             // Show/hide buttons in the viewport control panel
             this.plugin.config.set(PluginConfig.Viewport.ShowScreenshotControls, !this.initParams.hideCanvasControls.includes('screenshot'));
             this.plugin.config.set(PluginConfig.Viewport.ShowExpand, !this.initParams.hideCanvasControls.includes('expand'));
@@ -973,6 +970,9 @@ export class PDBeMolstarPlugin {
             this.plugin.config.set(PluginConfig.Viewport.ShowSelectionMode, !this.initParams.hideCanvasControls.includes('selection'));
             this.plugin.config.set(PluginConfig.Viewport.ShowAnimation, !this.initParams.hideCanvasControls.includes('animation'));
             this.plugin.config.set(PluginConfig.Viewport.ShowTrajectoryControls, !this.initParams.hideCanvasControls.includes('trajectory'));
+
+            // Update layout
+            PluginCommands.Layout.Update(this.plugin, { state: pluginLayoutStateFromInitParams(this.initParams) });
 
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
