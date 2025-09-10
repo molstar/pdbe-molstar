@@ -15,11 +15,18 @@ const DEFAULT_COMPONENT_COLORS = [
 const COLOR_ADJUSTMENT_STRENGTH = 0.8;
 
 
+interface QueryParamWithColor extends QueryParam {
+    color: string,
+}
+interface QueryParamWithTooltip extends QueryParam {
+    tooltip: string,
+}
+
 export async function colorComponents(viewer: PDBeMolstarPlugin, params: { structId: string, components: string[], mappings?: { [accession: string]: QueryParam[] }, coreColor?: string, componentColors?: string[] }) {
     const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, components, mappings = {} } = params;
 
-    const colorData: QueryParam[] = [];
-    const tooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
+    const colorData: QueryParamWithColor[] = [];
+    const tooltipData: QueryParamWithTooltip[] = [{ tooltip: '<b>Base complex</b>' }];
     for (let i = 0; i < components.length; i++) {
         const accession = components[i];
         const color = componentColors[i % componentColors.length];
@@ -41,10 +48,10 @@ export async function colorSubcomplex(viewer: PDBeMolstarPlugin, params: { baseS
     const { coreColor = DEFAULT_CORE_COLOR, componentColors = DEFAULT_COMPONENT_COLORS, baseComponents, baseMappings = {}, otherMappings = {} } = params;
     const subComponentsSet = new Set(params.otherComponents);
 
-    const baseColorData: QueryParam[] = [];
-    const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
-    const subColorData: QueryParam[] = [];
-    const subTooltipData: QueryParam[] = [{ tooltip: '<b>Subcomplex</b>' }];
+    const baseColorData: QueryParamWithColor[] = [];
+    const baseTooltipData: QueryParamWithTooltip[] = [{ tooltip: '<b>Base complex</b>' }];
+    const subColorData: QueryParamWithColor[] = [];
+    const subTooltipData: QueryParamWithTooltip[] = [{ tooltip: '<b>Subcomplex</b>' }];
     for (let i = 0; i < baseComponents.length; i++) {
         const accession = baseComponents[i];
         if (subComponentsSet.has(accession)) {
@@ -80,10 +87,10 @@ export async function colorSupercomplex(viewer: PDBeMolstarPlugin, params: { bas
     const baseComponentsSet = new Set(params.baseComponents);
     const superComponents = params.baseComponents.concat(params.otherComponents.filter(acc => !baseComponentsSet.has(acc))); // reorder supercomplex accessions so that colors are consistent with the base
 
-    const baseColorData: QueryParam[] = [];
-    const baseTooltipData: QueryParam[] = [{ tooltip: '<b>Base complex</b>' }];
-    const superColorData: QueryParam[] = [];
-    const superTooltipData: QueryParam[] = [{ tooltip: '<b>Supercomplex</b>' }];
+    const baseColorData: QueryParamWithColor[] = [];
+    const baseTooltipData: QueryParamWithTooltip[] = [{ tooltip: '<b>Base complex</b>' }];
+    const superColorData: QueryParamWithColor[] = [];
+    const superTooltipData: QueryParamWithTooltip[] = [{ tooltip: '<b>Supercomplex</b>' }];
     for (let i = 0; i < superComponents.length; i++) {
         const accession = superComponents[i];
         if (baseComponentsSet.has(accession)) {

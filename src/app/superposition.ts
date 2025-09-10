@@ -375,7 +375,6 @@ export async function renderSuperposition(plugin: PluginContext, segmentIndex: n
                         const data = plugin.state.data.select(strInstance.ref)[0].obj!.data;
                         const carbChainSel = Script.getStructureSelection(carbEntityChainInVicinity, data);
                         if (carbChainSel && carbChainSel.kind === 'sequence') {
-                            // console.log(carbEntityChainId + ' chain present in 5 A radius');
                             const carbLigands = [];
                             const carbLigNamesAndCount: Record<string, number> = {};
                             const carbLigList = [];

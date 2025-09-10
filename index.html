@@ -162,6 +162,21 @@
                     Clear Selection
                 </button>
 
+                <h4>Sequence color</h4>
+                <button onclick="viewerInstance.visual.sequenceColor({ data: [
+                        { struct_asym_id: 'A', start_residue_number: 51, end_residue_number: 59, color: '#ffa500' }, 
+                        { struct_asym_id: 'A', start_residue_number: 61, end_residue_number: 69, color: '#1affbb' },
+                    ], keepColors: true })">
+                    Color sequence
+                </button>
+                <button onclick="viewerInstance.visual.sequenceColor({ data: [
+                    ], theme: { name: 'plddt-confidence', themeStrength: 0.3, dilutionColor: '#f3f3f3' /* roughly color of the panel background */ }, keepColors: true })">
+                    Color sequence pLDDT
+                </button>
+                <button onclick="viewerInstance.visual.clearSequenceColor()">
+                    Clear sequence color
+                </button>
+
                 <h4>Set highlight / selection colour</h4>
                 <button onclick="viewerInstance.visual.setColor({ highlight: '#ffff00' })">
                     Yellow highlight
