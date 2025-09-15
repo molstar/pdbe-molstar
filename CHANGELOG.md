@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 
+## [v3.7.1] - 2025-09-15
 - Modular layout: added `FullLayoutNoControlsUnlessExpanded`
 
 ## [v3.7.0] - 2025-09-02
