@@ -197,9 +197,14 @@ $viewport-button-spacing: 4px;
         }
 
         .pdbemolstar-pdbe-logo {
-            height: 14px;
-            width: 14px;
-            margin-right: 3px;
+            height: 16px;
+            width: 16px;
+            position: relative;
+
+            svg {
+                position: absolute;
+                inset: 0;
+            }
         }
     }
 

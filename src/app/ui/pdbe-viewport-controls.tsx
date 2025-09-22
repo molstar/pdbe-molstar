@@ -16,7 +16,7 @@ export class PDBeViewportControls extends ViewportControls {
                             <div className='msp-semi-transparent-background' />
                             <a target='_blank' href={`https://pdbe.org/${initParams!.moleculeId}`} style={{ textDecoration: 'none', color: 'initial' }}>
                                 <Button className='msp-btn-link-toggle-on pdbemolstar-pdbe-link' title='Go to PDBe Pages'>
-                                    <img className='pdbemolstar-pdbe-logo' alt='PDBe logo' src='https://www.ebi.ac.uk/pdbe/entry/static/images/logos/PDBe/logo_T_64.png' />
+                                    <div className='pdbemolstar-pdbe-logo'><PDBeLogo /></div>
                                     {initParams!.moleculeId}
                                 </Button>
                             </a>
@@ -29,4 +29,11 @@ export class PDBeViewportControls extends ViewportControls {
             </div>
         </>;
     }
+}
+
+function PDBeLogo({ className }: { className?: string }) {
+    return <svg className={className} viewBox='0 0 300 300'>
+        <path className='path-bg' fill='transparent' stroke='#E13D3D' strokeWidth='35' d='M 150 200 L 150 100 A 50 50 0 1 0 100 150 L 200 150 A 50 50 0 1 0 150 100 L 150 200 A 50 50 0 1 0 200 150 L 100 150 A 50 50 0 1 0 150 200 '></path>
+        <path className='path-fg' fill='transparent' stroke='#72B260' strokeWidth='35' d='M 200 150 A 50 50 0 1 0 150 100 L 150 200 A 50 50 0 1 0 200 150 L 100 150 A 50 50 0 1 0 150 200 '></path>
+    </svg>;
 }
