@@ -56,9 +56,8 @@ export interface LoadComplexSuperpositionResult {
     delete: () => Promise<void>,
 }
 
-/** Temporary type until `nAlignedElements` gets into `MinimizeRmsd.Result` in core Molstar */
+/** Result of superposition procedure */
 export interface SuperpositionResult extends MinimizeRmsd.Result {
-    nAlignedElements: number, // TODO remove explicit nAlignedElements, once in core Molstar
     method: 'uniprot-numbering' | 'sequence-alignment',
     accession: string,
 }

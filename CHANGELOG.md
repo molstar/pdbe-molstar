@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file, following t
 - Added `.visual.sequenceColor`, `.visual.clearSequenceColor`
 
 ## [v3.7.2] - 2025-09-22
-
 - Fix missing PDBe logo
 
 ## [v3.7.1] - 2025-09-15

@@ -1,6 +1,6 @@
+import { Layout } from 'molstar/lib/mol-plugin-ui/plugin';
 import { PluginConfig } from 'molstar/lib/mol-plugin/config';
 import { PluginCustomState } from '../plugin-custom-state';
-import { Layout } from './_layout';
 
 
 export class FullLayoutNoControlsUnlessExpanded extends Layout {

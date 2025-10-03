@@ -190,6 +190,7 @@ export class PDBeMolstarPlugin {
         if (this.initParams.hideCanvasControls.includes('selection')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowSelectionMode, false]);
         if (this.initParams.hideCanvasControls.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (this.initParams.hideCanvasControls.includes('trajectory')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
+        pdbePluginSpec.config.push([PluginConfig.Viewport.ShowXR, 'never']);
 
         // override default event bindings
         if (this.initParams.selectBindings) {

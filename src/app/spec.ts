@@ -127,7 +127,7 @@ export interface InitParams {
         ligandColor?: AnyColor,
     },
     /** Specify parts of the structure to highlight with different colors */
-    selection?: { data: QueryParam[], nonSelectedColor?: AnyColor },
+    selection?: { data: (QueryParam & { color?: AnyColor, sideChain?: boolean, representation?: string, representationColor?: any, focus?: boolean })[], nonSelectedColor?: AnyColor },
     /** Display 3D State Gallery */
     galleryView: boolean,
 

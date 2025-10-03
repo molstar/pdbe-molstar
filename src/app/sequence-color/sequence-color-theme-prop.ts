@@ -10,7 +10,6 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 
 const AnyParams = PD.Value<any>({}, { description: 'Parameter description not available' });
 
-// TODO? type params statically without ColorTheme.Registry, using AnyParams, no need to have everything in UI
 export namespace SequenceColorThemeProperty {
     /** Provider name (key) for this custom property */
     export const Name = 'sequence-color-theme';

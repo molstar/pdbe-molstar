@@ -37,8 +37,7 @@ export function superposeByBiggestCommonChain(structA: Structure, structB: Struc
     const superposition = MinimizeRmsd.compute({ a: positionsA, b: positionsB });
 
     if (!isNaN(superposition.rmsd)) {
-        return { ...superposition, nAlignedElements: bestMatch.nMatchedElements, method: 'uniprot-numbering', accession: bestMatch.accession };
-        // TODO remove explicit nAlignedElements, once in core Molstar
+        return { ...superposition, method: 'uniprot-numbering', accession: bestMatch.accession };
     } else {
         return undefined;
     }

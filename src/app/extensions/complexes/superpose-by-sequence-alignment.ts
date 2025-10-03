@@ -81,7 +81,7 @@ function bestMappingMatch(sortedA: SortedAccessionsAndUnits<{ elements: SortedAr
 
 const reProtein = /(polypeptide|cyclic-pseudo-peptide)/i;
 
-function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): MinimizeRmsd.Result & { nAlignedElements: number } {
+function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement.Loci): MinimizeRmsd.Result {
     const location = StructureElement.Loci.getFirstLocation(lociA)!;
     const subtype = StructureProperties.entity.subtype(location);
     const substMatrix = subtype.match(reProtein) ? 'blosum62' : 'default';
@@ -92,8 +92,7 @@ function alignAndSuperpose(lociA: StructureElement.Loci, lociB: StructureElement
     const coordsA = getPositionTable(StructureElement.Loci(lociA.structure, [matchedA]), n);
     const coordsB = getPositionTable(StructureElement.Loci(lociB.structure, [matchedB]), n);
     const superposition = MinimizeRmsd.compute({ a: coordsA, b: coordsB });
-    return { ...superposition, nAlignedElements: n };
-    // TODO remove explicit nAlignedElements, once in core Molstar
+    return superposition;
 }
 
 /** `a` and `b` contain matching pairs, i.e. `a.indices[0]` aligns with `b.indices[0]` */
