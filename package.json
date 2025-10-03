@@ -52,6 +52,7 @@
     "@types/d3": "^7.4.0",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
+    "@types/webxr": "^0.5.23",
     "babel-loader": "^8.2.5",
     "concurrently": "^7.3.0",
     "cpx2": "^7.0.1",
@@ -78,7 +79,7 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "lit": "^3.1.1",
-    "molstar": "4.18.0",
+    "molstar": "5.0.0",
     "path-browserify": "^1.0.1",
     "stream-browserify": "^3.0.0",
     "vm-browserify": "^1.1.2"
