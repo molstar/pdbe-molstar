@@ -96,6 +96,10 @@ function resolveComponentVisualStyleSpec(spec: ComponentVisualStyleSpec): Struct
 export const Encoding = ['cif', 'bcif'] as const;
 export type Encoding = (typeof Encoding)[number];
 
+/** Structure file format */
+export const ViewportButton = ['reset', 'screenshot', 'controlToggle', 'expand', 'controlInfo', 'selection', 'animation', 'trajectory'] as const;
+export type ViewportButton = (typeof ViewportButton)[number];
+
 
 /** Options for initializing `PDBeMolstarPlugin` */
 export interface InitParams {
@@ -182,7 +186,7 @@ export interface InitParams {
     /** Hide all control panels by default (can be shown by the Toggle Controls Panel button (wrench icon)) */
     hideControls: boolean,
     /** Hide individual icon buttons in the top-right corner of the canvas */
-    hideCanvasControls: ('screenshot' | 'expand' | 'controlToggle' | 'controlInfo' | 'selection' | 'animation' | 'trajectory')[],
+    hideCanvasControls: (ViewportButton | 'all')[],
     /** Display Sequence panel */
     sequencePanel: boolean,
     /** Display Left control panel */
