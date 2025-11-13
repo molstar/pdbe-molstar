@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Option `hideCanvasControls` accepts "reset" and "all"
+- Update options `highlightColor`, `selectColor`, `granularity` on update
 
 ## [v3.8.0] - 2025-10-03
 - Mol* core dependency updated to 5.0.0

@@ -248,14 +248,14 @@ export class PDBeMolstarPlugin {
             this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
         }
 
-        // Set selection granularity
-        if (this.initParams.granularity) {
-            this.plugin.managers.interactivity.setProps({ granularity: this.initParams.granularity });
-        }
-
         // Set default highlight and selection colors
         if (this.initParams.highlightColor || this.initParams.selectColor) {
             this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
+        }
+
+        // Set selection granularity
+        if (this.initParams.granularity) {
+            this.plugin.managers.interactivity.setProps({ granularity: this.initParams.granularity });
         }
 
         // Save renderer defaults
@@ -1073,6 +1073,16 @@ export class PDBeMolstarPlugin {
             // Set background colour
             if (this.initParams.bgColor || this.initParams.lighting) {
                 await this.canvas.applySettings({ color: this.initParams.bgColor, lighting: this.initParams.lighting });
+            }
+
+            // Set default highlight and selection colors
+            if (this.initParams.highlightColor || this.initParams.selectColor) {
+                this.visual.setColor({ highlight: this.initParams.highlightColor, select: this.initParams.selectColor });
+            }
+
+            // Set selection granularity
+            if (this.initParams.granularity) {
+                this.plugin.managers.interactivity.setProps({ granularity: this.initParams.granularity });
             }
 
             // Load Molecule CIF or coordQuery and Parse
