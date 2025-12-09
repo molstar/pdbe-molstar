@@ -69,6 +69,7 @@ import { PDBeViewport_NoFullscreen } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
+import { pisaDemo } from './extensions/pisa';
 
 
 export class PDBeMolstarPlugin {
@@ -293,6 +294,10 @@ export class PDBeMolstarPlugin {
             // Emit events for other PDB Components
             CustomEvents.add(this.plugin, this.targetElement);
         }
+
+        setTimeout(() => {
+            pisaDemo(this.plugin)
+        }, 1000);
     }
 
     getMoleculeSrcUrl() {
