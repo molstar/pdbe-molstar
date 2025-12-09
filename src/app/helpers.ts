@@ -751,6 +751,7 @@ export function pluginLayoutStateFromInitParams(initParams: InitParams): PluginL
             bottom: initParams.logPanel ? 'full' : 'hidden',
         },
         controlsDisplay: initParams.reactive ? 'reactive' : initParams.landscape ? 'landscape' : PluginLayoutStateParams.controlsDisplay.defaultValue,
+        expandToFullscreen: true,
     };
 }
 
