@@ -1,7 +1,7 @@
 type StringShouldBeNumber = string
 type StringShouldBeBoolean = 'Yes' | 'No'
 
-interface PisaAssemblyRecord {
+export interface PisaAssemblyRecord {
     "serial_no": StringShouldBeNumber,
     "id": string,
     "size": StringShouldBeNumber,
@@ -205,4 +205,19 @@ export interface PisaInterfaceData {
         },
         "molecule": [PisaMoleculeRecord, PisaMoleculeRecord],
     },
+}
+
+export interface PisaTransform {
+    "rxx": StringShouldBeNumber,
+    "rxy": StringShouldBeNumber,
+    "rxz": StringShouldBeNumber,
+    "tx": StringShouldBeNumber,
+    "ryx": StringShouldBeNumber,
+    "ryy": StringShouldBeNumber,
+    "ryz": StringShouldBeNumber,
+    "ty": StringShouldBeNumber,
+    "rzx": StringShouldBeNumber,
+    "rzy": StringShouldBeNumber,
+    "rzz": StringShouldBeNumber,
+    "tz": StringShouldBeNumber,
 }
