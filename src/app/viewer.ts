@@ -194,7 +194,7 @@ export class PDBeMolstarPlugin {
         if (hideButtons.includes('all') || hideButtons.includes('animation')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowAnimation, false]);
         if (hideButtons.includes('all') || hideButtons.includes('trajectory')) pdbePluginSpec.config.push([PluginConfig.Viewport.ShowTrajectoryControls, false]);
         pdbePluginSpec.config.push([PluginConfig.Viewport.ShowToggleFullscreen, false]);
-        // pdbePluginSpec.config.push([PluginConfig.Viewport.ShowIllumination, false]); // debug TODO uncomment
+        pdbePluginSpec.config.push([PluginConfig.Viewport.ShowIllumination, false]);
         pdbePluginSpec.config.push([PluginConfig.Viewport.ShowXR, 'never']);
 
         // override default event bindings
