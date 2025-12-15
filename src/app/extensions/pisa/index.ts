@@ -2,7 +2,7 @@ import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData, type Snapshot } from 'molstar/lib/extensions/mvs/mvs-data';
 import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
-import type { ComponentExpressionT, HexColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
 import type { PisaAssembliesData, PisaAssemblyRecord, PisaInterfaceData, PisaTransform } from './types';
 
@@ -32,14 +32,11 @@ function getAllAssemblies(assembliesData: PisaAssembliesData) {
 async function getInterfaceData(pdbId: string, interfaceId: string): Promise<PisaInterfaceData> {
     return await (await fetch(`/tmp/pisa/${pdbId}/interfaces/interface_${interfaceId}.json`)).json();
 }
-function loadStructureData(builder: Builder.Root, pdbId: string) {
-    // return builder.download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif` }).parse({ format: 'mmcif' });
-    return builder.download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent` }).parse({ format: 'pdb' });
-}
-
 
 export async function pisaDemo(plugin: PluginContext) {
     const pdbId = '3gcb';
+    // const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+    const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
 
     const assembliesData = await getAssembliesData(pdbId);
     const allAssemblies = getAllAssemblies(assembliesData);
@@ -50,18 +47,18 @@ export async function pisaDemo(plugin: PluginContext) {
 
     const snapshots: Snapshot[] = [];
     for (const assembly of allAssemblies) {
-        snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id }));
-        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'surface' } }));
-        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
-        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'cartoon' } }));
+        snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'surface' } }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'cartoon' } }));
     }
-    for (const interfaceId of interfaceIds) {
-        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [] }));
-        // snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [0] }));
-        // snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [1] }));
-        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [0] }));
-        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [1] }));
-        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [0, 1] }));
+    for (const interfaceData of interfacesData) {
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [0] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [1] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [1] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0, 1] }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -82,17 +79,19 @@ export async function pisaDemo(plugin: PluginContext) {
 }
 
 
-export async function pisaAsseblyView(params: { pdbId: string, assemblyId: string, reprParams?: Partial<MVSNodeParams<'representation'>> }) {
-    const assembliesData = await getAssembliesData(params.pdbId);
-    const allAssemblies = getAllAssemblies(assembliesData);
-
-    const assembly = allAssemblies.find(ass => ass.id === params.assemblyId);
-    if (!assembly) throw new Error(`Could not find assembly "${params.assemblyId}"`);
+export function pisaAsseblyView(params: {
+    structureUrl: string, structureFormat: ParseFormatT,
+    assembliesData: PisaAssemblyRecord[], assemblyId: string, interfacesData: PisaInterfaceData[],
+    reprParams?: Partial<MVSNodeParams<'representation'>>,
+}) {
+    const { structureUrl, structureFormat, assembliesData, assemblyId, interfacesData, reprParams } = params;
+    const assembly = assembliesData.find(ass => ass.id === assemblyId);
+    if (!assembly) throw new Error(`Could not find assembly "${assemblyId}"`);
 
     const builder = MVSData.createBuilder();
-    const data = loadStructureData(builder, params.pdbId);
+    const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
 
-    const componentColors = assignComponentColors(allAssemblies);
+    const componentColors = assignComponentColors(assembliesData);
 
     const componentIdsByPisaChainId: { [pisaChainId: string]: string[] } = {};
     const components: { [visualId: string]: ComponentState } = {};
@@ -111,7 +110,7 @@ export async function pisaAsseblyView(params: { pdbId: string, assemblyId: strin
             .representation({
                 type: 'spacefill',
                 size_factor: component.isLigand ? 1.05 : 1, // distinguish ligands/waters from the main chain, in case of PDB format
-                ...params.reprParams,
+                ...reprParams,
             })
             .color({ color: bulkColorFn(color) });
         if (!component.isLigand) {
@@ -127,10 +126,10 @@ export async function pisaAsseblyView(params: { pdbId: string, assemblyId: strin
         components[componentId] = { struct, repr, color };
     }
 
-    const interfaceIds = assembly.interfaces.interface.map(int => int.id);
-    const interfaces = await Promise.all(interfaceIds.map(id => getInterfaceData(params.pdbId, id)));
+    const interfacesInAssembly = new Set(assembly.interfaces.interface.map(int => int.id));
 
-    for (const int of interfaces) {
+    for (const int of interfacesData) {
+        if (!interfacesInAssembly.has(int.interface_id)) continue;
         const interfaceTooltip = `<br>Interface <b>${int.interface.molecule[0].chain_id}</b> &ndash; <b>${int.interface.molecule[1].chain_id}</b> (interface area ${Number(int.interface.int_area).toFixed(1)})`;
         // Handling self-interfaces differently to avoid duplicate tooltips on residues in symmetric interfaces
         const isSelfInterface = int.interface.molecule[0].chain_id === int.interface.molecule[1].chain_id;
@@ -159,15 +158,17 @@ export async function pisaAsseblyView(params: { pdbId: string, assemblyId: strin
     });
 }
 
-export async function pisaInterfaceView(params: { pdbId: string, interfaceId: string, ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[] }) {
-    const assembliesData = await getAssembliesData(params.pdbId);
-    const interfaceData = await getInterfaceData(params.pdbId, params.interfaceId);
-    const allAssemblies = getAllAssemblies(assembliesData);
-    const componentColors = assignComponentColors(allAssemblies);
+export function pisaInterfaceView(params: {
+    structureUrl: string, structureFormat: ParseFormatT,
+    assembliesData: PisaAssemblyRecord[], interfaceData: PisaInterfaceData,
+    ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[],
+}) {
+    const { structureUrl, structureFormat, assembliesData, interfaceData, ghostMolecules, detailMolecules } = params;
+    const componentColors = assignComponentColors(assembliesData);
     const interfaceTooltip = `<br>Interface <b>${interfaceData.interface.molecule[0].chain_id}</b> &ndash; <b>${interfaceData.interface.molecule[1].chain_id}</b> (interface area ${Number(interfaceData.interface.int_area).toFixed(1)})`;
 
     const builder = MVSData.createBuilder();
-    const data = loadStructureData(builder, params.pdbId);
+    const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
 
     interfaceData.interface.molecule.forEach((molecule, i) => {
         const component = decodeChainId(molecule.chain_id);
@@ -178,10 +179,10 @@ export async function pisaInterfaceView(params: { pdbId: string, interfaceId: st
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symop})</b>` });
         const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
         struct.component({ selector: componentSelector }).focus();
-        const showGhost = params.ghostMolecules?.includes(i as 0 | 1);
-        const showDetails = params.detailMolecules?.includes(i as 0 | 1);
+        const showGhost = ghostMolecules?.includes(i as 0 | 1);
+        const showDetails = detailMolecules?.includes(i as 0 | 1);
         if (showGhost) {
-            const reprGhost = struct
+            struct
                 .component({ selector: componentSelector })
                 .representation({
                     type: 'surface',
@@ -210,7 +211,7 @@ export async function pisaInterfaceView(params: { pdbId: string, interfaceId: st
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
             const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
             markInterface([{ struct, repr, color }], resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
-            if (params.detailMolecules?.length) applyElementColors(repr);
+            if (detailMolecules?.length) applyElementColors(repr);
             if (!component.isLigand) {
                 // distinguish ligands/waters from the main chain, in case of PDB format
                 repr
