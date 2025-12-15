@@ -1,5 +1,5 @@
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
-import { MVSData, Snapshot } from 'molstar/lib/extensions/mvs/mvs-data';
+import { MVSData, type Snapshot } from 'molstar/lib/extensions/mvs/mvs-data';
 import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
@@ -11,10 +11,6 @@ const COMPONENT_COLORS: HexColorT[] = [
     '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2 without gray 
     '#1f77b4', '#2ca02c', '#d62728', '#927ba7', '#8c564b', '#e377c2', '#bcbd22', '#17becf', // More non-conflicting colors from other palettes
     '#fc8d62', '#9eb9f3', '#ff9da7', '#ffff33', '#8be0a4', '#e15759', '#c69fbb', '#76b7b2', // More non-conflicting colors from other palettes
-    // 'many-distinct-colors' without grays:
-    // '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d',
-    // '#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf',
-    // '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494',
 ];
 const DEFAULT_COMPONENT_COLOR: HexColorT = '#999999';
 const BULK_COLOR_LIGHTNESS_ADJUSTMENT = 0.4;
@@ -50,21 +46,22 @@ export async function pisaDemo(plugin: PluginContext) {
     const interfaceIds = Array.from(new Set(
         allAssemblies.flatMap(ass => ass.interfaces.interface.map(int => int.id))
     )).sort((a, b) => Number(a) - Number(b));
+    const interfacesData = await Promise.all(interfaceIds.map(intId => getInterfaceData(pdbId, intId)));
 
     const snapshots: Snapshot[] = [];
     for (const assembly of allAssemblies) {
-        snapshots.push(await pisaAsseblyView(pdbId, assembly.id, {}));
-        // snapshots.push(await pisaAsseblyView(pdbId, assembly.id, { reprParams: { type: 'surface' } }));
-        // snapshots.push(await pisaAsseblyView(pdbId, assembly.id, { reprParams: { type: 'surface', surface_type: 'gaussian' } }));
-        // snapshots.push(await pisaAsseblyView(pdbId, assembly.id, { reprParams: { type: 'cartoon' } }));
+        snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id }));
+        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'surface' } }));
+        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
+        // snapshots.push(await pisaAsseblyView({ pdbId, assemblyId: assembly.id, reprParams: { type: 'cartoon' } }));
     }
     for (const interfaceId of interfaceIds) {
-        snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { ghostMolecules: [] }));
-        // snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { ghostMolecules: [0] }));
-        // snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { ghostMolecules: [1] }));
-        snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { detailMolecules: [0] }));
-        snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { detailMolecules: [1] }));
-        snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { detailMolecules: [0, 1] }));
+        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [] }));
+        // snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [0] }));
+        // snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, ghostMolecules: [1] }));
+        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [0] }));
+        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [1] }));
+        snapshots.push(await pisaInterfaceView({ pdbId, interfaceId, detailMolecules: [0, 1] }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -85,15 +82,15 @@ export async function pisaDemo(plugin: PluginContext) {
 }
 
 
-export async function pisaAsseblyView(pdbId: string, assemblyId: string, options: { reprParams?: Partial<MVSNodeParams<'representation'>> } = {}) {
-    const assembliesData = await getAssembliesData(pdbId);
+export async function pisaAsseblyView(params: { pdbId: string, assemblyId: string, reprParams?: Partial<MVSNodeParams<'representation'>> }) {
+    const assembliesData = await getAssembliesData(params.pdbId);
     const allAssemblies = getAllAssemblies(assembliesData);
 
-    const assembly = allAssemblies.find(ass => ass.id === assemblyId);
-    if (!assembly) throw new Error(`Could not find assembly "${assemblyId}"`);
+    const assembly = allAssemblies.find(ass => ass.id === params.assemblyId);
+    if (!assembly) throw new Error(`Could not find assembly "${params.assemblyId}"`);
 
     const builder = MVSData.createBuilder();
-    const data = loadStructureData(builder, pdbId);
+    const data = loadStructureData(builder, params.pdbId);
 
     const componentColors = assignComponentColors(allAssemblies);
 
@@ -114,7 +111,7 @@ export async function pisaAsseblyView(pdbId: string, assemblyId: string, options
             .representation({
                 type: 'spacefill',
                 size_factor: component.isLigand ? 1.05 : 1, // distinguish ligands/waters from the main chain, in case of PDB format
-                ...options.reprParams,
+                ...params.reprParams,
             })
             .color({ color: bulkColorFn(color) });
         if (!component.isLigand) {
@@ -131,7 +128,7 @@ export async function pisaAsseblyView(pdbId: string, assemblyId: string, options
     }
 
     const interfaceIds = assembly.interfaces.interface.map(int => int.id);
-    const interfaces = await Promise.all(interfaceIds.map(id => getInterfaceData(pdbId, id)));
+    const interfaces = await Promise.all(interfaceIds.map(id => getInterfaceData(params.pdbId, id)));
 
     for (const int of interfaces) {
         const interfaceTooltip = `<br>Interface <b>${int.interface.molecule[0].chain_id}</b> &ndash; <b>${int.interface.molecule[1].chain_id}</b> (interface area ${Number(int.interface.int_area).toFixed(1)})`;
@@ -162,15 +159,15 @@ export async function pisaAsseblyView(pdbId: string, assemblyId: string, options
     });
 }
 
-export async function pisaInterfaceView(pdbId: string, interfaceId: string, options: { ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[] } = {}) {
-    const assembliesData = await getAssembliesData(pdbId);
-    const interfaceData = await getInterfaceData(pdbId, interfaceId);
+export async function pisaInterfaceView(params: { pdbId: string, interfaceId: string, ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[] }) {
+    const assembliesData = await getAssembliesData(params.pdbId);
+    const interfaceData = await getInterfaceData(params.pdbId, params.interfaceId);
     const allAssemblies = getAllAssemblies(assembliesData);
     const componentColors = assignComponentColors(allAssemblies);
     const interfaceTooltip = `<br>Interface <b>${interfaceData.interface.molecule[0].chain_id}</b> &ndash; <b>${interfaceData.interface.molecule[1].chain_id}</b> (interface area ${Number(interfaceData.interface.int_area).toFixed(1)})`;
 
     const builder = MVSData.createBuilder();
-    const data = loadStructureData(builder, pdbId);
+    const data = loadStructureData(builder, params.pdbId);
 
     interfaceData.interface.molecule.forEach((molecule, i) => {
         const component = decodeChainId(molecule.chain_id);
@@ -180,8 +177,9 @@ export async function pisaInterfaceView(pdbId: string, interfaceId: string, opti
             .transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symop})</b>` });
         const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
-        const showGhost = options.ghostMolecules?.includes(i as 0 | 1);
-        const showDetails = options.detailMolecules?.includes(i as 0 | 1);
+        struct.component({ selector: componentSelector }).focus();
+        const showGhost = params.ghostMolecules?.includes(i as 0 | 1);
+        const showDetails = params.detailMolecules?.includes(i as 0 | 1);
         if (showGhost) {
             const reprGhost = struct
                 .component({ selector: componentSelector })
@@ -191,9 +189,9 @@ export async function pisaInterfaceView(pdbId: string, interfaceId: string, opti
                     size_factor: 1.25,
                     custom: {
                         molstar_representation_params: {
-                            visuals: ["structure-gaussian-surface-mesh"],
+                            visuals: ['structure-gaussian-surface-mesh'],
                             xrayShaded: true,
-                        }
+                        },
                     },
                 })
                 .color({ color: color })
@@ -212,7 +210,7 @@ export async function pisaInterfaceView(pdbId: string, interfaceId: string, opti
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
             const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
             markInterface([{ struct, repr, color }], resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
-            if (options.detailMolecules?.length) applyElementColors(repr);
+            if (params.detailMolecules?.length) applyElementColors(repr);
             if (!component.isLigand) {
                 // distinguish ligands/waters from the main chain, in case of PDB format
                 repr
