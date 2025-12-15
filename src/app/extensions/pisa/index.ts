@@ -1,12 +1,10 @@
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData, Snapshot } from 'molstar/lib/extensions/mvs/mvs-data';
-import Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
-import { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
-import { ComponentExpressionT, HexColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
-import { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { Color } from 'molstar/lib/mol-util/color';
-import { normalizeColor } from '../../helpers';
-import { PisaAssembliesData, PisaAssemblyRecord, PisaInterfaceData, PisaTransform } from './types';
+import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
+import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
+import type { ComponentExpressionT, HexColorT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import type { PluginContext } from 'molstar/lib/mol-plugin/context';
+import type { PisaAssembliesData, PisaAssemblyRecord, PisaInterfaceData, PisaTransform } from './types';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -19,6 +17,14 @@ const COMPONENT_COLORS: HexColorT[] = [
     // '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494',
 ];
 const DEFAULT_COMPONENT_COLOR: HexColorT = '#999999';
+const BULK_COLOR_LIGHTNESS_ADJUSTMENT = 0.4;
+const INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT = -0.3;
+function bulkColorFn(baseColor: HexColorT): HexColorT {
+    return adjustLightnessRelative(baseColor, BULK_COLOR_LIGHTNESS_ADJUSTMENT);
+}
+function interfaceColorFn(baseColor: HexColorT): HexColorT {
+    return adjustLightnessRelative(baseColor, INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT);
+}
 
 async function getAssembliesData(pdbId: string): Promise<PisaAssembliesData> {
     return await (await fetch(`/tmp/pisa/${pdbId}/assembly.json`)).json();
@@ -31,48 +37,10 @@ async function getInterfaceData(pdbId: string, interfaceId: string): Promise<Pis
     return await (await fetch(`/tmp/pisa/${pdbId}/interfaces/interface_${interfaceId}.json`)).json();
 }
 function loadStructureData(builder: Builder.Root, pdbId: string) {
-    // return builder.download({ url: 'https://www.ebi.ac.uk/pdbe/entry-files/download/3gcb_updated.cif' }).parse({ format: 'mmcif' });
-    return builder.download({ url: 'https://www.ebi.ac.uk/pdbe/entry-files/download/pdb3gcb.ent' }).parse({ format: 'pdb' });
+    // return builder.download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif` }).parse({ format: 'mmcif' });
+    return builder.download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent` }).parse({ format: 'pdb' });
 }
 
-/** Positive values for lighter interfaces, negative values for darker interfaces. */
-const INTERFACE_COLOR_CHANGE_STRENGTH = -1;
-function bulkColorFn(baseColor: HexColorT): HexColorT {
-    return Color.toHexStyle(Color.darken(normalizeColor(baseColor), INTERFACE_COLOR_CHANGE_STRENGTH)) as HexColorT;
-}
-function interfaceColorFn(baseColor: HexColorT): HexColorT {
-    return Color.toHexStyle(Color.lighten(normalizeColor(baseColor), INTERFACE_COLOR_CHANGE_STRENGTH)) as HexColorT;
-}
-// const BULK_COLOR_CHANGE_AMOUNT = 0.3;
-// const INTERFACE_COLOR_CHANGE_AMOUNT = -0.3;
-// function bulkColorFn(baseColor: HexColorT): HexColorT {
-//     return lighten(baseColor, BULK_COLOR_CHANGE_AMOUNT);
-// }
-// function interfaceColorFn(baseColor: HexColorT): HexColorT {
-//     return lighten(baseColor, INTERFACE_COLOR_CHANGE_AMOUNT);
-// }
-// function hexColorToRgb(hex: HexColorT): [number, number, number] {
-//     const hexNum = parseInt(hex.replace('#', '0x'));
-//     return [hexNum >> 16 & 255, hexNum >> 8 & 255, hexNum & 255];
-// }
-// function rgbToHexColor(rgb: [number, number, number]): HexColorT {
-//     const hexNum = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
-//     return '#' + ('000000' + hexNum.toString(16)).slice(-6) as HexColorT;
-// }
-// function lighten(color: HexColorT, amount: number): HexColorT {
-//     const rgb = hexColorToRgb(color);
-//     amount = Math.min(1, Math.max(-1, amount));
-//     if (amount > 0) {
-//         rgb[0] = Math.round(rgb[0] * (1 - amount)) + 255 * amount;
-//         rgb[1] = Math.round(rgb[1] * (1 - amount)) + 255 * amount;
-//         rgb[2] = Math.round(rgb[2] * (1 - amount)) + 255 * amount;
-//     } else if (amount < 0) {
-//         rgb[0] = Math.round(rgb[0] * (1 + amount));
-//         rgb[1] = Math.round(rgb[1] * (1 + amount));
-//         rgb[2] = Math.round(rgb[2] * (1 + amount));
-//     }
-//     return rgbToHexColor(rgb);
-// }
 
 export async function pisaDemo(plugin: PluginContext) {
     const pdbId = '3gcb';
@@ -99,7 +67,7 @@ export async function pisaDemo(plugin: PluginContext) {
         snapshots.push(await pisaInterfaceView(pdbId, interfaceId, { detailMolecules: [0, 1] }));
     }
     const mvs = MVSData.createMultistate(snapshots);
-    console.log(MVSData.toMVSJ(mvs))
+    // console.log(MVSData.toMVSJ(mvs))
     await loadMVS(plugin, mvs);
 
     // Comments:
@@ -343,4 +311,30 @@ function decodeChainId(pisaChainId: string): { chainId: string, compId: string |
     } else {
         return { chainId: pisaChainId, compId: undefined, seqId: undefined, isLigand: false };
     }
+}
+
+/** Increase/decrease "lightness" of a color (where lightness -1 = black, lightness 1 = white) */
+function adjustLightnessRelative(color: HexColorT, lightnessDiff: number): HexColorT {
+    let [r, g, b] = hexColorToNormRgb(color);
+    const x = Math.min(r, g, b);
+    const z = Math.max(r, g, b);
+    const w = x + z - 1;
+    // Compute corresponding color with lightness 0:
+    const c0 = (Math.abs(w) === 1) ? () => 0.5 : (c: number) => (c - Math.max(w, 0)) / (1 - Math.abs(w));
+    const r0 = c0(r), g0 = c0(g), b0 = c0(b);
+    // Compute output color:
+    const wNew = Math.max(-1, Math.min(1, w + lightnessDiff));
+    const cNew = (c: number) => c * (1 - Math.abs(wNew)) + Math.max(wNew, 0);
+    const rNew = cNew(r0), gNew = cNew(g0), bNew = cNew(b0);
+    return normRgbToHexColor(rNew, gNew, bNew);
+}
+/** Convert hex color string to normalized RGB ([0-1, 0-1, 0-1]), e.g. '#0080ff' -> [0, 0.5, 1] */
+function hexColorToNormRgb(hex: HexColorT): [number, number, number] {
+    const hexNum = parseInt(hex.replace('#', '0x'));
+    return [(hexNum >> 16 & 255) / 255, (hexNum >> 8 & 255) / 255, (hexNum & 255) / 255];
+}
+/** Convert normalized RGB ([0-1, 0-1, 0-1]) to hex color string, e.g. [0, 0.5, 1] -> '#0080ff'  */
+function normRgbToHexColor(r: number, g: number, b: number): HexColorT {
+    const hexNum = (Math.round(255 * r) << 16) | (Math.round(255 * g) << 8) | Math.round(255 * b);
+    return '#' + ('000000' + hexNum.toString(16)).slice(-6) as HexColorT;
 }
