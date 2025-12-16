@@ -64,7 +64,7 @@ export interface PisaAssemblyRecord {
     }[],
 }
 
-interface PisaBondRecord {
+export interface PisaBondRecord {
     "chain-1": string,
     "label_asym_id-1": string,
     "orig_label_asym_id-1": any | null,
@@ -74,7 +74,7 @@ interface PisaBondRecord {
     "res-1": string,
     "seqnum-1": StringShouldBeNumber,
     "label_seqnum-1": StringShouldBeNumber,
-    "inscode-1": any | null,
+    "inscode-1": string | null,
     "atname-1": string,
     "chain-2": string,
     "label_asym_id-2": string,
@@ -85,12 +85,12 @@ interface PisaBondRecord {
     "res-2": string,
     "seqnum-2": StringShouldBeNumber,
     "label_seqnum-2": StringShouldBeNumber,
-    "inscode-2": any | null,
+    "inscode-2": string | null,
     "atname-2": string,
     "dist": StringShouldBeNumber,
 }
 
-interface PisaResidueRecord {
+export interface PisaResidueRecord {
     /** e.g. "1" */
     "ser_no": string,
     /** e.g. "ALA" */

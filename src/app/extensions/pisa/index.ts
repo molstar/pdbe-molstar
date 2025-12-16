@@ -4,7 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import type { PisaAssembliesData, PisaAssemblyRecord, PisaInterfaceData, PisaTransform } from './types';
+import { PisaBondRecord, PisaResidueRecord, type PisaAssembliesData, type PisaAssemblyRecord, type PisaInterfaceData, type PisaTransform } from './types';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -15,6 +15,64 @@ const COMPONENT_COLORS: HexColorT[] = [
 const DEFAULT_COMPONENT_COLOR: HexColorT = '#999999';
 const BULK_COLOR_LIGHTNESS_ADJUSTMENT = 0.4;
 const INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT = -0.3;
+const INTERACTION_RADIUS = 0.1;
+const INTERACTION_DASH_LENGTH = 0.1;
+const INTERACTION_TYPE_COLORS = {
+    'h-bonds': '#4277B6',
+    'salt-bridges': '#702C8C',
+    'ss-bonds': '#ffff00',
+    'cov-bonds': '#1D1D1D',
+    'other-bonds': '#808080',
+} as const;
+const INTERACTION_TYPE_NAMES = {
+    'h-bonds': 'Hydrogen bond',
+    'salt-bridges': 'Salt bridge',
+    'ss-bonds': 'Disulfide bond',
+    'cov-bonds': 'Covalent bond',
+    'other-bonds': 'Other bond',
+} as const;
+
+
+// Molstar interaction colors:
+// const InteractionTypeColors = ColorMap({
+//     HydrogenBond: #2B83BA,
+//     Hydrophobic: #808080,
+//     HalogenBond: #40FFBF,
+//     Ionic: #F0C814,
+//     MetalCoordination: #8C4099,
+//     CationPi: #FF8000,
+//     PiStacking: #8CB366,
+//     WeakHydrogenBond: #C5DDEC,
+// });
+
+// PDBconnect interaction colors:
+// export const INTX_NAME_COLORS: Record<string, string> = {
+//   clash: '#D32B1E',
+//   covalent: '#1D1D1D',
+//   vdw_clash: '#D32B1E',
+//   vdw: '#E1A11A',
+//   hbond: '#4277B6',
+//   xbond: '#DB6917',
+//   ionic: '#702C8C',
+//   metal_complex: '#463397',
+//   aromatic: '#92AE31',
+//   hydrophobic: '#EBCE2B',
+//   carbonyl: '#2B3514',
+//   polar: '#4277B6',
+//   CARBONPI: '#C0BD7F',
+//   CATIONPI: '#C0BD7F',
+//   DONORPI: '#C0BD7F',
+//   HALOGENPI: '#C0BD7F',
+//   METSULPHURPI: '#C0BD7F',
+//   plane_plane: '#92AE31',
+//   FF: '#92AE31',
+//   AMIDEAMIDE: '#2B3514',
+//   AMIDERING: '#C0BD7F',
+//   weak_polar: '#96CDE6',
+//   weak_hbond: '#96CDE6',
+//   mixed: '#7F7E80',
+// };
+
 function bulkColorFn(baseColor: HexColorT): HexColorT {
     return adjustLightnessRelative(baseColor, BULK_COLOR_LIGHTNESS_ADJUSTMENT);
 }
@@ -44,6 +102,7 @@ export async function pisaDemo(plugin: PluginContext) {
         allAssemblies.flatMap(ass => ass.interfaces.interface.map(int => int.id))
     )).sort((a, b) => Number(a) - Number(b));
     const interfacesData = await Promise.all(interfaceIds.map(intId => getInterfaceData(pdbId, intId)));
+    // TODO retrieve data on all interfaces, incl. those not present in any assembly (e.g. interface 4), use n_interfaces field
 
     const snapshots: Snapshot[] = [];
     for (const assembly of allAssemblies) {
@@ -56,9 +115,9 @@ export async function pisaDemo(plugin: PluginContext) {
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [] }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [0] }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [1] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [1] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0, 1] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -135,7 +194,7 @@ export function pisaAsseblyView(params: {
         const isSelfInterface = int.interface.molecule[0].chain_id === int.interface.molecule[1].chain_id;
         const bothSurfaces: ComponentExpressionT[] = [];
         for (const molecule of int.interface.molecule) {
-            const residues = Array.isArray(molecule.residues.residue) ? molecule.residues.residue : [molecule.residues.residue];
+            const residues = ensureArray<PisaResidueRecord>(molecule.residues.residue);
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
             const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
             if (!isSelfInterface) {
@@ -161,21 +220,24 @@ export function pisaAsseblyView(params: {
 export function pisaInterfaceView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
     assembliesData: PisaAssemblyRecord[], interfaceData: PisaInterfaceData,
-    ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[],
+    ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean,
 }) {
-    const { structureUrl, structureFormat, assembliesData, interfaceData, ghostMolecules, detailMolecules } = params;
+    const { structureUrl, structureFormat, assembliesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
     const componentColors = assignComponentColors(assembliesData);
     const interfaceTooltip = `<br>Interface <b>${interfaceData.interface.molecule[0].chain_id}</b> &ndash; <b>${interfaceData.interface.molecule[1].chain_id}</b> (interface area ${Number(interfaceData.interface.int_area).toFixed(1)})`;
 
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
 
+    const structs = [undefined, undefined] as [Builder.Structure | undefined, Builder.Structure | undefined];
+
     interfaceData.interface.molecule.forEach((molecule, i) => {
         const component = decodeChainId(molecule.chain_id);
         const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const struct = data
-            .modelStructure()
+            .modelStructure({ ref: `struct-${i}` })
             .transform(transformFromPisaStyle(molecule));
+        structs[i] = struct;
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symop})</b>` });
         const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
         struct.component({ selector: componentSelector }).focus();
@@ -207,7 +269,7 @@ export function pisaInterfaceView(params: {
                         * (component.isLigand ? 1.05 : 1), // distinguish ligands/waters from the main chain, in case of PDB format
                 })
                 .color({ color: bulkColorFn(color) });
-            const residues = Array.isArray(molecule.residues.residue) ? molecule.residues.residue : [molecule.residues.residue];
+            const residues = ensureArray(molecule.residues.residue);
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
             const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
             markInterface([{ struct, repr, color }], resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
@@ -222,6 +284,37 @@ export function pisaInterfaceView(params: {
             };
         }
     });
+    if (showInteractions) {
+        const primitives = builder.primitives();
+        let bondType: keyof typeof INTERACTION_TYPE_COLORS;
+        for (bondType in INTERACTION_TYPE_COLORS) {
+            if (bondType === 'other-bonds') continue; // ignoring 'other-bonds' for now as they overwhelm the view
+            const bonds = ensureArray<PisaBondRecord>(interfaceData.interface[bondType].bond);
+            for (const bond of bonds) {
+                const tooltipHeader = `<b>${INTERACTION_TYPE_NAMES[bondType] ?? bondType} (${Number(bond.dist).toFixed(2)} &angst;)</b>`;
+                const tooltip1 = `<b>${bond['res-1']} ${bond['seqnum-1']}${bond['inscode-1'] ?? ''}</b> | ${bond['atname-1']}`;
+                const tooltip2 = `<b>${bond['res-2']} ${bond['seqnum-2']}${bond['inscode-2'] ?? ''}</b> | ${bond['atname-2']}`;
+                const tooltip = `${tooltipHeader}<br>${tooltip1} &ndash; ${tooltip2}`;
+                primitives.tube({
+                    start: {
+                        structure_ref: 'struct-0',
+                        expressions: [{ auth_asym_id: bond['chain-1'], auth_seq_id: Number(bond['seqnum-1']), pdbx_PDB_ins_code: bond['inscode-1'] ?? undefined, auth_atom_id: bond['atname-1'] }],
+                        // using auth_ fields for now, current input data messy
+                    },
+                    end: {
+                        structure_ref: 'struct-1',
+                        expressions: [{ auth_asym_id: bond['chain-2'], auth_seq_id: Number(bond['seqnum-2']), pdbx_PDB_ins_code: bond['inscode-2'] ?? undefined, auth_atom_id: bond['atname-2'] }],
+                        // using auth_ fields for now, current input data messy
+                    },
+                    color: INTERACTION_TYPE_COLORS[bondType],
+                    radius: INTERACTION_RADIUS,
+                    dash_length: INTERACTION_DASH_LENGTH,
+                    tooltip: tooltip,
+                });
+            }
+        }
+        // TODO disable Molstar's default show-interaction behavior (collides with this and only works within structure)
+    }
 
     return builder.getSnapshot({
         key: `interface_${interfaceData.interface_id}`,
@@ -336,4 +429,11 @@ function hexColorToNormRgb(hex: HexColorT): [number, number, number] {
 function normRgbToHexColor(r: number, g: number, b: number): HexColorT {
     const hexNum = (Math.round(255 * r) << 16) | (Math.round(255 * g) << 8) | Math.round(255 * b);
     return '#' + ('000000' + hexNum.toString(16)).slice(-6) as HexColorT;
+}
+
+/** Convert `T | T[]` into `T[]`. `undefined` converts to empty array */
+function ensureArray<T>(maybeArray: T | T[] | undefined): T[] {
+    if (maybeArray === undefined) return [];
+    if (Array.isArray(maybeArray)) return maybeArray;
+    else return [maybeArray];
 }
