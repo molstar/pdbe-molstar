@@ -4,7 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { PisaBondRecord, PisaResidueRecord, type PisaAssembliesData, type PisaAssemblyRecord, type PisaInterfaceData, type PisaTransform } from './types';
+import type { PisaAssembliesData, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaResidueRecord, PisaTransform } from './types';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -32,47 +32,6 @@ const INTERACTION_TYPE_NAMES = {
     'other-bonds': 'Other bond',
 } as const;
 
-
-// Molstar interaction colors:
-// const InteractionTypeColors = ColorMap({
-//     HydrogenBond: #2B83BA,
-//     Hydrophobic: #808080,
-//     HalogenBond: #40FFBF,
-//     Ionic: #F0C814,
-//     MetalCoordination: #8C4099,
-//     CationPi: #FF8000,
-//     PiStacking: #8CB366,
-//     WeakHydrogenBond: #C5DDEC,
-// });
-
-// PDBconnect interaction colors:
-// export const INTX_NAME_COLORS: Record<string, string> = {
-//   clash: '#D32B1E',
-//   covalent: '#1D1D1D',
-//   vdw_clash: '#D32B1E',
-//   vdw: '#E1A11A',
-//   hbond: '#4277B6',
-//   xbond: '#DB6917',
-//   ionic: '#702C8C',
-//   metal_complex: '#463397',
-//   aromatic: '#92AE31',
-//   hydrophobic: '#EBCE2B',
-//   carbonyl: '#2B3514',
-//   polar: '#4277B6',
-//   CARBONPI: '#C0BD7F',
-//   CATIONPI: '#C0BD7F',
-//   DONORPI: '#C0BD7F',
-//   HALOGENPI: '#C0BD7F',
-//   METSULPHURPI: '#C0BD7F',
-//   plane_plane: '#92AE31',
-//   FF: '#92AE31',
-//   AMIDEAMIDE: '#2B3514',
-//   AMIDERING: '#C0BD7F',
-//   weak_polar: '#96CDE6',
-//   weak_hbond: '#96CDE6',
-//   mixed: '#7F7E80',
-// };
-
 function bulkColorFn(baseColor: HexColorT): HexColorT {
     return adjustLightnessRelative(baseColor, BULK_COLOR_LIGHTNESS_ADJUSTMENT);
 }
@@ -81,37 +40,47 @@ function interfaceColorFn(baseColor: HexColorT): HexColorT {
 }
 
 async function getAssembliesData(pdbId: string): Promise<PisaAssembliesData> {
-    return await (await fetch(`/tmp/pisa/${pdbId}/assembly.json`)).json();
+    const response = await fetch(`/tmp/pisa/${pdbId}/assembly.json`);
+    return await response.json();
 }
-function getAllAssemblies(assembliesData: PisaAssembliesData) {
+async function getAllAssemblies(pdbId: string) {
+    const assembliesData = await getAssembliesData(pdbId);
     return assembliesData.pisa_results.asm_set.map(ass => ass.assembly);
     // return [...assembliesData.pisa_results.asm_set.map(ass => ass.assembly), assembliesData.pisa_results.asu_complex.assembly];
 }
-async function getInterfaceData(pdbId: string, interfaceId: string): Promise<PisaInterfaceData> {
-    return await (await fetch(`/tmp/pisa/${pdbId}/interfaces/interface_${interfaceId}.json`)).json();
+async function getInterfaceData(pdbId: string, interfaceId: string): Promise<PisaInterfaceData | undefined> {
+    const response = await fetch(`/tmp/pisa/${pdbId}/interfaces/interface_${interfaceId}.json`);
+    if (response.status === 404) return undefined;
+    return await response.json();
+}
+/** This is stupid, assembly.json should provide n_interfaces, but it doesn't. */
+async function getAllInterfaces(pdbId: string): Promise<PisaInterfaceData[]> {
+    const firstInterface = await getInterfaceData(pdbId, '1');
+    if (firstInterface === undefined) return [];
+    const nInterfaces = Number(firstInterface.n_interfaces);
+    const otherPromises: Promise<PisaInterfaceData | undefined>[] = [];
+    for (let i = 2; i <= nInterfaces; i++) {
+        otherPromises.push(getInterfaceData(pdbId, String(i)));
+    }
+    const otherInterfaces = await Promise.all(otherPromises); // await parallel fetches
+    return [firstInterface, ...otherInterfaces.filter(int => int !== undefined)];
 }
 
 export async function pisaDemo(plugin: PluginContext) {
     const pdbId = '3gcb';
     // const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
     const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
-
-    const assembliesData = await getAssembliesData(pdbId);
-    const allAssemblies = getAllAssemblies(assembliesData);
-    const interfaceIds = Array.from(new Set(
-        allAssemblies.flatMap(ass => ass.interfaces.interface.map(int => int.id))
-    )).sort((a, b) => Number(a) - Number(b));
-    const interfacesData = await Promise.all(interfaceIds.map(intId => getInterfaceData(pdbId, intId)));
-    // TODO retrieve data on all interfaces, incl. those not present in any assembly (e.g. interface 4), use n_interfaces field
+    const allAssemblies = await getAllAssemblies(pdbId);
+    const allInterfaces = await getAllInterfaces(pdbId);
 
     const snapshots: Snapshot[] = [];
     for (const assembly of allAssemblies) {
-        snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData }));
-        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'surface' } }));
-        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
-        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: interfacesData, reprParams: { type: 'cartoon' } }));
+        snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: allInterfaces }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: allInterfaces, reprParams: { type: 'surface' } }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: allInterfaces, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
+        // snapshots.push(pisaAsseblyView({ structureUrl, structureFormat, assembliesData: allAssemblies, assemblyId: assembly.id, interfacesData: allInterfaces, reprParams: { type: 'cartoon' } }));
     }
-    for (const interfaceData of interfacesData) {
+    for (const interfaceData of allInterfaces) {
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [] }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [0] }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [1] }));
@@ -122,19 +91,6 @@ export async function pisaDemo(plugin: PluginContext) {
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
     await loadMVS(plugin, mvs);
-
-    // Comments:
-    // - chain_id - is this label_asym_id or auth_asym_id or wtf?
-    // - rxx, etc. - why are these strings and not numbers?
-    // - visual_id - this is completely useless, it starts repeating after reaching Z
-    // - what's the differentce between asm_set and asu_complex
-    // - TODO add clear component descriptors to input data or find a way to decode cryptic chain_ids
-    //     e.g. 1gkt:
-    //     [BOC]B:400 = ligand BOC in chain B resi 400
-    //     B          = protein chain B resi 401-407 (excluding the [BOC]B:400 and waters)
-    //     (this is not an issue when using CIF files)
-    // - symId vs symop_no, symop
-    // - TODO have URL for input file
 }
 
 
@@ -157,13 +113,13 @@ export function pisaAsseblyView(params: {
 
     for (const molecule of assembly.molecule) {
         const component = decodeChainId(molecule.chain_id);
-        // console.log('molecule', molecule.chain_id, molecule.symId, molecule.visual_id)
         const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const struct = data
             .modelStructure()
             .transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symId})</b>` });
         const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
+        // TODO Select 20 std AAs + DNA/RNA bases here to remove waters and ligands (not optimal but good enough solution for now)
         const repr = struct
             .component({ selector: componentSelector })
             .representation({
@@ -238,7 +194,8 @@ export function pisaInterfaceView(params: {
             .modelStructure({ ref: `struct-${i}` })
             .transform(transformFromPisaStyle(molecule));
         structs[i] = struct;
-        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symop})</b>` });
+        const symId = `${molecule.symop_no}_${Number(molecule.cell_i) + 5}${Number(molecule.cell_j) + 5}${Number(molecule.cell_k) + 5}`; // This should come from the API directly
+        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${symId})</b>` });
         const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
         struct.component({ selector: componentSelector }).focus();
         const showGhost = ghostMolecules?.includes(i as 0 | 1);

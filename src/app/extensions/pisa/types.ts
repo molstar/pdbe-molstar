@@ -144,6 +144,7 @@ interface PisaMoleculeRecord {
 }
 
 
+/** Format of assembly.json */
 export interface PisaAssembliesData {
     "pisa_results": {
         "name": string,
@@ -164,6 +165,7 @@ export interface PisaAssembliesData {
 }
 
 
+/** Format of interface_*.json */
 export interface PisaInterfaceData {
     /** e.g. "1" */
     "interface_id": string,
