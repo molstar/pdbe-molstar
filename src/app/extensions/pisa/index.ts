@@ -105,63 +105,52 @@ export function pisaAsseblyView(params: {
 
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
-
+    const interfacesInAssembly = new Set(assembly.interfaces.interface.map(int => int.id));
     const componentColors = assignComponentColors(assembliesData);
 
-    const componentIdsByPisaChainId: { [pisaChainId: string]: string[] } = {};
-    const components: { [visualId: string]: ComponentState } = {};
-
-    for (const molecule of assembly.molecule) {
-        const component = decodeChainId(molecule.chain_id);
-        const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
-        const struct = data
-            .modelStructure()
-            .transform(transformFromPisaStyle(molecule));
-        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symId})</b>` });
-        const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
-        // TODO Select 20 std AAs + DNA/RNA bases here to remove waters and ligands (not optimal but good enough solution for now)
-        const repr = struct
-            .component({ selector: componentSelector })
-            .representation({
-                type: 'spacefill',
-                size_factor: component.isLigand ? 1.05 : 1, // distinguish ligands/waters from the main chain, in case of PDB format
-                ...reprParams,
-            })
-            .color({ color: bulkColorFn(color) });
-        if (!component.isLigand) {
-            // distinguish ligands/waters from the main chain, in case of PDB format
-            repr
-                .color({ selector: 'water', color: 'white' })
-                .color({ selector: 'ligand', color: 'white' })
-                .color({ selector: 'branched', color: 'white' })
-                .color({ selector: 'ion', color: 'white' });
-        };
-        const componentId = `${molecule.chain_id} (${molecule.symId})`;
-        (componentIdsByPisaChainId[molecule.chain_id] ??= []).push(componentId);
-        components[componentId] = { struct, repr, color };
-    }
-
-    const interfacesInAssembly = new Set(assembly.interfaces.interface.map(int => int.id));
-
+    // Prepare info on components and interfaces
+    const componentsInfo: {
+        [pisaChainId: string]: {
+            minAuthSeqId: number,
+            maxAuthSeqId: number,
+            interfaceSelectors: { [interfaceId: string]: ComponentExpressionT[] },
+        } | undefined,
+    } = {};
+    const interfaceTooltips: { [interfaceId: string]: string } = {};
     for (const int of interfacesData) {
         if (!interfacesInAssembly.has(int.interface_id)) continue;
-        const interfaceTooltip = `<br>Interface <b>${int.interface.molecule[0].chain_id}</b> &ndash; <b>${int.interface.molecule[1].chain_id}</b> (interface area ${Number(int.interface.int_area).toFixed(1)})`;
-        // Handling self-interfaces differently to avoid duplicate tooltips on residues in symmetric interfaces
-        const isSelfInterface = int.interface.molecule[0].chain_id === int.interface.molecule[1].chain_id;
-        const bothSurfaces: ComponentExpressionT[] = [];
+        interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${int.interface.molecule[0].chain_id}</b> &ndash; <b>${int.interface.molecule[1].chain_id}</b> (interface area ${Number(int.interface.int_area).toFixed(1)})`;
         for (const molecule of int.interface.molecule) {
             const residues = ensureArray<PisaResidueRecord>(molecule.residues.residue);
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
-            const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
-            if (!isSelfInterface) {
-                const comps = componentIdsByPisaChainId[molecule.chain_id].map(componentId => components[componentId])
-                markInterface(comps, resSelector, { tooltip: interfaceTooltip, color: true });
-            }
-            bothSurfaces.push(...resSelector);
+            const interfaceResiduesSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
+            const compInfo = componentsInfo[molecule.chain_id] ??= { minAuthSeqId: Infinity, maxAuthSeqId: -Infinity, interfaceSelectors: {} };
+            compInfo.minAuthSeqId = Math.min(compInfo.minAuthSeqId, ...residues.map(r => Number(r.seq_num)));
+            compInfo.maxAuthSeqId = Math.max(compInfo.maxAuthSeqId, ...residues.map(r => Number(r.seq_num)));
+            (compInfo.interfaceSelectors[int.interface_id] ??= []).push(...interfaceResiduesSelector);
         }
-        if (isSelfInterface) {
-            const comps = componentIdsByPisaChainId[int.interface.molecule[0].chain_id].map(componentId => components[componentId])
-            markInterface(comps, bothSurfaces, { tooltip: interfaceTooltip, color: true });
+    }
+
+    for (const molecule of assembly.molecule) {
+        const component = decodeChainId(molecule.chain_id);
+        const compInfo = componentsInfo[molecule.chain_id];
+        const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
+        const struct = data.modelStructure().transform(transformFromPisaStyle(molecule));
+        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${molecule.symId})</b>` });
+        const componentSelector: ComponentExpressionT = {
+            label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
+            label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
+            beg_auth_seq_id: compInfo?.minAuthSeqId === Infinity ? undefined : compInfo?.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+            end_auth_seq_id: compInfo?.maxAuthSeqId === -Infinity ? undefined : compInfo?.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+        };
+        const repr = struct
+            .component({ selector: componentSelector })
+            .representation({ type: 'spacefill', ...reprParams })
+            .color({ color: bulkColorFn(color) });
+        for (const interfaceId in compInfo?.interfaceSelectors) {
+            const selector = compInfo.interfaceSelectors[interfaceId];
+            const interfaceTooltip = interfaceTooltips[interfaceId];
+            markInterface({ struct, repr, color }, selector, { color: true, tooltip: interfaceTooltip });
         }
     }
     const name = assembly.serial_no === '0' ? 'ASU complex' : `Assembly ${assembly.id}`;
@@ -229,7 +218,7 @@ export function pisaInterfaceView(params: {
             const residues = ensureArray(molecule.residues.residue);
             const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
             const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
-            markInterface([{ struct, repr, color }], resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
+            markInterface({ struct, repr, color }, resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
             if (!component.isLigand) {
                 // distinguish ligands/waters from the main chain, in case of PDB format
@@ -284,21 +273,19 @@ export function pisaInterfaceView(params: {
 
 interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, color: HexColorT };
 
-function markInterface(theComponents: ComponentState[], interfaceSelector: ComponentExpressionT[], options: { color?: boolean, ball_and_stick?: boolean, tooltip?: string } = {}) {
-    for (const component of theComponents) {
-        if (options.color) {
-            component.repr.color({ selector: interfaceSelector, color: interfaceColorFn(component.color) });
-        }
-        if (options.ball_and_stick) {
-            const bs = component.struct
-                .component({ selector: interfaceSelector })
-                .representation({ type: 'ball_and_stick' })
-                .color({ color: bulkColorFn(component.color) });
-            applyElementColors(bs);
-        }
-        if (options.tooltip) {
-            component.struct.component({ selector: interfaceSelector }).tooltip({ text: options.tooltip });
-        }
+function markInterface(component: ComponentState, interfaceSelector: ComponentExpressionT[], options: { color?: boolean, ball_and_stick?: boolean, tooltip?: string } = {}) {
+    if (options.color) {
+        component.repr.color({ selector: interfaceSelector, color: interfaceColorFn(component.color) });
+    }
+    if (options.ball_and_stick) {
+        const bs = component.struct
+            .component({ selector: interfaceSelector })
+            .representation({ type: 'ball_and_stick' })
+            .color({ color: bulkColorFn(component.color) });
+        applyElementColors(bs);
+    }
+    if (options.tooltip) {
+        component.struct.component({ selector: interfaceSelector }).tooltip({ text: options.tooltip });
     }
 }
 
