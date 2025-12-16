@@ -106,7 +106,7 @@ export interface PisaResidueRecord {
     "solv_en": StringShouldBeNumber,
 }
 
-interface PisaMoleculeRecord {
+export interface PisaMoleculeRecord {
     /** e.g. "1" */
     "id": string,
     /** e.g. "A" */

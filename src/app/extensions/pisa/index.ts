@@ -4,7 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import type { PisaAssembliesData, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaResidueRecord, PisaTransform } from './types';
+import type { PisaAssembliesData, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaMoleculeRecord, PisaResidueRecord, PisaTransform } from './types';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -121,13 +121,11 @@ export function pisaAsseblyView(params: {
         if (!interfacesInAssembly.has(int.interface_id)) continue;
         interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${int.interface.molecule[0].chain_id}</b> &ndash; <b>${int.interface.molecule[1].chain_id}</b> (interface area ${Number(int.interface.int_area).toFixed(1)})`;
         for (const molecule of int.interface.molecule) {
-            const residues = ensureArray<PisaResidueRecord>(molecule.residues.residue);
-            const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
-            const interfaceResiduesSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
-            const compInfo = componentsInfo[molecule.chain_id] ??= { minAuthSeqId: Infinity, maxAuthSeqId: -Infinity, interfaceSelectors: {} };
-            compInfo.minAuthSeqId = Math.min(compInfo.minAuthSeqId, ...residues.map(r => Number(r.seq_num)));
-            compInfo.maxAuthSeqId = Math.max(compInfo.maxAuthSeqId, ...residues.map(r => Number(r.seq_num)));
-            (compInfo.interfaceSelectors[int.interface_id] ??= []).push(...interfaceResiduesSelector);
+            const sel = getInterfaceMoleculeSelectors(molecule);
+            const compInfo = componentsInfo[molecule.chain_id] ??= { minAuthSeqId: sel.minAuthSeqId, maxAuthSeqId: sel.maxAuthSeqId, interfaceSelectors: {} };
+            compInfo.minAuthSeqId = Math.min(compInfo.minAuthSeqId, sel.minAuthSeqId);
+            compInfo.maxAuthSeqId = Math.max(compInfo.maxAuthSeqId, sel.maxAuthSeqId);
+            (compInfo.interfaceSelectors[int.interface_id] ??= []).push(...sel.interfaceSelectors);
         }
     }
 
@@ -140,9 +138,10 @@ export function pisaAsseblyView(params: {
         const componentSelector: ComponentExpressionT = {
             label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
             label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
-            beg_auth_seq_id: compInfo?.minAuthSeqId === Infinity ? undefined : compInfo?.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
-            end_auth_seq_id: compInfo?.maxAuthSeqId === -Infinity ? undefined : compInfo?.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+            beg_auth_seq_id: compInfo?.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+            end_auth_seq_id: compInfo?.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
         };
+        struct.component({ selector: componentSelector }).focus();
         const repr = struct
             .component({ selector: componentSelector })
             .representation({ type: 'spacefill', ...reprParams })
@@ -174,18 +173,20 @@ export function pisaInterfaceView(params: {
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
 
-    const structs = [undefined, undefined] as [Builder.Structure | undefined, Builder.Structure | undefined];
-
     interfaceData.interface.molecule.forEach((molecule, i) => {
         const component = decodeChainId(molecule.chain_id);
         const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
-        const struct = data
-            .modelStructure({ ref: `struct-${i}` })
-            .transform(transformFromPisaStyle(molecule));
-        structs[i] = struct;
+        const sel = getInterfaceMoleculeSelectors(molecule);
         const symId = `${molecule.symop_no}_${Number(molecule.cell_i) + 5}${Number(molecule.cell_j) + 5}${Number(molecule.cell_k) + 5}`; // This should come from the API directly
+        const struct = data.modelStructure({ ref: `struct-${i}` }).transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${symId})</b>` });
-        const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
+        const componentSelector: ComponentExpressionT = {
+            label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
+            label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
+            beg_auth_seq_id: sel.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+            end_auth_seq_id: sel.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
+        };
+        // const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
         struct.component({ selector: componentSelector }).focus();
         const showGhost = ghostMolecules?.includes(i as 0 | 1);
         const showDetails = detailMolecules?.includes(i as 0 | 1);
@@ -211,23 +212,11 @@ export function pisaInterfaceView(params: {
                 .component({ selector: componentSelector })
                 .representation({
                     type: showDetails ? 'cartoon' : 'spacefill',
-                    size_factor: (showDetails ? 0.5 : 1)
-                        * (component.isLigand ? 1.05 : 1), // distinguish ligands/waters from the main chain, in case of PDB format
+                    size_factor: showDetails ? 0.5 : 1,
                 })
                 .color({ color: bulkColorFn(color) });
-            const residues = ensureArray(molecule.residues.residue);
-            const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
-            const resSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
-            markInterface({ struct, repr, color }, resSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
+            markInterface({ struct, repr, color }, sel.interfaceSelectors, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
-            if (!component.isLigand) {
-                // distinguish ligands/waters from the main chain, in case of PDB format
-                repr
-                    .color({ selector: 'water', color: 'white' })
-                    .color({ selector: 'ligand', color: 'white' })
-                    .color({ selector: 'branched', color: 'white' })
-                    .color({ selector: 'ion', color: 'white' });
-            };
         }
     });
     if (showInteractions) {
@@ -271,8 +260,18 @@ export function pisaInterfaceView(params: {
 }
 
 
-interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, color: HexColorT };
+function getInterfaceMoleculeSelectors(molecule: PisaMoleculeRecord) {
+    const residues = ensureArray<PisaResidueRecord>(molecule.residues.residue);
+    const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
+    const interfaceSelectors: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
+    return {
+        minAuthSeqId: Math.min(...residues.map(r => Number(r.seq_num))),
+        maxAuthSeqId: Math.max(...residues.map(r => Number(r.seq_num))),
+        interfaceSelectors,
+    };
+}
 
+interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, color: HexColorT };
 function markInterface(component: ComponentState, interfaceSelector: ComponentExpressionT[], options: { color?: boolean, ball_and_stick?: boolean, tooltip?: string } = {}) {
     if (options.color) {
         component.repr.color({ selector: interfaceSelector, color: interfaceColorFn(component.color) });
@@ -334,18 +333,18 @@ function assignComponentColors(assemblies: PisaAssemblyRecord[]) {
 }
 
 
-const RE_CHAIN_ID = /\[(\w+)\](\w+):(-?\d+)/;
+const RE_PISA_CHAIN_ID = /\[(\w+)\](\w+):(-?\d+)/;
 
 /** Decode PISA-style "chainId", e.g. 'A', '[SO4]A:1101' */
-function decodeChainId(pisaChainId: string): { chainId: string, compId: string | undefined, seqId: number | undefined, isLigand: boolean } {
-    const match = pisaChainId.match(RE_CHAIN_ID);
+function decodeChainId(pisaChainId: string): { chainId: string, compId: string | undefined, seqId: number | undefined } {
+    const match = pisaChainId.match(RE_PISA_CHAIN_ID);
     if (match) {
         const compId = match[1];
         const chainId = match[2];
         const seqId = Number(match[3]) >= 0 ? Number(match[3]) : undefined; // label_seq_id=. for ligands in mmCIF gets formatted as -2147483648 :(
-        return { chainId, compId, seqId, isLigand: true };
+        return { chainId, compId, seqId };
     } else {
-        return { chainId: pisaChainId, compId: undefined, seqId: undefined, isLigand: false };
+        return { chainId: pisaChainId, compId: undefined, seqId: undefined };
     }
 }
 
