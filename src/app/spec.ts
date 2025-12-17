@@ -111,6 +111,8 @@ export interface InitParams {
     customData?: { url: string, format: string, binary: boolean },
     /** Leave `undefined` to load deposited model structure. Use assembly identifier to load assembly structure. or 'preferred' to load default assembly (i.e. the first assembly). */
     assemblyId?: string,
+    /** Model identifier, numbered from 1 (for multi-model entries, like NMR, e.g. 1wrf) */
+    modelId?: number,
     /** Specify type of structure to be loaded */
     defaultPreset: Preset,
     /** Use to display the PDBe ligand page 3D view like here (https://www.ebi.ac.uk/pdbe/entry/pdb/1cbs/bound/REA).
@@ -215,6 +217,7 @@ export const DefaultParams: InitParams = {
     moleculeId: undefined,
     customData: undefined,
     assemblyId: undefined,
+    modelId: undefined,
     defaultPreset: 'default',
     ligandView: undefined,
     alphafoldView: false,

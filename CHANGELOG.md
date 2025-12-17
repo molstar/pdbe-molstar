@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file, following t
 - Mol* core dependency updated to 5.4.2
 - Option `hideCanvasControls` accepts "reset" and "all"
 - Update options `highlightColor`, `selectColor`, `granularity` on update
+- Added option `modelId` (select model from trajectory)
 
 ## [v3.8.0] - 2025-10-03
 - Mol* core dependency updated to 5.0.0
