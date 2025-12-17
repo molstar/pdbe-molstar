@@ -208,6 +208,13 @@ export function pisaInterfaceView(params: {
             markInterface({ struct, repr, color }, sel.interfaceSelectors, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
         }
+        for (const r of ensureArray<PisaResidueRecord>(molecule.residues.residue)) {
+            // TODO implement by tooltip_from_uri and include chain ID selector for efficiency
+            struct
+                .component({ selector: { auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined } })
+                // .tooltip({ text: `<br><small><b>Residue details:</b><br>Accessible Surface Area: ${Number(r.asa).toFixed(2)}<br>Buries Surface Area: ${Number(r.bsa).toFixed(2)}<br>Solvation Energy: ${Number(r.solv_en).toFixed(2)}</small>` });
+                .tooltip({ text: `<br><small><b>Residue details:</b> ASA = ${Number(r.asa).toFixed(2)}, BSA = ${Number(r.bsa).toFixed(2)}, Solvation Energy = ${Number(r.solv_en).toFixed(2)}</small>` });
+        }
     });
     if (showInteractions) {
         const primitives = builder.primitives();
@@ -395,3 +402,7 @@ function ensureArray<T>(maybeArray: T | T[] | undefined): T[] {
     if (Array.isArray(maybeArray)) return maybeArray;
     else return [maybeArray];
 }
+function tooltip(arg0: { text: string; }) {
+    throw new Error('Function not implemented.');
+}
+
