@@ -14,7 +14,7 @@ const COMPONENT_COLORS: HexColorT[] = [
 ];
 const DEFAULT_COMPONENT_COLOR: HexColorT = '#999999';
 const BULK_COLOR_LIGHTNESS_ADJUSTMENT = 0.4;
-const INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT = -0.3;
+const INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT = -0.1; // Roughly corresponds to -0.3 without outline effect
 const INTERACTION_RADIUS = 0.1;
 const INTERACTION_DASH_LENGTH = 0.1;
 const INTERACTION_TYPE_COLORS = {
@@ -97,7 +97,7 @@ export async function pisaDemo(plugin: PluginContext) {
 export function pisaAsseblyView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
     assembliesData: PisaAssemblyRecord[], assemblyId: string, interfacesData: PisaInterfaceData[],
-    reprParams?: Partial<MVSNodeParams<'representation'>>,
+    reprParams?: MVSNodeParams<'representation'>,
 }) {
     const { structureUrl, structureFormat, assembliesData, assemblyId, interfacesData, reprParams } = params;
     const assembly = assembliesData.find(ass => ass.id === assemblyId);
@@ -178,6 +178,7 @@ export function pisaInterfaceView(params: {
         const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const sel = getInterfaceMoleculeSelectors(molecule);
         const symId = `${molecule.symop_no}_${Number(molecule.cell_i) + 5}${Number(molecule.cell_j) + 5}${Number(molecule.cell_k) + 5}`; // This should come from the API directly
+        // TODO factor out this `symId` and use in `componentKey`
         const struct = data.modelStructure({ ref: `struct-${i}` }).transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${symId})</b>` });
         const componentSelector: ComponentExpressionT = {
@@ -197,12 +198,7 @@ export function pisaInterfaceView(params: {
                     type: 'surface',
                     surface_type: 'gaussian',
                     size_factor: 1.25,
-                    custom: {
-                        molstar_representation_params: {
-                            visuals: ['structure-gaussian-surface-mesh'],
-                            xrayShaded: true,
-                        },
-                    },
+                    custom: { molstar_representation_params: { visuals: ['structure-gaussian-surface-mesh'], xrayShaded: true } },
                 })
                 .color({ color: color })
                 .opacity({ opacity: .49 });
@@ -210,10 +206,7 @@ export function pisaInterfaceView(params: {
         if (!showGhost || showDetails) {
             const repr = struct
                 .component({ selector: componentSelector })
-                .representation({
-                    type: showDetails ? 'cartoon' : 'spacefill',
-                    size_factor: showDetails ? 0.5 : 1,
-                })
+                .representation(showDetails ? { type: 'cartoon', size_factor: 0.5 } : { type: 'spacefill' })
                 .color({ color: bulkColorFn(color) });
             markInterface({ struct, repr, color }, sel.interfaceSelectors, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
@@ -275,6 +268,7 @@ interface ComponentState { struct: Builder.Structure, repr: Builder.Representati
 function markInterface(component: ComponentState, interfaceSelector: ComponentExpressionT[], options: { color?: boolean, ball_and_stick?: boolean, tooltip?: string } = {}) {
     if (options.color) {
         component.repr.color({ selector: interfaceSelector, color: interfaceColorFn(component.color) });
+        addOutlineEffect(component.struct.component({ selector: interfaceSelector }), { type: 'spacefill' });
     }
     if (options.ball_and_stick) {
         const bs = component.struct
@@ -282,10 +276,21 @@ function markInterface(component: ComponentState, interfaceSelector: ComponentEx
             .representation({ type: 'ball_and_stick' })
             .color({ color: bulkColorFn(component.color) });
         applyElementColors(bs);
+        addOutlineEffect(component.struct.component({ selector: interfaceSelector }), { type: 'ball_and_stick' });
     }
     if (options.tooltip) {
         component.struct.component({ selector: interfaceSelector }).tooltip({ text: options.tooltip });
     }
+}
+
+function addOutlineEffect(component: Builder.Component, params: MVSNodeParams<'representation'>) {
+    component
+        .representation({
+            ...params,
+            size_factor: (params.size_factor ?? 1) * 1.01,
+            custom: { molstar_representation_params: { xrayShaded: true } },
+        })
+        .color({ color: 'black' });
 }
 
 function applyElementColors(repr: Builder.Representation) {
