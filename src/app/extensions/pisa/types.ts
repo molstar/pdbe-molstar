@@ -30,38 +30,40 @@ export interface PisaAssemblyRecord {
             "dissociates": StringShouldBeBoolean,
         }[],
     },
-    "molecule": {
-        /** e.g. "A", "[SO4]A:1101" */
-        "chain_id": string,
-        /** e.g. "A" */
-        "visual_id": string,
-        "rxx": StringShouldBeNumber,
-        "rxy": StringShouldBeNumber,
-        "rxz": StringShouldBeNumber,
-        "tx": StringShouldBeNumber,
-        "ryx": StringShouldBeNumber,
-        "ryy": StringShouldBeNumber,
-        "ryz": StringShouldBeNumber,
-        "ty": StringShouldBeNumber,
-        "rzx": StringShouldBeNumber,
-        "rzy": StringShouldBeNumber,
-        "rzz": StringShouldBeNumber,
-        "tz": StringShouldBeNumber,
-        "rxx-f": StringShouldBeNumber,
-        "rxy-f": StringShouldBeNumber,
-        "rxz-f": StringShouldBeNumber,
-        "tx-f": StringShouldBeNumber,
-        "ryx-f": StringShouldBeNumber,
-        "ryy-f": StringShouldBeNumber,
-        "ryz-f": StringShouldBeNumber,
-        "ty-f": StringShouldBeNumber,
-        "rzx-f": StringShouldBeNumber,
-        "rzy-f": StringShouldBeNumber,
-        "rzz-f": StringShouldBeNumber,
-        "tz-f": StringShouldBeNumber,
-        /** e.g. "1_555" */
-        "symId": string,
-    }[],
+    "molecule": PisaAssemblyMoleculeRecord[],
+}
+
+export interface PisaAssemblyMoleculeRecord {
+    /** e.g. "A", "[SO4]A:1101" */
+    "chain_id": string,
+    /** e.g. "A" */
+    "visual_id": string,
+    "rxx": StringShouldBeNumber,
+    "rxy": StringShouldBeNumber,
+    "rxz": StringShouldBeNumber,
+    "tx": StringShouldBeNumber,
+    "ryx": StringShouldBeNumber,
+    "ryy": StringShouldBeNumber,
+    "ryz": StringShouldBeNumber,
+    "ty": StringShouldBeNumber,
+    "rzx": StringShouldBeNumber,
+    "rzy": StringShouldBeNumber,
+    "rzz": StringShouldBeNumber,
+    "tz": StringShouldBeNumber,
+    "rxx-f": StringShouldBeNumber,
+    "rxy-f": StringShouldBeNumber,
+    "rxz-f": StringShouldBeNumber,
+    "tx-f": StringShouldBeNumber,
+    "ryx-f": StringShouldBeNumber,
+    "ryy-f": StringShouldBeNumber,
+    "ryz-f": StringShouldBeNumber,
+    "ty-f": StringShouldBeNumber,
+    "rzx-f": StringShouldBeNumber,
+    "rzy-f": StringShouldBeNumber,
+    "rzz-f": StringShouldBeNumber,
+    "tz-f": StringShouldBeNumber,
+    /** e.g. "1_555" */
+    "symId": string,
 }
 
 export interface PisaBondRecord {
@@ -106,7 +108,7 @@ export interface PisaResidueRecord {
     "solv_en": StringShouldBeNumber,
 }
 
-export interface PisaMoleculeRecord {
+export interface PisaInterfaceMoleculeRecord {
     /** e.g. "1" */
     "id": string,
     /** e.g. "A" */
@@ -205,7 +207,7 @@ export interface PisaInterfaceData {
             "n_bonds": StringShouldBeNumber,
             "bond"?: PisaBondRecord[],
         },
-        "molecule": [PisaMoleculeRecord, PisaMoleculeRecord],
+        "molecule": [PisaInterfaceMoleculeRecord, PisaInterfaceMoleculeRecord],
     },
 }
 

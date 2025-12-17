@@ -4,7 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import type { PisaAssembliesData, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaMoleculeRecord, PisaResidueRecord, PisaTransform } from './types';
+import type { PisaAssembliesData, PisaAssemblyMoleculeRecord, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaInterfaceMoleculeRecord, PisaResidueRecord, PisaTransform } from './types';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -177,18 +177,15 @@ export function pisaInterfaceView(params: {
         const component = decodeChainId(molecule.chain_id);
         const color = componentColors[componentKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const sel = getInterfaceMoleculeSelectors(molecule);
-        const symId = `${molecule.symop_no}_${Number(molecule.cell_i) + 5}${Number(molecule.cell_j) + 5}${Number(molecule.cell_k) + 5}`; // This should come from the API directly
-        // TODO factor out this `symId` and use in `componentKey`
         const struct = data.modelStructure({ ref: `struct-${i}` }).transform(transformFromPisaStyle(molecule));
-        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${symId})</b>` });
+        struct.component().tooltip({ text: `<hr>Component <b>${molecule.chain_id} (${getSymId(molecule)})</b>` });
         const componentSelector: ComponentExpressionT = {
             label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
             label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
             beg_auth_seq_id: sel.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
             end_auth_seq_id: sel.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
         };
-        // const componentSelector: ComponentExpressionT = { label_asym_id: component.chainId, label_seq_id: component.seqId }; // chain_id appears to be label_asym_id (if mmcif format)
-        struct.component({ selector: componentSelector }).focus();
+        struct.component({ selector: sel.interfaceSelectors }).focus();
         const showGhost = ghostMolecules?.includes(i as 0 | 1);
         const showDetails = detailMolecules?.includes(i as 0 | 1);
         if (showGhost) {
@@ -242,6 +239,7 @@ export function pisaInterfaceView(params: {
             }
         }
         // TODO disable Molstar's default show-interaction behavior (collides with this and only works within structure)
+        // TODO show residue tooltip with ASA, BSA, and solv_en (Accessible Surface Area, Buried S.A., Solvation Energy) (only in interface views)
     }
 
     return builder.getSnapshot({
@@ -253,7 +251,7 @@ export function pisaInterfaceView(params: {
 }
 
 
-function getInterfaceMoleculeSelectors(molecule: PisaMoleculeRecord) {
+function getInterfaceMoleculeSelectors(molecule: PisaInterfaceMoleculeRecord) {
     const residues = ensureArray<PisaResidueRecord>(molecule.residues.residue);
     const interfaceResidues = residues.filter(r => Number(r.bsa) !== 0); // Secret undocumented knowledge
     const interfaceSelectors: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined }));
@@ -308,9 +306,21 @@ function transformFromPisaStyle(pisaTransform: PisaTransform) {
     };
 }
 
-function componentKey(component: { chain_id: string } & PisaTransform) {
-    const transformKey = JSON.stringify(transformFromPisaStyle(component)); // Using this as transform identifier as `assembly` and `interface` have different transform identifiers :(
-    return `${component.chain_id} ${transformKey}`;
+/** Get molecule symId (e.g. '1_555') or try to construct it from other fields. 
+ * NOTE: Eventually, symId should always come from the API directly, but this is a temporary solution. */
+function getSymId(molecule: PisaAssemblyMoleculeRecord | PisaInterfaceMoleculeRecord): string {
+    if ((molecule as PisaAssemblyMoleculeRecord).symId !== undefined) {
+        molecule = molecule as PisaAssemblyMoleculeRecord;
+        return molecule.symId;
+    } else {
+        molecule = molecule as PisaInterfaceMoleculeRecord;
+        return `${molecule.symop_no}_${Number(molecule.cell_i) + 5}${Number(molecule.cell_j) + 5}${Number(molecule.cell_k) + 5}`;
+    }
+}
+
+/** Return deterministic identifier of a complex component (type + transform) for color, synchronizing assignment */
+function componentKey(component: PisaAssemblyMoleculeRecord | PisaInterfaceMoleculeRecord) {
+    return `${component.chain_id} ${getSymId(component)}`;
 }
 
 function assignComponentColors(assemblies: PisaAssemblyRecord[]) {
