@@ -330,6 +330,7 @@ export class PDBeMolstarPlugin {
                     request.queryParams['label_comp_id'] = this.initParams.ligandView.label_comp_id;
                     request.queryParams['auth_seq_id'] = this.initParams.ligandView.auth_seq_id;
                     request.queryParams['auth_asym_id'] = this.initParams.ligandView.auth_asym_id;
+                    // Should add model_nums param here but 'pdb-h' only contains 1 model // if (this.initParams.modelId !== undefined) request.queryParams['model_nums'] = this.initParams.modelId;
                 }
             }
             return {
@@ -397,10 +398,12 @@ export class PDBeMolstarPlugin {
 
                 const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
                 const trajectory = await this.plugin.builders.structure.parseTrajectory(data, format);
+                const modelIndex = (this.initParams.modelId !== undefined) ? (Number(this.initParams.modelId) - 1) : 0;
 
                 let structRef: string;
                 if (!isHetView) {
-                    await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset as any, {
+                    await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, this.initParams.defaultPreset, {
+                        model: { modelIndex },
                         structure: assemblyId ? (assemblyId === 'preferred') ? undefined : { name: 'assembly', params: { id: assemblyId } } : { name: 'model', params: {} },
                         showUnitcell: false,
                         representationPreset: 'auto',
@@ -410,7 +413,7 @@ export class PDBeMolstarPlugin {
                     await this.applyVisualStyles(structRef, this.initParams.visualStyle);
                     await PluginCommands.Camera.Reset(this.plugin, { durationMs: fullLoad ? 0 : undefined });
                 } else {
-                    const model = await this.plugin.builders.structure.createModel(trajectory);
+                    const model = await this.plugin.builders.structure.createModel(trajectory, { modelIndex }); // modelIndex will be ignored though, as ligand view is currently loaded from ModelServer source pdb-h (contains only 1 model)
                     const structure = await this.plugin.builders.structure.createStructure(model, { name: 'model', params: {} });
                     structRef = structure.ref;
                 }
