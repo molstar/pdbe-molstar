@@ -212,8 +212,16 @@ export function pisaInterfaceView(params: {
             // TODO implement by tooltip_from_uri and include chain ID selector for efficiency
             struct
                 .component({ selector: { auth_seq_id: Number(r.seq_num), pdbx_PDB_ins_code: r.ins_code ?? undefined } })
-                // .tooltip({ text: `<br><small><b>Residue details:</b><br>Accessible Surface Area: ${Number(r.asa).toFixed(2)}<br>Buries Surface Area: ${Number(r.bsa).toFixed(2)}<br>Solvation Energy: ${Number(r.solv_en).toFixed(2)}</small>` });
-                .tooltip({ text: `<br><small><b>Residue details:</b> ASA = ${Number(r.asa).toFixed(2)}, BSA = ${Number(r.bsa).toFixed(2)}, Solvation Energy = ${Number(r.solv_en).toFixed(2)}</small>` });
+                .tooltip({
+                    text: [
+                        '',
+                        `<small><b>Residue details:</b>`,
+                        `Accessible Surface Area: <span style="display: inline-block; min-width: 4em;">${Number(r.asa).toFixed(1)} &angst;<sup>2</sup></span>`,
+                        `Buried Surface Area: <span style="display: inline-block; min-width: 4em;">${Number(r.bsa).toFixed(1)} &angst;<sup>2</sup></span>`,
+                        `Solvation Energy: <span style="display: inline-block; min-width: 7.3em;">${Number(r.solv_en).toFixed(3)} kcal/mol</span></small>`,
+                    ].join('<br>'),
+                });
+            // .tooltip({ text: `<br><small><b>Residue details:</b> ASA = ${Number(r.asa).toFixed(1)} &angst;<sup>2</sup>, BSA = ${Number(r.bsa).toFixed(1)} &angst;<sup>2</sup>, Solvation Energy = ${Number(r.solv_en).toFixed(3)} kcal/mol</small>` });
         }
     });
     if (showInteractions) {
