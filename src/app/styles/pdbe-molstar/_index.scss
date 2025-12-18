@@ -40,6 +40,15 @@ $viewport-button-spacing: 4px;
         text-overflow: ellipsis;
     }
 
+    // Avoid tooltip box flickering when hovering something under it
+    .msp-highlight-toast-wrapper {
+        pointer-events: none;
+
+        .msp-toast-container {
+            pointer-events: initial;
+        }
+    }
+
 
     .pdbemolstar-custom-control-viewport-top-left {
         float: left;
