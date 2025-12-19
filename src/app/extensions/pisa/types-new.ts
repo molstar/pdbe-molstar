@@ -150,23 +150,23 @@ export interface NewPisaInterfaceData {
         fixed: boolean,
         h_bonds: {
             n_bonds: number,
-            bond: NewPisaBondRecord[],
+            bonds: NewPisaBondRecord[],
         },
         salt_bridges: {
             n_bonds: number,
-            bond: NewPisaBondRecord[],
+            bonds: NewPisaBondRecord[],
         },
         ss_bonds: {
             n_bonds: number,
-            bond: NewPisaBondRecord[],
+            bonds: NewPisaBondRecord[],
         },
         cov_bonds: {
             n_bonds: number,
-            bond: NewPisaBondRecord[],
+            bonds: NewPisaBondRecord[],
         },
         other_bonds: {
             n_bonds: number,
-            bond: NewPisaBondRecord[],
+            bonds: NewPisaBondRecord[],
         },
         /** Information about the two components forming the interface */
         molecules: [NewPisaInterfaceMoleculeRecord, NewPisaInterfaceMoleculeRecord],
