@@ -4,8 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-// import type { PisaAssembliesData, PisaAssemblyMoleculeRecord, PisaAssemblyRecord, PisaBondRecord, PisaInterfaceData, PisaInterfaceMoleculeRecord, PisaResidueRecord, PisaTransform } from './types';
-import type { NewPisaAssembliesData, NewPisaBondRecord, NewPisaComplexMoleculeRecord, NewPisaComplexRecord, NewPisaInterfaceData, NewPisaInterfaceMoleculeRecord, NewPisaResidueRecord, NewPisaTransform } from './types-new';
+import type { NewPisaComplexesData, NewPisaComplexMoleculeRecord, NewPisaComplexRecord, NewPisaInterfaceData, NewPisaInterfaceMoleculeRecord, NewPisaTransform } from './types-new';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -40,56 +39,38 @@ function interfaceColorFn(baseColor: HexColorT): HexColorT {
     return adjustLightnessRelative(baseColor, INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT);
 }
 
-async function getAssembliesData(pdbId: string, format: 'mmcif' | 'pdb'): Promise<NewPisaAssembliesData> {
+async function getComplexesData(pdbId: string, format: 'mmcif' | 'pdb'): Promise<NewPisaComplexesData> {
     const response = await fetch(`/tmp/pisa/${pdbId}_results_${format}/assemblies.json`);
     return await response.json();
 }
-async function getAllAssemblies(pdbId: string, format: 'mmcif' | 'pdb') {
-    const assembliesData = await getAssembliesData(pdbId, format);
-    return assembliesData.pqs_sets.flatMap(set => set.complexes);
-    // return assembliesData.pisa_results.asm_set.map(ass => ass.assembly);
-}
-async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfaceId: string): Promise<NewPisaInterfaceData | undefined> {
+async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfaceId: number): Promise<NewPisaInterfaceData> {
     const response = await fetch(`/tmp/pisa/${pdbId}_results_${format}/interfaces/interface_${interfaceId}.json`);
-    if (response.status === 404) return undefined;
     return await response.json();
-}
-/** This is stupid, assembly.json should provide n_interfaces, but it doesn't. */
-async function getAllInterfaces(pdbId: string, format: 'mmcif' | 'pdb'): Promise<NewPisaInterfaceData[]> {
-    const firstInterface = await getInterfaceData(pdbId, format, '1'); // TODO get from assemblies.json
-    if (firstInterface === undefined) return [];
-    const nInterfaces = firstInterface.n_interfaces;
-    const otherPromises: Promise<NewPisaInterfaceData | undefined>[] = [];
-    for (let i = 2; i <= nInterfaces; i++) {
-        otherPromises.push(getInterfaceData(pdbId, format, String(i)));
-    }
-    const otherInterfaces = await Promise.all(otherPromises); // await parallel fetches
-    return [firstInterface, ...otherInterfaces.filter(int => int !== undefined)];
 }
 
 export async function pisaDemo(plugin: PluginContext) {
     const pdbId = '3gcb'; // TODO test on '3hax';
-    // const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
-    const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
+    const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+    // const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
 
-    const allAssemblies = await getAllAssemblies(pdbId, structureFormat);
-    const allInterfaces = await getAllInterfaces(pdbId, structureFormat);
+    const complexesData = await getComplexesData(pdbId, structureFormat);
+    const allComplexes = complexesData.pqs_sets.flatMap(set => set.complexes);
+    const allInterfaces = await Promise.all(new Array(complexesData.n_interfaces).fill(0).map((_, i) => getInterfaceData(pdbId, structureFormat, i + 1)));
 
     const snapshots: Snapshot[] = [];
-    for (const assembly of allAssemblies) {
-        snapshots.push(pisaComplexView({ structureUrl, structureFormat, assembliesData: allAssemblies, complexKey: assembly.complex_key, interfacesData: allInterfaces }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, assembliesData: allAssemblies, complexKey: assembly.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface' } }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, assembliesData: allAssemblies, complexKey: assembly.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, assembliesData: allAssemblies, complexKey: assembly.complex_key, interfacesData: allInterfaces, reprParams: { type: 'cartoon' } }));
+    for (const complex of allComplexes) {
+        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
+        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface' } }));
+        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
+        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'cartoon' } }));
     }
-    // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData: allInterfaces[0], ghostMolecules: [] }));
     for (const interfaceData of allInterfaces) {
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [] }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [0] }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, ghostMolecules: [1] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [1], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, assembliesData: allAssemblies, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -97,20 +78,19 @@ export async function pisaDemo(plugin: PluginContext) {
 }
 
 
-// TODO rename assemblies to complexes everywhere
 export function pisaComplexView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
-    assembliesData: NewPisaComplexRecord[], complexKey: number, interfacesData: NewPisaInterfaceData[],
+    complexesData: NewPisaComplexRecord[], complexKey: number, interfacesData: NewPisaInterfaceData[],
     reprParams?: MVSNodeParams<'representation'>,
 }) {
-    const { structureUrl, structureFormat, assembliesData, complexKey, interfacesData, reprParams } = params;
-    const assembly = assembliesData.find(ass => ass.complex_key === complexKey);
-    if (!assembly) throw new Error(`Could not find complex "${complexKey}"`);
+    const { structureUrl, structureFormat, complexesData, complexKey, interfacesData, reprParams } = params;
+    const complex = complexesData.find(ass => ass.complex_key === complexKey);
+    if (!complex) throw new Error(`Could not find complex "${complexKey}"`);
 
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
-    const interfacesInAssembly = new Set(assembly.interfaces.interfaces.map(int => int.interface_id));
-    const componentColors = assignComponentColors(assembliesData);
+    const interfacesInComplex = new Set(complex.interfaces.interfaces.map(int => int.interface_id));
+    const componentColors = assignComponentColors(complexesData);
     // console.log('componentColors:', componentColors)
 
     // Prepare info on components and interfaces
@@ -124,19 +104,19 @@ export function pisaComplexView(params: {
     // TODO remove the above once obsolete
     const interfaceTooltips: { [interfaceId: string]: string } = {};
     for (const int of interfacesData) {
-        if (!interfacesInAssembly.has(int.interface_id)) continue;
+        if (!interfacesInComplex.has(int.interface_id)) continue;
         interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${moleculeTitle(int.interface.molecules[0])}</b> &ndash; <b>${moleculeTitle(int.interface.molecules[1])}</b> (interface area ${int.interface.int_area.toFixed(1)})`;
         for (const molecule of int.interface.molecules) {
             const sel = getInterfaceMoleculeSelectors(molecule);
             const compInfo = componentsInfo[moleculeTitle(molecule)] ??= { minAuthSeqId: sel.minAuthSeqId, maxAuthSeqId: sel.maxAuthSeqId, interfaceSelectors: {} };
-            // TODO review use of moleculeDisplay here
+            // TODO review use of moleculeTitle here
             compInfo.minAuthSeqId = Math.min(compInfo.minAuthSeqId, sel.minAuthSeqId);
             compInfo.maxAuthSeqId = Math.max(compInfo.maxAuthSeqId, sel.maxAuthSeqId);
             (compInfo.interfaceSelectors[int.interface_id] ??= []).push(...sel.interfaceSelectors);
         }
     }
 
-    for (const molecule of assembly.molecules) {
+    for (const molecule of complex.molecules) {
         const compInfo = componentsInfo[moleculeTitle(molecule)];
         const color = componentColors[componentColorKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const struct = data.modelStructure().transform(transformFromPisaStyle(molecule));
@@ -163,10 +143,10 @@ export function pisaComplexView(params: {
             // TODO fix marking interface on ligand when data from CIF
         }
     }
-    const name = `Complex ${assembly.complex_key}`;
+    const name = `Complex ${complex.complex_key}`;
     return builder.getSnapshot({
-        key: `complex_${assembly.complex_key}`,
-        title: `${name}: ${assembly.composition}`,
+        key: `complex_${complex.complex_key}`,
+        title: `${name}: ${complex.composition}`,
         linger_duration_ms: 5000,
         transition_duration_ms: 250,
     });
@@ -174,11 +154,11 @@ export function pisaComplexView(params: {
 
 export function pisaInterfaceView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
-    assembliesData: NewPisaComplexRecord[], interfaceData: NewPisaInterfaceData,
+    complexesData: NewPisaComplexRecord[], interfaceData: NewPisaInterfaceData,
     ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean,
 }) {
-    const { structureUrl, structureFormat, assembliesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
-    const componentColors = assignComponentColors(assembliesData);
+    const { structureUrl, structureFormat, complexesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
+    const componentColors = assignComponentColors(complexesData);
     const interfaceTooltip = `<br>Interface <b>${moleculeTitle(interfaceData.interface.molecules[0])}</b> &ndash; <b>${moleculeTitle(interfaceData.interface.molecules[1])}</b> (interface area ${interfaceData.interface.int_area.toFixed(1)} &angst;<sup>2</sup>)`;
 
     const builder = MVSData.createBuilder();
@@ -351,7 +331,7 @@ function componentColorKey(component: NewPisaComplexMoleculeRecord | NewPisaInte
     return `${component.auth_asym_id}/${component.ccd_id ?? ''}/${component.ccd_id ? component.auth_seq_id_start : ''}/${component.symmetry_id}`;
 }
 
-function assignComponentColors(assemblies: NewPisaComplexRecord[]) {
+function assignComponentColors(complexes: NewPisaComplexRecord[]) {
     const colors = {} as Record<string, HexColorT>;
     let iColor = 0;
     function isPolymer(component: NewPisaComplexMoleculeRecord) {
@@ -359,15 +339,15 @@ function assignComponentColors(assemblies: NewPisaComplexRecord[]) {
         // return !component.chain_id.startsWith('[');
     }
     // First assign colors to polymers, then ligands
-    for (const assembly of assemblies) {
-        for (const molecule of assembly.molecules) {
+    for (const complex of complexes) {
+        for (const molecule of complex.molecules) {
             if (isPolymer(molecule)) {
                 colors[componentColorKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
             }
         }
     }
-    for (const assembly of assemblies) {
-        for (const molecule of assembly.molecules) {
+    for (const complex of complexes) {
+        for (const molecule of complex.molecules) {
             if (!isPolymer(molecule)) {
                 colors[componentColorKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
             }

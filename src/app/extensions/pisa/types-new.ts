@@ -1,5 +1,5 @@
 /** Format of assemblies.json */
-export interface NewPisaAssembliesData {
+export interface NewPisaComplexesData {
     /** e.g. "pdb3hax" */
     session_name: string,
     /** e.g. "Ok" */
