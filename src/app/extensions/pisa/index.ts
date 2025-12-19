@@ -50,8 +50,8 @@ async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfac
 
 export async function pisaDemo(plugin: PluginContext) {
     const pdbId = '3gcb'; // TODO test on '3hax';
-    const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
-    // const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
+    // const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
+    const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
 
     const complexesData = await getComplexesData(pdbId, structureFormat);
     const allComplexes = complexesData.pqs_sets.flatMap(set => set.complexes);
@@ -59,18 +59,15 @@ export async function pisaDemo(plugin: PluginContext) {
 
     const snapshots: Snapshot[] = [];
     for (const complex of allComplexes) {
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface' } }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'surface', surface_type: 'gaussian' } }));
-        // snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces, reprParams: { type: 'cartoon' } }));
+        snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
     }
     for (const interfaceData of allInterfaces) {
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [] }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0], showInteractions: true }));
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [1], showInteractions: true }));
         snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -81,9 +78,8 @@ export async function pisaDemo(plugin: PluginContext) {
 export function pisaComplexView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
     complexesData: NewPisaComplexRecord[], complexKey: number, interfacesData: NewPisaInterfaceData[],
-    reprParams?: MVSNodeParams<'representation'>,
 }) {
-    const { structureUrl, structureFormat, complexesData, complexKey, interfacesData, reprParams } = params;
+    const { structureUrl, structureFormat, complexesData, complexKey, interfacesData } = params;
     const complex = complexesData.find(ass => ass.complex_key === complexKey);
     if (!complex) throw new Error(`Could not find complex "${complexKey}"`);
 
@@ -91,34 +87,27 @@ export function pisaComplexView(params: {
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
     const interfacesInComplex = new Set(complex.interfaces.interfaces.map(int => int.interface_id));
     const componentColors = assignComponentColors(complexesData);
-    // console.log('componentColors:', componentColors)
 
-    // Prepare info on components and interfaces
-    const componentsInfo: {
-        [pisaChainId: string]: {
-            minAuthSeqId: number,
-            maxAuthSeqId: number,
-            interfaceSelectors: { [interfaceId: string]: ComponentExpressionT[] },
+    // Prepare interface selectors for each component
+    const componentInterfaceSelectors: {
+        [componentKey: string]: {
+            [interfaceId: string]: ComponentExpressionT[],
         } | undefined,
     } = {};
-    // TODO remove the above once obsolete
+    // TODO rename component to molecule?
     const interfaceTooltips: { [interfaceId: string]: string } = {};
     for (const int of interfacesData) {
         if (!interfacesInComplex.has(int.interface_id)) continue;
         interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${moleculeTitle(int.interface.molecules[0])}</b> &ndash; <b>${moleculeTitle(int.interface.molecules[1])}</b> (interface area ${int.interface.int_area.toFixed(1)})`;
         for (const molecule of int.interface.molecules) {
-            const sel = getInterfaceMoleculeSelectors(molecule);
-            const compInfo = componentsInfo[moleculeTitle(molecule)] ??= { minAuthSeqId: sel.minAuthSeqId, maxAuthSeqId: sel.maxAuthSeqId, interfaceSelectors: {} };
-            // TODO review use of moleculeTitle here
-            compInfo.minAuthSeqId = Math.min(compInfo.minAuthSeqId, sel.minAuthSeqId);
-            compInfo.maxAuthSeqId = Math.max(compInfo.maxAuthSeqId, sel.maxAuthSeqId);
-            (compInfo.interfaceSelectors[int.interface_id] ??= []).push(...sel.interfaceSelectors);
+            const interfaceSelectors = componentInterfaceSelectors[componentKey(molecule)] ??= {};
+            (interfaceSelectors[int.interface_id] ??= []).push(...getInterfaceSelector(molecule));
         }
     }
 
     for (const molecule of complex.molecules) {
-        const compInfo = componentsInfo[moleculeTitle(molecule)];
-        const color = componentColors[componentColorKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
+        const interfaceSelectors = componentInterfaceSelectors[componentKey(molecule)];
+        const color = componentColors[componentInstanceKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const struct = data.modelStructure().transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule)} (${molecule.symmetry_id})</b>` });
         const componentSelector: ComponentExpressionT = {
@@ -126,21 +115,16 @@ export function pisaComplexView(params: {
             auth_asym_id: molecule.auth_asym_id,
             beg_auth_seq_id: molecule.auth_seq_id_start,
             end_auth_seq_id: molecule.auth_seq_id_end,
-            // label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
-            // label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
-            // beg_auth_seq_id: compInfo?.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
-            // end_auth_seq_id: compInfo?.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
         };
         struct.component({ selector: componentSelector }).focus();
         const repr = struct
             .component({ selector: componentSelector })
-            .representation({ type: 'spacefill', ...reprParams })
+            .representation({ type: 'spacefill' })
             .color({ color: bulkColorFn(color) });
-        for (const interfaceId in compInfo?.interfaceSelectors) {
-            const selector = compInfo.interfaceSelectors[interfaceId];
+        for (const interfaceId in interfaceSelectors) {
+            const interfaceSelector = interfaceSelectors[interfaceId];
             const interfaceTooltip = interfaceTooltips[interfaceId];
-            markInterface({ struct, repr, color }, selector, { color: true, tooltip: interfaceTooltip });
-            // TODO fix marking interface on ligand when data from CIF
+            markInterface({ struct, repr, color }, interfaceSelector, { color: true, tooltip: interfaceTooltip });
         }
     }
     const name = `Complex ${complex.complex_key}`;
@@ -165,8 +149,8 @@ export function pisaInterfaceView(params: {
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
 
     interfaceData.interface.molecules.forEach((molecule, i) => {
-        const color = componentColors[componentColorKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
-        const sel = getInterfaceMoleculeSelectors(molecule);
+        const color = componentColors[componentInstanceKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
+        const interfaceSelector = getInterfaceSelector(molecule);
         const struct = data.modelStructure({ ref: `struct-${i}` }).transform(transformFromPisaStyle(molecule));
         struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule)} (${molecule.symmetry_id})</b>` });
         const componentSelector: ComponentExpressionT = {
@@ -174,12 +158,8 @@ export function pisaInterfaceView(params: {
             auth_asym_id: molecule.auth_asym_id,
             beg_auth_seq_id: molecule.auth_seq_id_start,
             end_auth_seq_id: molecule.auth_seq_id_end,
-            // label_asym_id: component.chainId, // chain_id appears to be label_asym_id (if mmcif format)
-            // label_seq_id: component.seqId, // for ligand with chain_id of kind '[GOL]A:1001'
-            // beg_auth_seq_id: sel.minAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
-            // end_auth_seq_id: sel.maxAuthSeqId, // excludes waters and ligand when chain is identified by auth_asym_id only
         };
-        struct.component({ selector: sel.interfaceSelectors }).focus();
+        struct.component({ selector: interfaceSelector }).focus();
         const showGhost = ghostMolecules?.includes(i as 0 | 1);
         const showDetails = detailMolecules?.includes(i as 0 | 1);
         if (showGhost) {
@@ -199,7 +179,7 @@ export function pisaInterfaceView(params: {
                 .component({ selector: componentSelector })
                 .representation(showDetails ? { type: 'cartoon', size_factor: 0.5 } : { type: 'spacefill' })
                 .color({ color: bulkColorFn(color) });
-            markInterface({ struct, repr, color }, sel.interfaceSelectors, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
+            markInterface({ struct, repr, color }, interfaceSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
         }
         for (const r of molecule.residues.residues) {
@@ -232,12 +212,10 @@ export function pisaInterfaceView(params: {
                     start: {
                         structure_ref: 'struct-0',
                         expressions: [{ auth_asym_id: bond.auth_asym_id_1, auth_seq_id: bond.auth_seq_id_1, pdbx_PDB_ins_code: bond.inscode_1 ?? undefined, auth_atom_id: bond.auth_atom_id_1 }],
-                        // using auth_ fields for now, current input data messy
                     },
                     end: {
                         structure_ref: 'struct-1',
                         expressions: [{ auth_asym_id: bond.auth_asym_id_2, auth_seq_id: bond.auth_seq_id_2, pdbx_PDB_ins_code: bond.inscode_2 ?? undefined, auth_atom_id: bond.auth_atom_id_2 }],
-                        // using auth_ fields for now, current input data messy
                     },
                     color: INTERACTION_TYPE_COLORS[bondType],
                     radius: INTERACTION_RADIUS,
@@ -258,15 +236,11 @@ export function pisaInterfaceView(params: {
 }
 
 
-function getInterfaceMoleculeSelectors(molecule: NewPisaInterfaceMoleculeRecord) {
+function getInterfaceSelector(molecule: NewPisaInterfaceMoleculeRecord) {
     const residues = molecule.residues.residues;
     const interfaceResidues = residues.filter(r => r.bsa !== 0); // Secret undocumented knowledge
-    const interfaceSelectors: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: r.auth_seq_id, pdbx_PDB_ins_code: r.ins_code ?? undefined }));
-    return {
-        minAuthSeqId: Math.min(...residues.map(r => r.auth_seq_id)), // TODO remove (obsolete)
-        maxAuthSeqId: Math.max(...residues.map(r => r.auth_seq_id)), // TODO remove (obsolete)
-        interfaceSelectors,
-    };
+    const interfaceSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: r.auth_seq_id, pdbx_PDB_ins_code: r.ins_code ?? undefined }));
+    return interfaceSelector;
 }
 
 interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, color: HexColorT };
@@ -326,30 +300,32 @@ function moleculeTitle(molecule: NewPisaComplexMoleculeRecord | NewPisaInterface
     }
 }
 
-/** Return deterministic identifier of a complex component (type + transform) for color, synchronizing assignment */
-function componentColorKey(component: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
-    return `${component.auth_asym_id}/${component.ccd_id ?? ''}/${component.ccd_id ? component.auth_seq_id_start : ''}/${component.symmetry_id}`;
+function componentKey(component: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
+    return `${component.auth_asym_id}/${component.ccd_id ?? ''}/${component.ccd_id ? component.auth_seq_id_start : ''}`;
+}
+/** Return deterministic identifier of a complex component (type + transform) for synchronizing color assignment */
+function componentInstanceKey(component: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
+    return `${componentKey(component)}/${component.symmetry_id}`;
 }
 
 function assignComponentColors(complexes: NewPisaComplexRecord[]) {
-    const colors = {} as Record<string, HexColorT>;
+    const colors = {} as { [componentInstanceKey: string]: HexColorT };
     let iColor = 0;
     function isPolymer(component: NewPisaComplexMoleculeRecord) {
         return !component.ccd_id;
-        // return !component.chain_id.startsWith('[');
     }
     // First assign colors to polymers, then ligands
     for (const complex of complexes) {
         for (const molecule of complex.molecules) {
             if (isPolymer(molecule)) {
-                colors[componentColorKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
+                colors[componentInstanceKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
             }
         }
     }
     for (const complex of complexes) {
         for (const molecule of complex.molecules) {
             if (!isPolymer(molecule)) {
-                colors[componentColorKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
+                colors[componentInstanceKey(molecule)] ??= COMPONENT_COLORS[iColor++ % COMPONENT_COLORS.length];
             }
         }
     }
