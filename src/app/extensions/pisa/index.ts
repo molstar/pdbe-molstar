@@ -4,7 +4,7 @@ import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import type { NewPisaComplexesData, NewPisaComplexMoleculeRecord, NewPisaComplexRecord, NewPisaInterfaceData, NewPisaInterfaceMoleculeRecord, NewPisaTransform } from './types-new';
+import type { PisaComplexesData, PisaComplexMoleculeRecord, PisaComplexRecord, PisaInterfaceData, PisaInterfaceMoleculeRecord, PisaTransform } from './api-typing';
 
 
 const COMPONENT_COLORS: HexColorT[] = [
@@ -39,11 +39,11 @@ function interfaceColorFn(baseColor: HexColorT): HexColorT {
     return adjustLightnessRelative(baseColor, INTERFACE_COLOR_LIGHTNESS_ADJUSTMENT);
 }
 
-async function getComplexesData(pdbId: string, format: 'mmcif' | 'pdb'): Promise<NewPisaComplexesData> {
+async function getComplexesData(pdbId: string, format: 'mmcif' | 'pdb'): Promise<PisaComplexesData> {
     const response = await fetch(`/tmp/pisa/${pdbId}_results_${format}/assemblies.json`);
     return await response.json();
 }
-async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfaceId: number): Promise<NewPisaInterfaceData> {
+async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfaceId: number): Promise<PisaInterfaceData> {
     const response = await fetch(`/tmp/pisa/${pdbId}_results_${format}/interfaces/interface_${interfaceId}.json`);
     return await response.json();
 }
@@ -77,7 +77,7 @@ export async function pisaDemo(plugin: PluginContext) {
 
 export function pisaComplexView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
-    complexesData: NewPisaComplexRecord[], complexKey: number, interfacesData: NewPisaInterfaceData[],
+    complexesData: PisaComplexRecord[], complexKey: number, interfacesData: PisaInterfaceData[],
 }) {
     const { structureUrl, structureFormat, complexesData, complexKey, interfacesData } = params;
     const complex = complexesData.find(ass => ass.complex_key === complexKey);
@@ -138,7 +138,7 @@ export function pisaComplexView(params: {
 
 export function pisaInterfaceView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
-    complexesData: NewPisaComplexRecord[], interfaceData: NewPisaInterfaceData,
+    complexesData: PisaComplexRecord[], interfaceData: PisaInterfaceData,
     ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean,
 }) {
     const { structureUrl, structureFormat, complexesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
@@ -236,7 +236,7 @@ export function pisaInterfaceView(params: {
 }
 
 
-function getInterfaceSelector(molecule: NewPisaInterfaceMoleculeRecord) {
+function getInterfaceSelector(molecule: PisaInterfaceMoleculeRecord) {
     const residues = molecule.residues.residues;
     const interfaceResidues = residues.filter(r => r.bsa !== 0); // Secret undocumented knowledge
     const interfaceSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: r.auth_seq_id, pdbx_PDB_ins_code: r.ins_code ?? undefined }));
@@ -276,7 +276,7 @@ function applyElementColors(repr: Builder.Representation) {
     repr.colorFromSource({ schema: 'all_atomic', category_name: 'atom_site', field_name: 'type_symbol', palette: { kind: 'categorical', colors: 'ElementSymbol' } });
 }
 
-function transformFromPisaStyle(pisaTransform: NewPisaTransform) {
+function transformFromPisaStyle(pisaTransform: PisaTransform) {
     return {
         rotation: [
             pisaTransform.rxx, pisaTransform.ryx, pisaTransform.rzx,
@@ -287,7 +287,7 @@ function transformFromPisaStyle(pisaTransform: NewPisaTransform) {
     };
 }
 
-function moleculeTitle(molecule: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
+function moleculeTitle(molecule: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord) {
     const asymIdText = (!molecule.label_asym_id || molecule.label_asym_id === molecule.auth_asym_id) ?
         molecule.auth_asym_id
         : `${molecule.label_asym_id} [auth ${molecule.auth_asym_id}]`;
@@ -300,18 +300,18 @@ function moleculeTitle(molecule: NewPisaComplexMoleculeRecord | NewPisaInterface
     }
 }
 
-function componentKey(component: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
+function componentKey(component: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord) {
     return `${component.auth_asym_id}/${component.ccd_id ?? ''}/${component.ccd_id ? component.auth_seq_id_start : ''}`;
 }
 /** Return deterministic identifier of a complex component (type + transform) for synchronizing color assignment */
-function componentInstanceKey(component: NewPisaComplexMoleculeRecord | NewPisaInterfaceMoleculeRecord) {
+function componentInstanceKey(component: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord) {
     return `${componentKey(component)}/${component.symmetry_id}`;
 }
 
-function assignComponentColors(complexes: NewPisaComplexRecord[]) {
+function assignComponentColors(complexes: PisaComplexRecord[]) {
     const colors = {} as { [componentInstanceKey: string]: HexColorT };
     let iColor = 0;
-    function isPolymer(component: NewPisaComplexMoleculeRecord) {
+    function isPolymer(component: PisaComplexMoleculeRecord) {
         return !component.ccd_id;
     }
     // First assign colors to polymers, then ligands

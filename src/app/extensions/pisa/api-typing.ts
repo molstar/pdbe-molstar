@@ -1,5 +1,5 @@
 /** Format of assemblies.json */
-export interface NewPisaComplexesData {
+export interface PisaComplexesData {
     /** e.g. "pdb3hax" */
     session_name: string,
     /** e.g. "Ok" */
@@ -20,14 +20,14 @@ export interface NewPisaComplexesData {
         pqs_set_id: number,
         all_chains_at_identity: boolean,
         stability: any,
-        complexes: NewPisaComplexRecord[],
+        complexes: PisaComplexRecord[],
     }[],
     asu_complex: {
-        complex: NewPisaComplexRecord,
+        complex: PisaComplexRecord,
     },
 }
 
-export interface NewPisaComplexRecord {
+export interface PisaComplexRecord {
     /** Unique identifier for this complex within the whole assemblies.json file, e.g. 1 */
     complex_key: number,
     /** Groups together complexes with identical composition, e.g. 1 */
@@ -74,10 +74,10 @@ export interface NewPisaComplexRecord {
             dissociates: boolean,
         }[],
     },
-    molecules: NewPisaComplexMoleculeRecord[],
+    molecules: PisaComplexMoleculeRecord[],
 }
 
-export interface NewPisaComplexMoleculeRecord {
+export interface PisaComplexMoleculeRecord {
     /** e.g. "A" */
     auth_asym_id: string,
     /** e.g. "A" */
@@ -120,7 +120,7 @@ export interface NewPisaComplexMoleculeRecord {
 
 
 /** Format of interface_*.json */
-export interface NewPisaInterfaceData {
+export interface PisaInterfaceData {
     /** e.g. 1 */
     interface_id: number,
     /** e.g. 41 */
@@ -150,30 +150,30 @@ export interface NewPisaInterfaceData {
         fixed: boolean,
         h_bonds: {
             n_bonds: number,
-            bonds: NewPisaBondRecord[],
+            bonds: PisaBondRecord[],
         },
         salt_bridges: {
             n_bonds: number,
-            bonds: NewPisaBondRecord[],
+            bonds: PisaBondRecord[],
         },
         ss_bonds: {
             n_bonds: number,
-            bonds: NewPisaBondRecord[],
+            bonds: PisaBondRecord[],
         },
         cov_bonds: {
             n_bonds: number,
-            bonds: NewPisaBondRecord[],
+            bonds: PisaBondRecord[],
         },
         other_bonds: {
             n_bonds: number,
-            bonds: NewPisaBondRecord[],
+            bonds: PisaBondRecord[],
         },
         /** Information about the two components forming the interface */
-        molecules: [NewPisaInterfaceMoleculeRecord, NewPisaInterfaceMoleculeRecord],
+        molecules: [PisaInterfaceMoleculeRecord, PisaInterfaceMoleculeRecord],
     },
 }
 
-export interface NewPisaInterfaceMoleculeRecord {
+export interface PisaInterfaceMoleculeRecord {
     /** e.g. 1 */
     mol_id: number,
     /** e.g. "E" */
@@ -221,11 +221,11 @@ export interface NewPisaInterfaceMoleculeRecord {
     pvalue: number,
     /** Information about all residues in the molecule (not only interface residues) */
     residues: {
-        residues: NewPisaResidueRecord[],
+        residues: PisaResidueRecord[],
     },
 }
 
-export interface NewPisaResidueRecord {
+export interface PisaResidueRecord {
     /** e.g. 1 */
     residue_serial_number: number,
     /** e.g. "SER", "G" */
@@ -242,7 +242,7 @@ export interface NewPisaResidueRecord {
     solv_energy: number,
 }
 
-export interface NewPisaBondRecord {
+export interface PisaBondRecord {
     /** e.g. "E" */
     auth_asym_id_1: string,
     /** e.g. "D" (null if input file was in PDB format) */
@@ -271,7 +271,7 @@ export interface NewPisaBondRecord {
     dist: number,
 }
 
-export interface NewPisaTransform {
+export interface PisaTransform {
     rxx: number,
     rxy: number,
     rxz: number,
