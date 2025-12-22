@@ -59,18 +59,17 @@ export async function pisaDemo(plugin: PluginContext) {
     const allInterfaces = await Promise.all(new Array(complexesData.n_interfaces).fill(0).map((_, i) => getInterfaceData(pdbId, structureFormat, i + 1)));
 
     const snapshots: Snapshot[] = [];
-    // for (const complex of allComplexes) {
-    //     snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
-    // }
-    snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData: allInterfaces[0], ghostMolecules: [] }));
-    // for (const interfaceData of allInterfaces) {
-    //     snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [] }));
-    //     snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0], showInteractions: true }));
-    //     snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [1], showInteractions: true }));
-    //     snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
-    //     // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
-    //     // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
-    // }
+    for (const complex of allComplexes) {
+        snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
+    }
+    for (const interfaceData of allInterfaces) {
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
+        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
+    }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
     await loadMVS(plugin, mvs);
@@ -99,7 +98,7 @@ export function pisaComplexView(params: {
     const interfaceTooltips: { [interfaceId: string]: string } = {};
     for (const int of interfacesData) {
         if (!interfacesInComplex.has(int.interface_id)) continue;
-        interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${moleculeTitle(int.interface.molecules[0])}</b> &ndash; <b>${moleculeTitle(int.interface.molecules[1])}</b> (interface area ${int.interface.int_area.toFixed(1)})`;
+        interfaceTooltips[int.interface_id] = `<br>Interface ${int.interface_id}: <b>${moleculeTitle(int.interface.molecules[0], true)}</b> &ndash; <b>${moleculeTitle(int.interface.molecules[1], true)}</b> (interface area ${int.interface.int_area.toFixed(1)})`;
         for (const molecule of int.interface.molecules) {
             const interfaceSelectors = componentInterfaceSelectors[componentKey(molecule)] ??= {};
             (interfaceSelectors[int.interface_id] ??= []).push(...getInterfaceSelector(molecule));
@@ -110,7 +109,7 @@ export function pisaComplexView(params: {
         const interfaceSelectors = componentInterfaceSelectors[componentKey(molecule)];
         const color = componentColors[componentInstanceKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const struct = data.modelStructure().transform(transformFromPisaStyle(molecule));
-        struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule)} (${molecule.symmetry_id})</b>` });
+        struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule, true)} (${molecule.symmetry_id})</b>` });
         const componentSelector: ComponentExpressionT = {
             label_asym_id: molecule.label_asym_id ?? undefined,
             auth_asym_id: molecule.auth_asym_id,
@@ -144,7 +143,7 @@ export function pisaInterfaceView(params: {
 }) {
     const { structureUrl, structureFormat, complexesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
     const componentColors = assignComponentColors(complexesData);
-    const interfaceTooltip = `<br>Interface <b>${moleculeTitle(interfaceData.interface.molecules[0])}</b> &ndash; <b>${moleculeTitle(interfaceData.interface.molecules[1])}</b> (interface area ${interfaceData.interface.int_area.toFixed(1)} &angst;<sup>2</sup>)`;
+    const interfaceTooltip = `<br>Interface <b>${moleculeTitle(interfaceData.interface.molecules[0], true)}</b> &ndash; <b>${moleculeTitle(interfaceData.interface.molecules[1], true)}</b> (interface area ${interfaceData.interface.int_area.toFixed(1)} &angst;<sup>2</sup>)`;
 
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
@@ -153,7 +152,7 @@ export function pisaInterfaceView(params: {
         const color = componentColors[componentInstanceKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
         const interfaceSelector = getInterfaceSelector(molecule);
         const struct = data.modelStructure({ ref: `struct-${i}` }).transform(transformFromPisaStyle(molecule));
-        struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule)} (${molecule.symmetry_id})</b>` });
+        struct.component().tooltip({ text: `<hr>Component <b>${moleculeTitle(molecule, true)} (${molecule.symmetry_id})</b>` });
         const componentSelector: ComponentExpressionT = {
             label_asym_id: molecule.label_asym_id ?? undefined,
             auth_asym_id: molecule.auth_asym_id,
@@ -286,8 +285,8 @@ function transformFromPisaStyle(pisaTransform: PisaTransform) {
     };
 }
 
-function moleculeTitle(molecule: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord) {
-    const asymIdText = formatLabelAuth(molecule.label_asym_id, molecule.auth_asym_id);
+function moleculeTitle(molecule: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord, htmlFormatting?: boolean) {
+    const asymIdText = formatLabelAuth(molecule.label_asym_id, molecule.auth_asym_id, undefined, htmlFormatting);
     if (molecule.ccd_id) {
         // ligand
         return `${molecule.ccd_id} ${asymIdText} ${molecule.auth_seq_id_start}`;
@@ -357,18 +356,23 @@ function normRgbToHexColor(r: number, g: number, b: number): HexColorT {
 
 function tooltipForBond(bond: PisaBondRecord, bondType: BondType): string {
     const tooltipHeader = `<b>${INTERACTION_TYPE_NAMES[bondType] ?? bondType} (${bond.dist.toFixed(2)} &angst;)</b>`;
-    const seqId1 = formatLabelAuth(bond.label_seq_id_1, bond.auth_seq_id_1, bond.inscode_1);
-    const seqId2 = formatLabelAuth(bond.label_seq_id_2, bond.auth_seq_id_2, bond.inscode_2);
-    const tooltip1 = `<b>${bond.auth_comp_id_1} ${seqId1}</b> | ${bond.auth_atom_id_1}`;
-    const tooltip2 = `<b>${bond.auth_comp_id_2} ${seqId2}</b> | ${bond.auth_atom_id_2}`;
-    return `${tooltipHeader}<br>${tooltip1} &ndash; ${tooltip2}`;
+    const asymId1 = formatLabelAuth(bond.label_asym_id_1, bond.auth_asym_id_1, undefined, true);
+    const asymId2 = formatLabelAuth(bond.label_asym_id_2, bond.auth_asym_id_2, undefined, true);
+    const seqId1 = formatLabelAuth(bond.label_seq_id_1, bond.auth_seq_id_1, bond.inscode_1, true);
+    const seqId2 = formatLabelAuth(bond.label_seq_id_2, bond.auth_seq_id_2, bond.inscode_2, true);
+    const tooltip1 = `${asymId1} | ${bond.auth_comp_id_1} ${seqId1} | ${bond.auth_atom_id_1}`;
+    const tooltip2 = `${asymId2} | ${bond.auth_comp_id_2} ${seqId2} | ${bond.auth_atom_id_2}`;
+    return `${tooltipHeader}<br>${tooltip1}<br>${tooltip2}`;
 }
 
 /** Unified formatting for label_* and auth_* values (e.g. label_asym_id + auth_asym_id, label_seq_id + auth_seq_id + ins_code) */
-function formatLabelAuth(label: string | number | null, auth: string | number, insCode?: string | null): string {
+function formatLabelAuth(label: string | number | null, auth: string | number, insCode?: string | null, htmlFormatting?: boolean): string {
     if (!label || (label === auth && !insCode)) {
         return `${auth}${insCode ?? ''}`;
     } else {
-        return `${label} [auth ${auth}${insCode ?? ''}]`;
+        if (htmlFormatting)
+            return `${label} [<small>auth </small>${auth}${insCode ?? ''}]`;
+        else
+            return `${label} [auth ${auth}${insCode ?? ''}]`;
     }
 }
