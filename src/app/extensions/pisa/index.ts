@@ -50,7 +50,7 @@ async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfac
 }
 
 export async function pisaDemo(plugin: PluginContext) {
-    const pdbId = '3gcb'; // TODO test on '3hax';
+    const pdbId = '3hax';
     const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
     // const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
 
@@ -200,7 +200,12 @@ export function pisaInterfaceView(params: {
 function getInterfaceSelector(molecule: PisaInterfaceMoleculeRecord) {
     const residues = molecule.residues.residues;
     const interfaceResidues = residues.filter(r => r.bsa !== 0); // Secret undocumented knowledge
-    const interfaceSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({ auth_seq_id: r.auth_seq_id, pdbx_PDB_ins_code: r.ins_code ?? undefined }));
+    const interfaceSelector: ComponentExpressionT[] = interfaceResidues.map(r => ({
+        label_asym_id: molecule.label_asym_id ?? undefined,
+        auth_asym_id: molecule.auth_asym_id,
+        auth_seq_id: r.auth_seq_id,
+        pdbx_PDB_ins_code: r.ins_code ?? undefined,
+    }));
     return interfaceSelector;
 }
 
@@ -290,7 +295,7 @@ function addResidueTooltips(struct: Builder.Structure, molecule: PisaInterfaceMo
             `Buried Surface Area: <span style="display: inline-block; min-width: 4em;">${r.bsa.toFixed(1)} &angst;<sup>2</sup></span>`,
             `Solvation Energy: <span style="display: inline-block; min-width: 7.3em;">${r.solv_energy.toFixed(3)} kcal/mol</span></small>`,
         ].join('<br>');
-        // TODO simplify this once MVS support tooltip formatting
+        // TODO simplify this once MVS supports tooltip formatting
         // const tooltipText = `<small><b>Residue details:</b><br>ASA = ${r.asa.toFixed(1)} &angst;<sup>2</sup>, BSA = ${r.bsa.toFixed(1)} &angst;<sup>2</sup>, Solvation Energy = ${r.solv_energy.toFixed(3)} kcal/mol</small>`;
         tooltipAnnotation.push(`${molecule.auth_asym_id} ${r.auth_seq_id} ${r.ins_code ?? '.'} '${tooltipText}'`);
     }
@@ -332,7 +337,8 @@ function transformFromPisaStyle(pisaTransform: PisaTransform) {
 }
 
 function moleculeTitle(molecule: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord, htmlFormatting?: boolean) {
-    const asymIdText = formatLabelAuth(molecule.label_asym_id, molecule.auth_asym_id, undefined, htmlFormatting);
+    const asymIdText = molecule.label_asym_id; // Tried to show label and auth asym id (X [auth Y]) but it was pretty confusing
+    // const asymIdText = formatLabelAuth(molecule.label_asym_id, molecule.auth_asym_id, undefined, htmlFormatting);
     if (molecule.ccd_id) {
         // ligand
         return `${molecule.ccd_id} ${asymIdText} ${molecule.auth_seq_id_start}`;
