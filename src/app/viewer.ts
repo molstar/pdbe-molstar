@@ -298,7 +298,7 @@ export class PDBeMolstarPlugin {
         }
 
         setTimeout(() => {
-            pisaDemo(this.plugin)
+            pisaDemo(this.plugin);
         }, 500);
     }
 

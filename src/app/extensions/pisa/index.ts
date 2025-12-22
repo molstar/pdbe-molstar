@@ -8,7 +8,7 @@ import type { PisaBondRecord, PisaComplexesData, PisaComplexMoleculeRecord, Pisa
 
 
 const COMPONENT_COLORS: HexColorT[] = [
-    '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2 without gray 
+    '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', // Dark-2 without gray
     '#1f77b4', '#2ca02c', '#d62728', '#927ba7', '#8c564b', '#e377c2', '#bcbd22', '#17becf', // More non-conflicting colors from other palettes
     '#fc8d62', '#9eb9f3', '#ff9da7', '#ffff33', '#8be0a4', '#e15759', '#c69fbb', '#76b7b2', // More non-conflicting colors from other palettes
 ];
@@ -182,47 +182,10 @@ export function pisaInterfaceView(params: {
             markInterface({ struct, repr, color }, interfaceSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
             if (detailMolecules?.length) applyElementColors(repr);
         }
-        const tooltipAnnotation = [
-            'data:text/plain,',
-            'data_tooltips',
-            'loop_',
-            '_tooltip.auth_asym_id _tooltip.auth_seq_id _tooltip.pdbx_PDB_ins_code _tooltip.tooltip',
-        ];
-        for (const r of molecule.residues.residues) {
-            const tooltipText = [
-                `<small><b>Residue details:</b>`,
-                `Accessible Surface Area: <span style="display: inline-block; min-width: 4em;">${r.asa.toFixed(1)} &angst;<sup>2</sup></span>`,
-                `Buried Surface Area: <span style="display: inline-block; min-width: 4em;">${r.bsa.toFixed(1)} &angst;<sup>2</sup></span>`,
-                `Solvation Energy: <span style="display: inline-block; min-width: 7.3em;">${r.solv_energy.toFixed(3)} kcal/mol</span></small>`,
-            ].join('<br>');
-            // const tooltipText = `<small><b>Residue details:</b><br>ASA = ${r.asa.toFixed(1)} &angst;<sup>2</sup>, BSA = ${r.bsa.toFixed(1)} &angst;<sup>2</sup>, Solvation Energy = ${r.solv_energy.toFixed(3)} kcal/mol</small>`;
-            tooltipAnnotation.push(`${molecule.auth_asym_id} ${r.auth_seq_id} ${r.ins_code ?? '.'} '${tooltipText}'`);
-        }
-        struct.tooltipFromUri({ uri: tooltipAnnotation.join(' '), format: 'cif', schema: 'all_atomic' });
+        addResidueTooltips(struct, molecule);
     });
     if (showInteractions) {
-        const primitives = builder.primitives();
-        let bondType: BondType;
-        for (bondType in INTERACTION_TYPE_COLORS) {
-            if (bondType === 'other_bonds') continue; // ignoring 'other_bonds' as they overwhelm the view
-            for (const bond of interfaceData.interface[bondType].bonds) {
-                primitives.tube({
-                    start: {
-                        structure_ref: 'struct-0',
-                        expressions: [{ auth_asym_id: bond.auth_asym_id_1, auth_seq_id: bond.auth_seq_id_1, pdbx_PDB_ins_code: bond.inscode_1 ?? undefined, auth_atom_id: bond.auth_atom_id_1 }],
-                    },
-                    end: {
-                        structure_ref: 'struct-1',
-                        expressions: [{ auth_asym_id: bond.auth_asym_id_2, auth_seq_id: bond.auth_seq_id_2, pdbx_PDB_ins_code: bond.inscode_2 ?? undefined, auth_atom_id: bond.auth_atom_id_2 }],
-                    },
-                    color: INTERACTION_TYPE_COLORS[bondType],
-                    radius: INTERACTION_RADIUS,
-                    dash_length: INTERACTION_DASH_LENGTH,
-                    tooltip: tooltipForBond(bond, bondType),
-                });
-            }
-        }
-        // TODO disable Molstar's default show-interaction behavior (collides with this and only works within structure)
+        addInteractions(builder, interfaceData);
     }
 
     return builder.getSnapshot({
@@ -272,6 +235,89 @@ function addOutlineEffect(component: Builder.Component, params: MVSNodeParams<'r
 
 function applyElementColors(repr: Builder.Representation) {
     repr.colorFromSource({ schema: 'all_atomic', category_name: 'atom_site', field_name: 'type_symbol', palette: { kind: 'categorical', colors: 'ElementSymbol' } });
+}
+
+function addInteractions(builder: Builder.Root, interfaceData: PisaInterfaceData): Builder.Primitives {
+    const primitives = builder.primitives();
+    let bondType: BondType;
+    for (bondType in INTERACTION_TYPE_COLORS) {
+        if (bondType === 'other_bonds') continue; // ignoring 'other_bonds' as they overwhelm the view
+        for (const bond of interfaceData.interface[bondType].bonds) {
+            primitives.tube({
+                start: {
+                    structure_ref: 'struct-0',
+                    expressions: [{
+                        auth_asym_id: bond.auth_asym_id_1,
+                        auth_seq_id: bond.auth_seq_id_1,
+                        pdbx_PDB_ins_code: bond.inscode_1 ?? undefined,
+                        auth_atom_id: bond.auth_atom_id_1,
+                    }],
+                },
+                end: {
+                    structure_ref: 'struct-1',
+                    expressions: [{
+                        auth_asym_id: bond.auth_asym_id_2,
+                        auth_seq_id: bond.auth_seq_id_2,
+                        pdbx_PDB_ins_code: bond.inscode_2 ?? undefined,
+                        auth_atom_id: bond.auth_atom_id_2,
+                    }],
+                },
+                color: INTERACTION_TYPE_COLORS[bondType],
+                radius: INTERACTION_RADIUS,
+                dash_length: INTERACTION_DASH_LENGTH,
+                tooltip: tooltipForBond(bond, bondType),
+            });
+        }
+    }
+    return primitives;
+    // TODO disable Molstar's default show-interaction behavior (collides with this and only works within structure)
+}
+
+function addResidueTooltips(struct: Builder.Structure, molecule: PisaInterfaceMoleculeRecord): void {
+    const tooltipAnnotation = [
+        'data:text/plain,',
+        'data_tooltips',
+        'loop_',
+        '_tooltip.auth_asym_id',
+        '_tooltip.auth_seq_id',
+        '_tooltip.pdbx_PDB_ins_code',
+        '_tooltip.tooltip',
+    ];
+    for (const r of molecule.residues.residues) {
+        const tooltipText = [
+            `<small><b>Residue details:</b>`,
+            `Accessible Surface Area: <span style="display: inline-block; min-width: 4em;">${r.asa.toFixed(1)} &angst;<sup>2</sup></span>`,
+            `Buried Surface Area: <span style="display: inline-block; min-width: 4em;">${r.bsa.toFixed(1)} &angst;<sup>2</sup></span>`,
+            `Solvation Energy: <span style="display: inline-block; min-width: 7.3em;">${r.solv_energy.toFixed(3)} kcal/mol</span></small>`,
+        ].join('<br>');
+        // TODO simplify this once MVS support tooltip formatting
+        // const tooltipText = `<small><b>Residue details:</b><br>ASA = ${r.asa.toFixed(1)} &angst;<sup>2</sup>, BSA = ${r.bsa.toFixed(1)} &angst;<sup>2</sup>, Solvation Energy = ${r.solv_energy.toFixed(3)} kcal/mol</small>`;
+        tooltipAnnotation.push(`${molecule.auth_asym_id} ${r.auth_seq_id} ${r.ins_code ?? '.'} '${tooltipText}'`);
+    }
+    struct.tooltipFromUri({ uri: tooltipAnnotation.join(' '), format: 'cif', schema: 'all_atomic' });
+}
+
+function tooltipForBond(bond: PisaBondRecord, bondType: BondType): string {
+    const tooltipHeader = `<b>${INTERACTION_TYPE_NAMES[bondType] ?? bondType} (${bond.dist.toFixed(2)} &angst;)</b>`;
+    const asymId1 = formatLabelAuth(bond.label_asym_id_1, bond.auth_asym_id_1, undefined, true);
+    const asymId2 = formatLabelAuth(bond.label_asym_id_2, bond.auth_asym_id_2, undefined, true);
+    const seqId1 = formatLabelAuth(bond.label_seq_id_1, bond.auth_seq_id_1, bond.inscode_1, true);
+    const seqId2 = formatLabelAuth(bond.label_seq_id_2, bond.auth_seq_id_2, bond.inscode_2, true);
+    const tooltip1 = `${asymId1} | ${bond.auth_comp_id_1} ${seqId1} | ${bond.auth_atom_id_1}`;
+    const tooltip2 = `${asymId2} | ${bond.auth_comp_id_2} ${seqId2} | ${bond.auth_atom_id_2}`;
+    return `${tooltipHeader}<br>${tooltip1}<br>${tooltip2}`;
+}
+
+/** Unified formatting for label_* and auth_* values (e.g. label_asym_id + auth_asym_id, label_seq_id + auth_seq_id + ins_code) */
+function formatLabelAuth(label: string | number | null, auth: string | number, insCode?: string | null, htmlFormatting?: boolean): string {
+    if (!label || (label === auth && !insCode)) {
+        return `${auth}${insCode ?? ''}`;
+    } else {
+        if (htmlFormatting)
+            return `${label} [<small>auth </small>${auth}${insCode ?? ''}]`;
+        else
+            return `${label} [auth ${auth}${insCode ?? ''}]`;
+    }
 }
 
 function transformFromPisaStyle(pisaTransform: PisaTransform) {
@@ -330,7 +376,7 @@ function assignComponentColors(complexes: PisaComplexRecord[]) {
 
 /** Increase/decrease "lightness" of a color (where lightness -1 = black, lightness 1 = white) */
 function adjustLightnessRelative(color: HexColorT, lightnessDiff: number): HexColorT {
-    let [r, g, b] = hexColorToNormRgb(color);
+    const [r, g, b] = hexColorToNormRgb(color);
     const x = Math.min(r, g, b);
     const z = Math.max(r, g, b);
     const w = x + z - 1;
@@ -352,27 +398,4 @@ function hexColorToNormRgb(hex: HexColorT): [number, number, number] {
 function normRgbToHexColor(r: number, g: number, b: number): HexColorT {
     const hexNum = (Math.round(255 * r) << 16) | (Math.round(255 * g) << 8) | Math.round(255 * b);
     return '#' + ('000000' + hexNum.toString(16)).slice(-6) as HexColorT;
-}
-
-function tooltipForBond(bond: PisaBondRecord, bondType: BondType): string {
-    const tooltipHeader = `<b>${INTERACTION_TYPE_NAMES[bondType] ?? bondType} (${bond.dist.toFixed(2)} &angst;)</b>`;
-    const asymId1 = formatLabelAuth(bond.label_asym_id_1, bond.auth_asym_id_1, undefined, true);
-    const asymId2 = formatLabelAuth(bond.label_asym_id_2, bond.auth_asym_id_2, undefined, true);
-    const seqId1 = formatLabelAuth(bond.label_seq_id_1, bond.auth_seq_id_1, bond.inscode_1, true);
-    const seqId2 = formatLabelAuth(bond.label_seq_id_2, bond.auth_seq_id_2, bond.inscode_2, true);
-    const tooltip1 = `${asymId1} | ${bond.auth_comp_id_1} ${seqId1} | ${bond.auth_atom_id_1}`;
-    const tooltip2 = `${asymId2} | ${bond.auth_comp_id_2} ${seqId2} | ${bond.auth_atom_id_2}`;
-    return `${tooltipHeader}<br>${tooltip1}<br>${tooltip2}`;
-}
-
-/** Unified formatting for label_* and auth_* values (e.g. label_asym_id + auth_asym_id, label_seq_id + auth_seq_id + ins_code) */
-function formatLabelAuth(label: string | number | null, auth: string | number, insCode?: string | null, htmlFormatting?: boolean): string {
-    if (!label || (label === auth && !insCode)) {
-        return `${auth}${insCode ?? ''}`;
-    } else {
-        if (htmlFormatting)
-            return `${label} [<small>auth </small>${auth}${insCode ?? ''}]`;
-        else
-            return `${label} [auth ${auth}${insCode ?? ''}]`;
-    }
 }
