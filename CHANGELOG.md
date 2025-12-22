@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
 ## [Unreleased]
+- Options `moleculeId` and `customData` are optional (can load without initial structure)
 
 ## [v3.9.0] - 2025-12-18
 - Mol* core dependency updated to 5.4.2

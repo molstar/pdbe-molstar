@@ -263,7 +263,6 @@ export const DefaultParams: InitParams = {
 
 /** Return `undefined` if `params` are valid, an error message otherwise. */
 export function validateInitParams(params: Partial<InitParams>): string | undefined {
-    if (!params.moleculeId && !params.customData?.url) return 'Option `moleculeId` or `customData` must be defined';
     if (params.customData) {
         if (!params.customData.url) return 'Option `customData.url` must be a non-empty string';
         if (!params.customData.format) return 'Option `customData.format` must be a non-empty string';
