@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Options `moleculeId` and `customData` are optional (can load without initial structure)
+- Fix left panel automatically expanding when calling `update` method
 
 ## [v3.9.0] - 2025-12-18
 - Mol* core dependency updated to 5.4.2
