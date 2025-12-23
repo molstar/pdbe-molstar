@@ -32,6 +32,14 @@ const INTERACTION_TYPE_NAMES = {
     'cov_bonds': 'Covalent bond',
     'other_bonds': 'Other bond',
 } as const;
+const FLASH_PARAMS = {
+    intensity: 0.75,
+    /** i-th flash start at `start_ms + order_delay_ms * i` */
+    start_ms: 250,
+    /** i-th flash start at `start_ms + order_delay_ms * i` */
+    order_delay_ms: 500,
+    duration_ms: 750,
+};
 
 function bulkColorFn(baseColor: HexColorT): HexColorT {
     return adjustLightnessRelative(baseColor, BULK_COLOR_LIGHTNESS_ADJUSTMENT);
@@ -50,7 +58,7 @@ async function getInterfaceData(pdbId: string, format: 'mmcif' | 'pdb', interfac
 }
 
 export async function pisaDemo(plugin: PluginContext) {
-    const pdbId = '3hax';
+    const pdbId = '3gcb'; // 3gcb, 3hax
     const structureFormat = 'mmcif', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}_updated.cif`;
     // const structureFormat = 'pdb', structureUrl = `https://www.ebi.ac.uk/pdbe/entry-files/download/pdb${pdbId}.ent`;
 
@@ -63,10 +71,10 @@ export async function pisaDemo(plugin: PluginContext) {
         snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
     }
     for (const interfaceData of allInterfaces) {
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [1], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, detailMolecules: [0, 1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, ghostMolecules: [] }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0, 1], showInteractions: true }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
         // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
     }
@@ -139,14 +147,15 @@ export function pisaComplexView(params: {
 export function pisaInterfaceView(params: {
     structureUrl: string, structureFormat: ParseFormatT,
     complexesData: PisaComplexRecord[], interfaceData: PisaInterfaceData,
-    ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean,
+    ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean, flash?: boolean,
 }) {
-    const { structureUrl, structureFormat, complexesData, interfaceData, ghostMolecules, detailMolecules, showInteractions } = params;
+    const { structureUrl, structureFormat, complexesData, interfaceData, ghostMolecules, detailMolecules, showInteractions, flash } = params;
     const componentColors = assignComponentColors(complexesData);
     const interfaceTooltip = `<br>Interface <b>${moleculeTitle(interfaceData.interface.molecules[0], true)}</b> &ndash; <b>${moleculeTitle(interfaceData.interface.molecules[1], true)}</b> (interface area ${interfaceData.interface.int_area.toFixed(1)} &angst;<sup>2</sup>)`;
 
     const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
+    const anim = builder.animation();
 
     interfaceData.interface.molecules.forEach((molecule, i) => {
         const color = componentColors[componentInstanceKey(molecule)] ?? DEFAULT_COMPONENT_COLOR;
@@ -179,8 +188,13 @@ export function pisaInterfaceView(params: {
                 .component({ selector: componentSelector })
                 .representation(showDetails ? { type: 'cartoon', size_factor: 0.5 } : { type: 'spacefill' })
                 .color({ color: bulkColorFn(color) });
-            markInterface({ struct, repr, color }, interfaceSelector, { tooltip: interfaceTooltip, color: !showDetails, ball_and_stick: showDetails });
-            if (detailMolecules?.length) applyElementColors(repr);
+            markInterface({ struct, repr, color, anim }, interfaceSelector, {
+                tooltip: interfaceTooltip,
+                color: !showDetails,
+                elementColors: !!detailMolecules?.length,
+                ball_and_stick: showDetails,
+                flash: flash ? { ref: `interface_${interfaceData.interface_id}_${i}`, order: i } : undefined,
+            });
         }
         addResidueTooltips(struct, molecule);
     });
@@ -209,22 +223,46 @@ function getInterfaceSelector(molecule: PisaInterfaceMoleculeRecord) {
     return interfaceSelector;
 }
 
-interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, color: HexColorT };
-function markInterface(component: ComponentState, interfaceSelector: ComponentExpressionT[], options: { color?: boolean, ball_and_stick?: boolean, tooltip?: string } = {}) {
+interface ComponentState { struct: Builder.Structure, repr: Builder.Representation, anim?: Builder.Animation, color: HexColorT };
+function markInterface(component: ComponentState, interfaceSelector: ComponentExpressionT[], options: { color?: boolean, elementColors?: boolean, ball_and_stick?: boolean, tooltip?: string, flash?: { ref: string, order: number } } = {}) {
+    const flashRefs: string[] = [];
     if (options.color) {
-        component.repr.color({ selector: interfaceSelector, color: interfaceColorFn(component.color) });
+        const ref = `spacefill_${options.flash?.ref}`;
+        flashRefs.push(ref);
+        const newRepr = component.struct
+            .component({ selector: interfaceSelector })
+            .representation({ type: 'spacefill', size_factor: 1.005, ref, custom: { molstar_representation_params: { emissive: 0 } } })
+            .color({ color: interfaceColorFn(component.color) });
+        if (options.elementColors) applyElementColors(newRepr);
         addOutlineEffect(component.struct.component({ selector: interfaceSelector }), { type: 'spacefill' });
     }
     if (options.ball_and_stick) {
-        const bs = component.struct
+        const ref = `bs_${options.flash?.ref}`;
+        flashRefs.push(ref);
+        const newRepr = component.struct
             .component({ selector: interfaceSelector })
-            .representation({ type: 'ball_and_stick' })
+            .representation({ type: 'ball_and_stick', ref, custom: { molstar_representation_params: { emissive: 0 } } })
             .color({ color: bulkColorFn(component.color) });
-        applyElementColors(bs);
+        if (options.elementColors) applyElementColors(newRepr);
         addOutlineEffect(component.struct.component({ selector: interfaceSelector }), { type: 'ball_and_stick' });
     }
     if (options.tooltip) {
         component.struct.component({ selector: interfaceSelector }).tooltip({ text: options.tooltip });
+    }
+    if (options.flash && FLASH_PARAMS.intensity > 0) {
+        for (const ref of flashRefs) {
+            component.anim?.interpolate({
+                kind: 'scalar',
+                target_ref: ref,
+                property: ['custom', 'molstar_representation_params', 'emissive'],
+                start: 0,
+                end: FLASH_PARAMS.intensity,
+                start_ms: FLASH_PARAMS.start_ms + FLASH_PARAMS.order_delay_ms * options.flash.order,
+                duration_ms: FLASH_PARAMS.duration_ms,
+                frequency: 2,
+                alternate_direction: true,
+            });
+        }
     }
 }
 
@@ -337,7 +375,7 @@ function transformFromPisaStyle(pisaTransform: PisaTransform) {
 }
 
 function moleculeTitle(molecule: PisaComplexMoleculeRecord | PisaInterfaceMoleculeRecord, htmlFormatting?: boolean) {
-    const asymIdText = molecule.label_asym_id; // Tried to show label and auth asym id (X [auth Y]) but it was pretty confusing
+    const asymIdText = molecule.auth_asym_id; // Tried to show label and auth asym id (X [auth Y]) but it was pretty confusing
     // const asymIdText = formatLabelAuth(molecule.label_asym_id, molecule.auth_asym_id, undefined, htmlFormatting);
     if (molecule.ccd_id) {
         // ligand
