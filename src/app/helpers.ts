@@ -745,7 +745,7 @@ export function pluginLayoutStateFromInitParams(initParams: InitParams): PluginL
         isExpanded: initParams.expanded,
         showControls: !initParams.hideControls,
         regionState: {
-            left: initParams.leftPanel ? 'full' : 'hidden',
+            left: initParams.leftPanel ? 'collapsed' : 'hidden',
             right: initParams.rightPanel ? 'full' : 'hidden',
             top: initParams.sequencePanel ? 'full' : 'hidden',
             bottom: initParams.logPanel ? 'full' : 'hidden',

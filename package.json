@@ -12,6 +12,7 @@
     "build-tsc": "tsc --incremental",
     "build-extra": "cpx 'src/app/**/*.{scss,html,ico}' lib/",
     "build-webpack": "webpack --mode production --config ./webpack.config.production.js",
+    "start": "concurrently -c 'green,gray,blue,magenta' --names 'tsc,ext,wpc,srv' --kill-others 'npm:watch-tsc' 'npm:watch-extra' 'npm:watch-webpack' 'npm:serve'",
     "watch": "concurrently -c 'green,gray,blue' --names 'tsc,ext,wpc' --kill-others 'npm:watch-tsc' 'npm:watch-extra' 'npm:watch-webpack'",
     "watch-tsc": "tsc --watch --incremental",
     "watch-extra": "cpx 'src/app/**/*.{scss,html,ico}' lib/ --watch",

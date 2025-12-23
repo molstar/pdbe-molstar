@@ -340,7 +340,7 @@ export class PDBeMolstarPlugin {
             };
         }
 
-        throw new Error(`Mandatory parameters missing! (customData or moleculeId must be defined)`);
+        return undefined;
     }
 
     get state() {
@@ -1061,9 +1061,6 @@ export class PDBeMolstarPlugin {
             }
 
             this.initParams = addDefaults(options, DefaultParams);
-
-            if (!this.initParams.moleculeId && !this.initParams.customData) return false;
-            if (this.initParams.customData && this.initParams.customData.url && !this.initParams.customData.format) return false;
             PluginCustomState(this.plugin).initParams = this.initParams;
 
             // Show/hide buttons in the viewport control panel
@@ -1102,6 +1099,8 @@ export class PDBeMolstarPlugin {
                     { url: dataSource.url, format: dataSource.format as BuiltInTrajectoryFormat, assemblyId: this.initParams.assemblyId, isBinary: dataSource.isBinary },
                     fullLoad,
                 );
+            } else {
+                if (fullLoad) await this.clear();
             }
             return true;
         },
