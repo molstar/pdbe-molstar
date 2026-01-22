@@ -1,4 +1,8 @@
-export function subscribeToComponentEvents(wrapperCtx: any) {
+import { QueryParam } from './helpers';
+import type { PDBeMolstarPlugin } from './viewer';
+
+
+export function subscribeToComponentEvents(wrapperCtx: PDBeMolstarPlugin) {
     document.addEventListener('PDB.interactions.click', function (e: any) {
         if (typeof e.detail !== 'undefined') {
             const data = e.detail.interacting_nodes ? { data: e.detail.interacting_nodes } : { data: [e.detail.selected_node] };
@@ -20,34 +24,31 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
 
     document.addEventListener('PDB.topologyViewer.click', function (e: any) {
         if (typeof e.eventData !== 'undefined') {
-            // Create query object from event data
-            const highlightQuery = {
-                entity_id: e.eventData.entityId,
-                struct_asym_id: e.eventData.structAsymId,
-                start_residue_number: e.eventData.residueNumber,
-                end_residue_number: e.eventData.residueNumber,
-                sideChain: true,
-                focus: true,
-            };
             // Call highlightAnnotation
-            wrapperCtx.visual.select({ data: [highlightQuery] });
+            wrapperCtx.visual.select({
+                data: [{
+                    label_entity_id: e.eventData.entityId,
+                    label_asym_id: e.eventData.structAsymId,
+                    beg_label_seq_id: e.eventData.residueNumber,
+                    end_label_seq_id: e.eventData.residueNumber,
+                    sideChain: true,
+                    focus: true,
+                }],
+            });
         }
     });
 
     document.addEventListener('PDB.topologyViewer.mouseover', function (e: any) {
         if (typeof e.eventData !== 'undefined') {
-            // Abort if entryid do not match or viewer type is unipdb
-            // if(e.eventData.entryId != scope.pdbId) return;
-
-            // Create query object from event data
-            const highlightQuery = {
-                entity_id: e.eventData.entityId,
-                struct_asym_id: e.eventData.structAsymId,
-                start_residue_number: e.eventData.residueNumber,
-                end_residue_number: e.eventData.residueNumber,
-            };
             // Call highlightAnnotation
-            wrapperCtx.visual.highlight({ data: [highlightQuery] });
+            wrapperCtx.visual.highlight({
+                data: [{
+                    label_entity_id: e.eventData.entityId,
+                    label_asym_id: e.eventData.structAsymId,
+                    beg_label_seq_id: e.eventData.residueNumber,
+                    end_label_seq_id: e.eventData.residueNumber,
+                }],
+            });
         }
     });
 
@@ -56,23 +57,28 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
     });
 
     document.addEventListener('protvista-mouseover', function (e: any) {
-        if (typeof e.detail !== 'undefined') {
-
-            let highlightQuery: any = undefined;
-
+        if (e.detail !== undefined) {
             // Create query object from event data
-            if (e.detail.start && e.detail.end) {
-                highlightQuery = {
-                    start_residue_number: parseInt(e.detail.start),
-                    end_residue_number: parseInt(e.detail.end),
-                };
+            const query: QueryParam = {};
+            if (e.detail.start !== undefined) {
+                query.beg_label_seq_id = parseInt(e.detail.start);
+            }
+            if (e.detail.end !== undefined) {
+                query.end_label_seq_id = parseInt(e.detail.end);
+            }
+            if (e.detail.feature?.entityId !== undefined) {
+                query.label_entity_id = `${e.detail.feature.entityId}`;
+            }
+            if (e.detail.feature?.bestChainId !== undefined) {
+                query.label_asym_id = e.detail.feature.bestChainId;
+            }
+            if (e.detail.feature?.chainId !== undefined) {
+                query.label_asym_id = e.detail.feature.chainId;
             }
 
-            if (e.detail.feature && e.detail.feature.entityId) highlightQuery['entity_id'] = e.detail.feature.entityId + '';
-            if (e.detail.feature && e.detail.feature.bestChainId) highlightQuery['struct_asym_id'] = e.detail.feature.bestChainId;
-            if (e.detail.feature && e.detail.feature.chainId) highlightQuery['struct_asym_id'] = e.detail.feature.chainId;
-
-            if (highlightQuery) wrapperCtx.visual.highlight({ data: [highlightQuery] });
+            if (Object.keys(query).length > 0) {
+                wrapperCtx.visual.highlight({ data: [query] });
+            }
         }
     });
 
@@ -89,14 +95,14 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             // Create query object from event data
             if (e.detail.start && e.detail.end) {
                 highlightQuery = {
-                    start_residue_number: parseInt(e.detail.start),
-                    end_residue_number: parseInt(e.detail.end),
+                    beg_label_seq_id: parseInt(e.detail.start),
+                    end_label_seq_id: parseInt(e.detail.end),
                 };
             }
 
-            if (e.detail.feature && e.detail.feature.entityId) highlightQuery['entity_id'] = e.detail.feature.entityId + '';
-            if (e.detail.feature && e.detail.feature.bestChainId) highlightQuery['struct_asym_id'] = e.detail.feature.bestChainId;
-            if (e.detail.feature && e.detail.feature.chainId) highlightQuery['struct_asym_id'] = e.detail.feature.chainId;
+            if (e.detail.feature && e.detail.feature.entityId) highlightQuery['label_entity_id'] = e.detail.feature.entityId + '';
+            if (e.detail.feature && e.detail.feature.bestChainId) highlightQuery['label_asym_id'] = e.detail.feature.bestChainId;
+            if (e.detail.feature && e.detail.feature.chainId) highlightQuery['label_asym_id'] = e.detail.feature.chainId;
 
             if (e.detail.feature && e.detail.feature.accession && e.detail.feature.accession.split(' ')[0] === 'Chain' || e.detail.feature.tooltipContent === 'Ligand binding site') {
                 showInteraction = true;
@@ -140,33 +146,31 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             // if(e.eventData.entryId != scope.pdbId) return;
 
             if (typeof e.eventData.elementData !== 'undefined' && elementTypeArrForSingle.indexOf(e.eventData.elementData.elementType) > -1) {
-                // Create query object from event data
-                const highlightQuery = {
-                    entity_id: e.eventData.entityId,
-                    struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                    start_residue_number: e.eventData.residueNumber,
-                    end_residue_number: e.eventData.residueNumber,
-                    sideChain: true,
-                    focus: true,
-                };
-
                 // Call highlightAnnotation
-                wrapperCtx.visual.select({ data: [highlightQuery] });
+                wrapperCtx.visual.select({
+                    data: [{
+                        label_entity_id: e.eventData.entityId,
+                        label_asym_id: e.eventData.elementData.pathData.struct_asym_id,
+                        beg_label_seq_id: e.eventData.residueNumber,
+                        end_label_seq_id: e.eventData.residueNumber,
+                        sideChain: true,
+                        focus: true,
+                    }],
+                });
 
             } else if (typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1) {
 
                 const seqColorArray = e.eventData.elementData.color;
-
-                // Create query object from event data
-                const highlightQuery = {
-                    entity_id: e.eventData.entityId,
-                    struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                    start_residue_number: e.eventData.elementData.pathData.start.residue_number,
-                    end_residue_number: e.eventData.elementData.pathData.end.residue_number,
-                    color: { r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2] },
-                    focus: true,
-                };
-                wrapperCtx.visual.select({ data: [highlightQuery] });
+                wrapperCtx.visual.select({
+                    data: [{
+                        label_entity_id: e.eventData.entityId,
+                        label_asym_id: e.eventData.elementData.pathData.struct_asym_id,
+                        beg_label_seq_id: e.eventData.elementData.pathData.start.residue_number,
+                        end_label_seq_id: e.eventData.elementData.pathData.end.residue_number,
+                        color: { r: seqColorArray[0], g: seqColorArray[1], b: seqColorArray[2] },
+                        focus: true,
+                    }],
+                });
             }
 
         }
@@ -178,27 +182,26 @@ export function subscribeToComponentEvents(wrapperCtx: any) {
             // if(e.eventData.entryId != scope.pdbId) return;
 
             if (typeof e.eventData.elementData !== 'undefined' && elementTypeArrForSingle.indexOf(e.eventData.elementData.elementType) > -1) {
-                // Create query object from event data
-                const highlightQuery = {
-                    entity_id: e.eventData.entityId,
-                    struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                    start_residue_number: e.eventData.residueNumber,
-                    end_residue_number: e.eventData.residueNumber,
-                    focus: true,
-                };
-                wrapperCtx.visual.select({ data: [highlightQuery] });
+                wrapperCtx.visual.select({
+                    data: [{
+                        label_entity_id: e.eventData.entityId,
+                        label_asym_id: e.eventData.elementData.pathData.struct_asym_id,
+                        beg_label_seq_id: e.eventData.residueNumber,
+                        end_label_seq_id: e.eventData.residueNumber,
+                        focus: true,
+                    }],
+                });
 
             } else if (typeof e.eventData.elementData !== 'undefined' && elementTypeArrForRange.indexOf(e.eventData.elementData.elementType) > -1) {
-
-                // Create query object from event data
-                const highlightQuery = {
-                    entity_id: e.eventData.entityId,
-                    struct_asym_id: e.eventData.elementData.pathData.struct_asym_id,
-                    start_residue_number: e.eventData.elementData.pathData.start.residue_number,
-                    end_residue_number: e.eventData.elementData.pathData.end.residue_number,
-                };
                 // Call highlightAnnotation
-                wrapperCtx.visual.highlight({ data: [highlightQuery] });
+                wrapperCtx.visual.highlight({
+                    data: [{
+                        label_entity_id: e.eventData.entityId,
+                        label_asym_id: e.eventData.elementData.pathData.struct_asym_id,
+                        beg_label_seq_id: e.eventData.elementData.pathData.start.residue_number,
+                        end_label_seq_id: e.eventData.elementData.pathData.end.residue_number,
+                    }],
+                });
             }
         }
     });

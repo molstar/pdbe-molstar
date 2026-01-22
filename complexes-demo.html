@@ -195,10 +195,10 @@
             const result = {};
             for (const family of Object.keys(rfamData).sort()) {
                 result[family] = rfamData[family].mappings.map(chunk => ({
-                    entity_id: String(chunk.entity_id),
-                    struct_asym_id: chunk.struct_asym_id,
-                    start_residue_number: chunk.start.residue_number,
-                    end_residue_number: chunk.end.residue_number,
+                    label_entity_id: String(chunk.entity_id),
+                    label_asym_id: chunk.struct_asym_id,
+                    beg_label_seq_id: chunk.start.residue_number,
+                    end_label_seq_id: chunk.end.residue_number,
                 }));
             }
             return result;

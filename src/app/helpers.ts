@@ -288,6 +288,10 @@ export interface QueryParam extends CanonicalQueryParam {
     atoms?: string[],
 }
 
+type AssertIsSubtype<TSub extends TSuper, TSuper> = never;
+declare const _type_assertion_1: AssertIsSubtype<ComponentExpressionT, CanonicalQueryParam>; // this is just to check that ComponentExpressionT is a subtype of CanonicalQueryParam
+declare const _type_assertion_2: AssertIsSubtype<ComponentExpressionT, QueryParam>; // this is just to check that ComponentExpressionT is a subtype of QueryParam
+
 function queryParamsToCanonical(params: QueryParam[]): CanonicalQueryParam[] {
     return params.map(q => ({
         // MVS ComponentExpressionT fields:

@@ -102,28 +102,28 @@ function interactionsToMvsPrimitiveData(params: { interactions: Interaction[], o
 }
 
 /** Selected interactions from https://www.ebi.ac.uk/pdbe/graph-api/pdb/bound_ligand_interactions/1hda/C/143 */
-const exampleData = [
+const exampleData: Interaction[] = [
     {
-        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CBC'] },
-        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'atoms': ['CE'] },
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'label_atom_id': 'CBC' },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'label_atom_id': 'CE' },
         'color': 'yellow',
         'tooltip': '<strong>Hydrophobic interaction</strong><br>HEM 143 | CBC — MET 32 | CE',
     },
     {
-        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CBC'] },
-        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'atoms': ['SD'] },
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'label_atom_id': 'CBC' },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 32, 'label_atom_id': 'SD' },
         'color': 'yellow',
         'tooltip': '<strong>Hydrophobic interaction</strong><br>HEM 143 | CBC — MET 32 | SD',
     },
     {
-        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['CMD'] },
-        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 42, 'atoms': ['O'] },
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'label_atom_id': 'CMD' },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 42, 'label_atom_id': 'O' },
         'color': 'gray',
         'tooltip': '<strong>Mixed interaction</strong><br>Vdw, Weak polar<br>HEM 143 | CMD — TYR 42 | O',
     },
     {
-        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'atoms': ['C1B', 'C2B', 'C3B', 'C4B', 'NB'] },
-        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 136, 'atoms': ['CD1'] },
+        'start': { 'auth_asym_id': 'C', 'auth_seq_id': 143, 'label_atom_id': ['C1B', 'C2B', 'C3B', 'C4B', 'NB'] },
+        'end': { 'auth_asym_id': 'C', 'auth_seq_id': 136, 'label_atom_id': 'CD1' },
         'color': 'magenta',
         'tooltip': '<strong>CARBONPI interaction</strong><br>HEM 143 | C1B, C2B, C3B, C4B, NB — LEU 136 | CD1',
     },
