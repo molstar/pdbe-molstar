@@ -269,13 +269,14 @@ export function queryParamsToMvsComponentExpressions(params: QueryParam[]): Comp
         end_label_seq_id: item.end_residue_number,
         beg_auth_seq_id: item.start_auth_residue_number,
         end_auth_seq_id: item.end_auth_residue_number,
+        label_comp_id: item.label_comp_id,
+        auth_comp_id: undefined,
+        residue_index: undefined,
         label_atom_id: item.atoms,
         auth_atom_id: undefined,
         type_symbol: item.type_symbol,
         atom_id: item.atom_id,
         atom_index: undefined,
-        label_comp_id: item.label_comp_id,
-        auth_comp_id: undefined,
         instance_id: item.instance_id,
     }));
 }
