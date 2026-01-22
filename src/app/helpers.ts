@@ -203,38 +203,49 @@ export namespace LigandView {
     }
 }
 
+interface CanonicalQueryParam {
+    // MVS ComponentExpressionT fields:
 
-export interface QueryParam {
-    /** Selects by entity (`label_entity_id`) */
-    entity_id?: string,
-
-    /** Selects by chain identifier (`label_asym_id`) */
-    struct_asym_id?: string,
-    /** Selects by author chain identifier (`auth_asym_id`) */
+    /** Selects by entity (`_atom_site.label_entity_id`) */
+    label_entity_id?: string,
+    /** Selects by chain identifier (`_atom_site.label_asym_id` aka `struct_asym_id` aka mmcif-style chain identifier) */
+    label_asym_id?: string,
+    /** Selects by author-provided chain identifier (`_atom_site.auth_asym_id` aka `chain_id` aka PDB-style chain identifier) */
     auth_asym_id?: string,
-
-    /** Selects by residue number (`label_seq_id`) */
-    residue_number?: number,
-    /** Selects by residue number range (`label_seq_id`) */
-    start_residue_number?: number,
-    /** Selects by residue number range (`label_seq_id`) */
-    end_residue_number?: number,
-    /** Selects by author residue number (`auth_seq_id`) */
-    auth_residue_number?: number,
-    /** Selects by author residue number (`auth_seq_id`), duplicate of `auth_residue_number` */
+    /** Selects by residue number (`_atom_site.label_seq_id` aka mmcif-style residue number) */
+    label_seq_id?: number,
+    /** Selects by author-provided residue number (`_atom_site.auth_seq_id` aka PDB-style residue number) */
     auth_seq_id?: number,
-    /** Selects by author residue insertion code (`pdbx_PDB_ins_code`) */
-    auth_ins_code_id?: string,
-    /** Selects by author residue number range (`auth_seq_id`) */
-    start_auth_residue_number?: number,
-    /** Selects by author residue number range with author residue insertion codes (`pdbx_PDB_ins_code`) */
-    start_auth_ins_code_id?: string,
-    /** Selects by author residue number range (`auth_seq_id`) */
-    end_auth_residue_number?: number,
-    /** Selects by author residue number range with author residue insertion codes (`pdbx_PDB_ins_code`) */
-    end_auth_ins_code_id?: string,
-    /** Selects by residue type (`label_comp_id`) */
+    /** Selects by author-provided residue insertion code (`_atom_site.pdbx_PDB_ins_code`) */
+    pdbx_PDB_ins_code?: string,
+    /** Selects by beginning of residue number range (`_atom_site.label_seq_id`) */
+    beg_label_seq_id?: number,
+    /** Selects by end of residue number range (`_atom_site.label_seq_id`) */
+    end_label_seq_id?: number,
+    /** Selects by beginning of author-provided residue number range (`_atom_site.auth_seq_id`) */
+    beg_auth_seq_id?: number,
+    /** Selects by end of author-provided residue number range (`_atom_site.auth_seq_id`) */
+    end_auth_seq_id?: number,
+    /** Selects by residue type, e.g. 'ALA' (`_atom_site.label_comp_id`) */
     label_comp_id?: string,
+    /** Selects by author-provided residue type, e.g. 'ALA' (`_atom_site.auth_comp_id`) */
+    auth_comp_id?: string,
+    /** Select by 0-based residue index in the source file */
+    residue_index?: number,
+    /** Selects by atom name/names, e.g. 'CA', 'CG1' (`_atom_site.label_atom_id`) */
+    label_atom_id?: string | string[],
+    /** Selects by author-provided atom name/names, e.g. 'CA', 'CG1' (`_atom_site.auth_atom_id`) */
+    auth_atom_id?: string | string[],
+    /** List of element type symbol/symbols, e.g. 'C', 'FE' (`_atom_site.type_symbol`) */
+    type_symbol?: string | string[],
+    /** Selects by unique atom identifier/identifiers (`_atom_site.id`) */
+    atom_id?: number | number[],
+    /** Select by 0-based atom index in the source file */
+    atom_index?: number,
+    /** Select by symmetry instance identifier, to distinguish instances of the same chain created by applying different symmetry operators, e.g. 'ASM-X0-1' for assemblies, '1_555' for crystals */
+    instance_id?: string,
+
+    // Additional fields:
 
     /** Selects by Uniprot accession (`pdbx_sifts_xref_db_acc`) */
     uniprot_accession?: string,
@@ -245,53 +256,109 @@ export interface QueryParam {
     /** Selects by Uniprot residue number range (`pdbx_sifts_xref_db_num`) */
     end_uniprot_residue_number?: number,
 
-    /** Selects by atom names (`label_atom_id`) */
-    atoms?: string[],
-    /** Selects by unique atom identifiers (`id`) */
-    atom_id?: number[],
-    /** List of element type symbols (e.g. ['C', 'N', 'FE']) */
-    type_symbol?: string[],
+    /** Selects by author-provided residue number range with author-provided residue insertion codes (`pdbx_PDB_ins_code`)
+     * @deprecated Selecting by author-provided residue number range with insertion codes is messy as there are no rules for insertion code ordering. Try to achieve what you want by `beg_label_seq_id`. */
+    start_auth_ins_code_id?: string,
+    /** Selects by author-provided residue number range with author-provided residue insertion codes (`pdbx_PDB_ins_code`)
+     * @deprecated Selecting by author-provided residue number range with insertion codes is messy as there are no rules for insertion code ordering. Try to achieve what you want by `end_label_seq_id`. */
+    end_auth_ins_code_id?: string,
+}
 
-    /** Selects by instance identifier to distinguish instances of the same chain created by applying different symmetry operators, like 'ASM-X0-1' for assemblies or '1_555' for crystals */
-    instance_id?: string,
+export interface QueryParam extends CanonicalQueryParam {
+    // The following are just deprecated synonyms to fields in `CanonicalQueryParam`:
+    /** @deprecated Use `label_entity_id` equivalent instead */
+    entity_id?: string,
+    /** @deprecated Use `label_asym_id` equivalent instead */
+    struct_asym_id?: string,
+    /** @deprecated Use `label_seq_id` equivalent instead */
+    residue_number?: number,
+    /** @deprecated Use `beg_label_seq_id` equivalent instead */
+    start_residue_number?: number,
+    /** @deprecated Use `end_label_seq_id` equivalent instead */
+    end_residue_number?: number,
+    /** @deprecated Use `auth_seq_id` equivalent instead */
+    auth_residue_number?: number,
+    /** @deprecated Use `pdbx_PDB_ins_code` equivalent instead */
+    auth_ins_code_id?: string,
+    /** @deprecated Use `beg_auth_seq_id` equivalent instead */
+    start_auth_residue_number?: number,
+    /** @deprecated Use `end_auth_seq_id` equivalent instead */
+    end_auth_residue_number?: number,
+    /** @deprecated Use `label_atom_id` equivalent instead */
+    atoms?: string[],
+}
+
+function queryParamsToCanonical(params: QueryParam[]): CanonicalQueryParam[] {
+    return params.map(q => ({
+        // MVS ComponentExpressionT fields:
+        label_entity_id: q.label_entity_id ?? q.entity_id,
+        label_asym_id: q.label_asym_id ?? q.struct_asym_id,
+        auth_asym_id: q.auth_asym_id,
+        label_seq_id: q.label_seq_id ?? q.residue_number,
+        auth_seq_id: q.auth_seq_id ?? q.auth_residue_number,
+        pdbx_PDB_ins_code: q.pdbx_PDB_ins_code ?? q.auth_ins_code_id,
+        beg_label_seq_id: q.beg_label_seq_id ?? q.start_residue_number,
+        end_label_seq_id: q.end_label_seq_id ?? q.end_residue_number,
+        beg_auth_seq_id: q.beg_auth_seq_id ?? q.start_auth_residue_number,
+        end_auth_seq_id: q.end_auth_seq_id ?? q.end_auth_residue_number,
+        label_comp_id: q.label_comp_id,
+        auth_comp_id: q.auth_comp_id,
+        residue_index: q.residue_index,
+        label_atom_id: q.label_atom_id ?? q.atoms,
+        auth_atom_id: q.auth_atom_id,
+        type_symbol: q.type_symbol,
+        atom_id: q.atom_id,
+        atom_index: q.atom_index,
+        instance_id: q.instance_id,
+        // Additional fields:
+        uniprot_accession: q.uniprot_accession,
+        uniprot_residue_number: q.uniprot_residue_number,
+        start_uniprot_residue_number: q.start_uniprot_residue_number,
+        end_uniprot_residue_number: q.end_uniprot_residue_number,
+        start_auth_ins_code_id: q.start_auth_ins_code_id,
+        end_auth_ins_code_id: q.end_auth_ins_code_id,
+    } satisfies { [key in keyof Required<CanonicalQueryParam>]: CanonicalQueryParam[key] } // this is to ensure all keys are listed explicitely above
+    ));
 }
 
 export function queryParamsToMvsComponentExpressions(params: QueryParam[]): ComponentExpressionT[] {
-    const broadcasted = broadcast(params, ['atoms', 'atom_id', 'type_symbol']);
-    return broadcasted.map(item => ({
-        label_entity_id: item.entity_id,
-        label_asym_id: item.struct_asym_id,
-        auth_asym_id: item.auth_asym_id,
-        label_seq_id: item.residue_number,
-        auth_seq_id: item.auth_seq_id ?? item.auth_residue_number,
-        pdbx_PDB_ins_code: item.auth_ins_code_id,
-        beg_label_seq_id: item.start_residue_number,
-        end_label_seq_id: item.end_residue_number,
-        beg_auth_seq_id: item.start_auth_residue_number,
-        end_auth_seq_id: item.end_auth_residue_number,
-        label_comp_id: item.label_comp_id,
-        auth_comp_id: undefined,
-        residue_index: undefined,
-        label_atom_id: item.atoms,
-        auth_atom_id: undefined,
-        type_symbol: item.type_symbol,
-        atom_id: item.atom_id,
-        atom_index: undefined,
-        instance_id: item.instance_id,
-    }));
+    const canonical = queryParamsToCanonical(params);
+    const broadcasted = broadcast(canonical, ['label_atom_id', 'auth_atom_id', 'type_symbol', 'atom_id']);
+    return broadcasted.map(q => ({
+        label_entity_id: q.label_entity_id,
+        label_asym_id: q.label_asym_id,
+        auth_asym_id: q.auth_asym_id,
+        label_seq_id: q.label_seq_id,
+        auth_seq_id: q.auth_seq_id,
+        pdbx_PDB_ins_code: q.pdbx_PDB_ins_code,
+        beg_label_seq_id: q.beg_label_seq_id,
+        end_label_seq_id: q.end_label_seq_id,
+        beg_auth_seq_id: q.beg_auth_seq_id,
+        end_auth_seq_id: q.end_auth_seq_id,
+        label_comp_id: q.label_comp_id,
+        auth_comp_id: q.auth_comp_id,
+        residue_index: q.residue_index,
+        label_atom_id: q.label_atom_id,
+        auth_atom_id: q.auth_atom_id,
+        type_symbol: q.type_symbol,
+        atom_id: q.atom_id,
+        atom_index: q.atom_index,
+        instance_id: q.instance_id,
+    } satisfies { [key in keyof Required<ComponentExpressionT>]: ComponentExpressionT[key] } // this is to ensure all keys are listed explicitely above
+    ));
 }
 
 /** `broadcastSingleKey([{chain: 'A', residue: 5, atom: ['C', 'O']}], 'atom')`
  * -> `[{chain: 'A', residue: 5, atom: 'C'}], {chain: 'A', residue: 5, atom: 'O'}` */
-function broadcastSingleKey<TKey extends keyof any, TValue, TOthers extends {}>(objs: ({ [key in TKey]?: TValue[] } & TOthers)[], key: TKey): ({ [key in TKey]?: TValue } & TOthers)[] {
+function broadcastSingleKey<TKey extends keyof any, TValue, TOthers extends {}>(objs: ({ [key in TKey]?: TValue[] | TValue } & TOthers)[], key: TKey): ({ [key in TKey]?: TValue } & TOthers)[] {
     const out = [];
     for (const obj of objs) {
-        if (obj[key] === undefined) {
-            out.push(obj);
-        } else {
+        if (Array.isArray(obj[key])) {
             for (const value of obj[key]) {
                 out.push({ ...obj, [key]: value });
             }
+        } else {
+            out.push(obj);
         }
     }
     return out;
@@ -319,7 +386,7 @@ export namespace QueryHelper {
             return _siftMappings;
         }
 
-        for (const param of params) {
+        for (const param of queryParamsToCanonical(params)) {
             const predicates = {
                 entity: [] as QueryPredicate[],
                 chain: [] as QueryPredicate[],
@@ -328,13 +395,13 @@ export namespace QueryHelper {
             };
 
             // entity
-            if (param.entity_id !== undefined) {
-                predicates.entity.push(l => StructureProperties.entity.id(l.element) === param.entity_id);
+            if (param.label_entity_id !== undefined) {
+                predicates.entity.push(l => StructureProperties.entity.id(l.element) === param.label_entity_id);
             }
 
             // chain
-            if (param.struct_asym_id !== undefined) {
-                predicates.chain.push(l => StructureProperties.chain.label_asym_id(l.element) === param.struct_asym_id);
+            if (param.label_asym_id !== undefined) {
+                predicates.chain.push(l => StructureProperties.chain.label_asym_id(l.element) === param.label_asym_id);
             }
             if (param.auth_asym_id !== undefined) {
                 predicates.chain.push(l => StructureProperties.chain.auth_asym_id(l.element) === param.auth_asym_id);
@@ -344,43 +411,38 @@ export namespace QueryHelper {
             }
 
             // residue
-            if (param.label_comp_id !== undefined) {
-                predicates.residue.push(l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id);
+            if (param.label_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.label_seq_id);
             }
-
-            if (param.residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) === param.residue_number);
+            if (param.beg_label_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) >= param.beg_label_seq_id!);
             }
-            if (param.start_residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) >= param.start_residue_number!);
-            }
-            if (param.end_residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) <= param.end_residue_number!);
+            if (param.end_label_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.label_seq_id(l.element) <= param.end_label_seq_id!);
             }
             if (param.auth_seq_id !== undefined) {
                 predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_seq_id);
             }
-            if (param.auth_residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) === param.auth_residue_number);
+            if (param.pdbx_PDB_ins_code !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.pdbx_PDB_ins_code(l.element) === param.pdbx_PDB_ins_code);
             }
-            if (param.auth_ins_code_id !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.pdbx_PDB_ins_code(l.element) === param.auth_ins_code_id);
-            }
-            if (param.start_auth_residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) >= param.start_auth_residue_number!);
+            if (param.beg_auth_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) >= param.beg_auth_seq_id!);
                 if (param.start_auth_ins_code_id !== undefined) {
                     // This assumes insertion code come in alphabetical order, which is not always true (e.g. 1ucy chain A [auth L]). However, authors of such monstrosities do not deserve their structures to be displayed correctly.
-                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) > param.start_auth_residue_number! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) >= param.start_auth_ins_code_id!);
+                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) > param.beg_auth_seq_id! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) >= param.start_auth_ins_code_id!);
                 }
             }
-            if (param.end_auth_residue_number !== undefined) {
-                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) <= param.end_auth_residue_number!);
+            if (param.end_auth_seq_id !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) <= param.end_auth_seq_id!);
                 if (param.end_auth_ins_code_id !== undefined) {
                     // This assumes insertion code come in alphabetical order, which is not always true (e.g. 1ucy chain A [auth L]). However, authors of such monstrosities do not deserve their structures to be displayed correctly.
-                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) < param.end_auth_residue_number! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) <= param.end_auth_ins_code_id!);
+                    predicates.residue.push(l => StructureProperties.residue.auth_seq_id(l.element) < param.end_auth_seq_id! || StructureProperties.residue.pdbx_PDB_ins_code(l.element) <= param.end_auth_ins_code_id!);
                 }
             }
-
+            if (param.residue_index !== undefined) {
+                predicates.residue.push(l => StructureProperties.residue.residueSourceIndex(l.element) === param.residue_index);
+            }
             if (param.uniprot_accession !== undefined) {
                 predicates.residue.push(l => getSiftsMappings()?.accession[StructureProperties.residue.key(l.element)] === param.uniprot_accession);
             }
@@ -395,14 +457,42 @@ export namespace QueryHelper {
             }
 
             // atom
-            if (param.atoms) {
-                predicates.atom.push(l => param.atoms!.includes(StructureProperties.atom.label_atom_id(l.element)));
+            if (param.label_comp_id !== undefined) {
+                predicates.atom.push(l => StructureProperties.atom.label_comp_id(l.element) === param.label_comp_id);
             }
-            if (param.atom_id) {
-                predicates.atom.push(l => param.atom_id!.includes(StructureProperties.atom.id(l.element)));
+            if (param.auth_comp_id !== undefined) {
+                predicates.atom.push(l => StructureProperties.atom.auth_comp_id(l.element) === param.auth_comp_id);
+            }
+            if (param.label_atom_id) {
+                if (Array.isArray(param.label_atom_id)) {
+                    predicates.atom.push(l => param.label_atom_id!.includes(StructureProperties.atom.label_atom_id(l.element)));
+                } else {
+                    predicates.atom.push(l => StructureProperties.atom.label_atom_id(l.element) === param.label_atom_id);
+                }
+            }
+            if (param.auth_atom_id) {
+                if (Array.isArray(param.auth_atom_id)) {
+                    predicates.atom.push(l => param.auth_atom_id!.includes(StructureProperties.atom.auth_atom_id(l.element)));
+                } else {
+                    predicates.atom.push(l => StructureProperties.atom.auth_atom_id(l.element) === param.auth_atom_id);
+                }
             }
             if (param.type_symbol) {
-                predicates.atom.push(l => param.type_symbol!.includes(StructureProperties.atom.type_symbol(l.element)));
+                if (Array.isArray(param.type_symbol)) {
+                    predicates.atom.push(l => param.type_symbol!.includes(StructureProperties.atom.type_symbol(l.element)));
+                } else {
+                    predicates.atom.push(l => StructureProperties.atom.type_symbol(l.element) === param.type_symbol);
+                }
+            }
+            if (param.atom_id) {
+                if (Array.isArray(param.atom_id)) {
+                    predicates.atom.push(l => (param.atom_id as number[]).includes(StructureProperties.atom.id(l.element)));
+                } else {
+                    predicates.atom.push(l => StructureProperties.atom.id(l.element) === param.atom_id);
+                }
+            }
+            if (param.atom_index) {
+                predicates.atom.push(l => StructureProperties.atom.sourceIndex(l.element) === param.atom_index);
             }
 
             selections.push({
