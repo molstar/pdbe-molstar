@@ -1,5 +1,5 @@
-import { loadMVS } from 'molstar/lib/extensions/mvs/load';
-import { MVSData, type Snapshot } from 'molstar/lib/extensions/mvs/mvs-data';
+import { loadMVS } from 'molstar/lib/extensions/mvs/load'; // from pdbe-molstar bundle can import as PDBeMolstarPlugin.extensions.MVS.loadMVS
+import { MVSData, type Snapshot } from 'molstar/lib/extensions/mvs/mvs-data'; // from pdbe-molstar bundle can import as PDBeMolstarPlugin.extensions.MVS.MVSData
 import type Builder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import type { ComponentExpressionT, HexColorT, ParseFormatT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
@@ -68,15 +68,15 @@ export async function pisaDemo(plugin: PluginContext) {
 
     const snapshots: Snapshot[] = [];
     for (const complex of allComplexes) {
-        snapshots.push(pisaComplexView({ structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
+        snapshots.push(pisaComplexView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, complexKey: complex.complex_key, interfacesData: allInterfaces }));
     }
     for (const interfaceData of allInterfaces) {
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, ghostMolecules: [] }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [1], showInteractions: true }));
-        snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0, 1], showInteractions: true }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
-        // snapshots.push(pisaInterfaceView({ structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
+        snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, ghostMolecules: [] }));
+        snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0], showInteractions: true }));
+        snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [1], showInteractions: true }));
+        snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, flash: true, detailMolecules: [0, 1], showInteractions: true }));
+        // snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [0] }));
+        // snapshots.push(pisaInterfaceView(MVSData.createBuilder(), { structureUrl, structureFormat, complexesData: allComplexes, interfaceData, ghostMolecules: [1] }));
     }
     const mvs = MVSData.createMultistate(snapshots);
     // console.log(MVSData.toMVSJ(mvs))
@@ -84,7 +84,7 @@ export async function pisaDemo(plugin: PluginContext) {
 }
 
 
-export function pisaComplexView(params: {
+export function pisaComplexView(builder: Builder.Root, params: {
     structureUrl: string, structureFormat: ParseFormatT,
     complexesData: PisaComplexRecord[], complexKey: number, interfacesData: PisaInterfaceData[],
 }) {
@@ -92,7 +92,6 @@ export function pisaComplexView(params: {
     const complex = complexesData.find(ass => ass.complex_key === complexKey);
     if (!complex) throw new Error(`Could not find complex "${complexKey}"`);
 
-    const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
     const interfacesInComplex = new Set(complex.interfaces.interfaces.map(int => int.interface_id));
     const componentColors = assignComponentColors(complexesData);
@@ -144,7 +143,7 @@ export function pisaComplexView(params: {
     });
 }
 
-export function pisaInterfaceView(params: {
+export function pisaInterfaceView(builder: Builder.Root, params: {
     structureUrl: string, structureFormat: ParseFormatT,
     complexesData: PisaComplexRecord[], interfaceData: PisaInterfaceData,
     ghostMolecules?: (0 | 1)[], detailMolecules?: (0 | 1)[], showInteractions?: boolean, flash?: boolean,
@@ -153,7 +152,6 @@ export function pisaInterfaceView(params: {
     const componentColors = assignComponentColors(complexesData);
     const interfaceTooltip = `<br>Interface <b>${moleculeTitle(interfaceData.interface.molecules[0], true)}</b> &ndash; <b>${moleculeTitle(interfaceData.interface.molecules[1], true)}</b> (interface area ${interfaceData.interface.int_area.toFixed(1)} &angst;<sup>2</sup>)`;
 
-    const builder = MVSData.createBuilder();
     const data = builder.download({ url: structureUrl }).parse({ format: structureFormat });
     const anim = builder.animation();
 
