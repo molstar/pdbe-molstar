@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file, following t
 - Fix left panel automatically expanding when calling `update` method
 - Full support for MolViewSpec selectors (`QueryParam` is a supertype of MolViewSpec `ComponentExpressionT`)
 - Fix wrench button initially appearing in `FullLayoutNoControlsUnlessExpanded` when not expanded
+- Option `hideCanvasControls` accepts "snapshotControls" and "snapshotDescription" (e.g. for loading MolViewSpec)
 
 ## [v3.9.0] - 2025-12-18
 - Mol* core dependency updated to 5.4.2

@@ -5,6 +5,7 @@ import { BackgroundTaskProgress } from 'molstar/lib/mol-plugin-ui/task';
 import { Toasts } from 'molstar/lib/mol-plugin-ui/toast';
 import { Viewport, ViewportControls } from 'molstar/lib/mol-plugin-ui/viewport';
 import { ComponentClass, JSXElementConstructor } from 'react';
+import { PluginCustomState } from '../plugin-custom-state';
 import { CustomControls } from './custom-controls';
 import { WithLoadingOverlay } from './overlay';
 
@@ -14,6 +15,9 @@ export class CustomizableDefaultViewport extends DefaultViewport {
     render() {
         const VPControls = this.plugin.spec.components?.viewport?.controls || ViewportControls;
         const SnapshotDescription = this.plugin.spec.components?.viewport?.snapshotDescription || ViewportSnapshotDescription;
+        const hideCanvasControls = PluginCustomState(this.plugin).initParams?.hideCanvasControls;
+        const hideSnapshotControls = hideCanvasControls?.includes('snapshotControls') || hideCanvasControls?.includes('all');
+        const hideSnapshotDescription = hideCanvasControls?.includes('snapshotDescription') || hideCanvasControls?.includes('all');
 
         return <>
             <Viewport />
@@ -26,9 +30,9 @@ export class CustomizableDefaultViewport extends DefaultViewport {
                     <div className='msp-viewport-top-left-controls'>
                         <AnimationViewportControls />
                         <TrajectoryViewportControls />
-                        <StateSnapshotViewportControls />
+                        {!hideSnapshotControls && <StateSnapshotViewportControls />}
                         <CustomControls region='viewport-top-left' />
-                        <SnapshotDescription />
+                        {!hideSnapshotDescription && <SnapshotDescription />}
                     </div>
                 </div>
             </div>

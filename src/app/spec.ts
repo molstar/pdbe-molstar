@@ -97,7 +97,7 @@ export const Encoding = ['cif', 'bcif'] as const;
 export type Encoding = (typeof Encoding)[number];
 
 /** Structure file format */
-export const ViewportButton = ['reset', 'screenshot', 'controlToggle', 'expand', 'controlInfo', 'selection', 'animation', 'trajectory'] as const;
+export const ViewportButton = ['reset', 'screenshot', 'controlToggle', 'expand', 'controlInfo', 'selection', 'animation', 'trajectory', 'snapshotControls', 'snapshotDescription'] as const;
 export type ViewportButton = (typeof ViewportButton)[number];
 
 
