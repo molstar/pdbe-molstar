@@ -30,7 +30,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
         const superpositionState = customState.superpositionState;
 
         const segmentIndex = superpositionState.activeSegment - 1;
-        const files: [name: string, data: string | Uint8Array][] = [];
+        const files: [name: string, data: string | Uint8Array<ArrayBuffer>][] = [];
         const entryMap = new Map<string, number>();
         const structures = superpositionState.loadedStructs[segmentIndex].slice();
         if (!customState.initParams.moleculeId) throw new Error('initParams.moleculeId is not defined');
@@ -91,7 +91,7 @@ function _superpositionExportHierarchy(plugin: PluginContext, options?: { format
         if (files.length === 1) {
             download(new Blob([files[0][1]]), files[0][0]);
         } else if (files.length > 1) {
-            const zipData: Record<string, Uint8Array> = {};
+            const zipData: Record<string, Uint8Array<ArrayBuffer>> = {};
             for (const [fn, data] of files) {
                 if (data instanceof Uint8Array) {
                     zipData[fn] = data;
