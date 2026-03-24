@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Mol* core dependency updated to 5.7.0
+- `MVSData.toMVSX` - full support directly from Molstar
 
 ## [v3.10.1] - 2026-02-05
 - Experimental: Added `MVSData.toMVSX`
