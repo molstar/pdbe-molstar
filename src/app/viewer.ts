@@ -21,6 +21,7 @@ import { AnimateStateSnapshots } from 'molstar/lib/mol-plugin-state/animation/bu
 import { BuiltInTrajectoryFormat } from 'molstar/lib/mol-plugin-state/formats/trajectory';
 import { clearStructureOverpaint } from 'molstar/lib/mol-plugin-state/helpers/structure-overpaint';
 import { StructureRepresentationBuiltInProps, createStructureRepresentationParams } from 'molstar/lib/mol-plugin-state/helpers/structure-representation-params';
+import { clearStructureTransparency } from 'molstar/lib/mol-plugin-state/helpers/structure-transparency';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { PluginStateObject } from 'molstar/lib/mol-plugin-state/objects';
 import { StateTransforms } from 'molstar/lib/mol-plugin-state/transforms';
@@ -41,6 +42,7 @@ import { Representation } from 'molstar/lib/mol-repr/representation';
 import { StateObjectSelector, StateSelection, StateTransform } from 'molstar/lib/mol-state';
 import { ElementSymbolColorThemeParams } from 'molstar/lib/mol-theme/color/element-symbol';
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
+import { Transparency } from 'molstar/lib/mol-theme/transparency';
 import { Asset } from 'molstar/lib/mol-util/assets';
 import { Color } from 'molstar/lib/mol-util/color/color';
 import { ColorNames } from 'molstar/lib/mol-util/color/names';
@@ -53,7 +55,7 @@ import * as Interactions from './extensions/interactions';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
 import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
-import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, getComponentTypeFromTags, getRotationMat4, getStructureUrl, normalizeColor, pluginLayoutStateFromInitParams, runWithProgressMessage } from './helpers';
+import { AlphafoldView, LigandView, LoadParams, ModelServerRequest, PDBeVolumes, QueryHelper, QueryParam, StructureComponentTags, Tags, addDefaults, applyOverpaint, applyTransparency, getComponentTypeFromTags, getRotationMat4, getStructureUrl, normalizeColor, pluginLayoutStateFromInitParams, runWithProgressMessage } from './helpers';
 import { PluginCustomState } from './plugin-custom-state';
 import { SequenceColor } from './sequence-color/behavior';
 import { SequenceColorAnnotationsProperty } from './sequence-color/sequence-color-annotations-prop';
@@ -735,20 +737,23 @@ export class PDBeMolstarPlugin {
         },
 
         /** Color the parts of the structure defined by `data`. Color the rest of the structure in `nonSelectedColor` if provided.
+         * If any items in `data` contain `opacity`, set opacity accordingly, set opacity to `nonSelectedOpacity` (or 1) for the rest of the structure.
          * If any items in `data` contain `focus`, zoom to the union of these items.
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
          * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
-         * Remove any previously added coloring and extra representations, unless `keepColors` and/or `keepRepresentations` is set. */
+         * Remove any previously added coloring, opacity, and/or extra representations, unless `keepColors`, `keepOpacity`, and/or `keepRepresentations` is set. */
         select: async (params: {
-            data: (QueryParam & { color?: AnyColor, sideChain?: boolean, representation?: string, representationColor?: any, focus?: boolean })[],
+            data: (QueryParam & { color?: AnyColor, opacity?: number, sideChain?: boolean, representation?: string, representationColor?: AnyColor, representationOpacity?: number, focus?: boolean })[],
             nonSelectedColor?: AnyColor,
+            nonSelectedOpacity?: number,
             structureId?: string,
             structureNumber?: number,
             keepColors?: boolean,
+            keepOpacity?: boolean,
             keepRepresentations?: boolean,
         }) => {
             const structureNumberOrId = params.structureId ?? params.structureNumber;
-            await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepRepresentations: params.keepRepresentations });
+            await this.visual.clearSelection(structureNumberOrId, { keepColors: params.keepColors, keepOpacity: params.keepOpacity, keepRepresentations: params.keepRepresentations });
 
             // Structure list to apply selection
             const structures = this.getStructures(structureNumberOrId);
@@ -793,25 +798,60 @@ export class PDBeMolstarPlugin {
                 }
                 await applyOverpaint(this.plugin, struct.structureRef, overpaintLayers);
 
+                // Apply opacity to the main representation
+                const transparencyLayers: Transparency.BundleLayer[] = selections
+                    .filter(s => s.param.opacity !== undefined)
+                    .map(s => ({
+                        bundle: s.bundle,
+                        value: 1 - s.param.opacity!,
+                    }));
+                if (params.nonSelectedOpacity !== undefined) {
+                    const wholeStructBundle = this.getBundle([{}], struct.number);
+                    if (wholeStructBundle) {
+                        transparencyLayers.unshift({
+                            bundle: wholeStructBundle,
+                            value: 1 - params.nonSelectedOpacity,
+                        });
+                    }
+                }
+                await applyTransparency(this.plugin, struct.structureRef, transparencyLayers);
+
                 // Add extra representations
                 for (const repr in addedReprParams) {
                     const bundle = this.getBundle(addedReprParams[repr], struct.number);
                     if (!bundle) continue;
-                    const overpaintLayers: Overpaint.BundleLayer[] = selections.filter(s => s.param.representationColor).map(s => ({
-                        bundle: s.bundle,
-                        color: normalizeColor(s.param.representationColor!),
-                        clear: false,
-                    }));
-                    await this.plugin.build()
-                        .to(struct.structureRef.cell)
+                    const update = this.plugin.build();
+                    const addedRepr = update.to(struct.structureRef.cell)
                         .apply(StructureComponent, { type: { name: 'bundle', params: bundle }, label: repr }, { tags: Tags.AddedComponent })
-                        .apply(StructureRepresentation3D, createStructureRepresentationParams(this.plugin, struct.structureRef.cell.obj?.data, { type: repr as any }))
-                        .apply(
+                        .apply(StructureRepresentation3D, createStructureRepresentationParams(this.plugin, struct.structureRef.cell.obj?.data, { type: repr as any }));
+                    const overpaintLayers: Overpaint.BundleLayer[] = selections
+                        .filter(s => s.param.representationColor)
+                        .map(s => ({
+                            bundle: s.bundle,
+                            color: normalizeColor(s.param.representationColor!),
+                            clear: false,
+                        }));
+                    if (overpaintLayers.length > 0) {
+                        addedRepr.apply(
                             StateTransforms.Representation.OverpaintStructureRepresentation3DFromBundle,
                             { layers: overpaintLayers },
                             { tags: Tags.Overpaint },
-                        )
-                        .commit();
+                        );
+                    }
+                    const transparencyLayers: Transparency.BundleLayer[] = selections
+                        .filter(s => s.param.representationOpacity !== undefined)
+                        .map(s => ({
+                            bundle: s.bundle,
+                            value: 1 - s.param.representationOpacity!,
+                        }));
+                    if (transparencyLayers.length > 0) {
+                        addedRepr.apply(
+                            StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle,
+                            { layers: transparencyLayers },
+                            { tags: Tags.Transparency },
+                        );
+                    }
+                    await update.commit();
                     // Track that reprs have been added (for later clearSelection)
                     this.addedReprs[struct.number] = true;
                 }
@@ -826,8 +866,8 @@ export class PDBeMolstarPlugin {
         /** Remove any coloring and extra representations previously added by the `select` method.
          * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
          * if not provided, will apply to all loaded structures.
-         * If `keepColors`, current residue coloring is preserved. If `keepRepresentations`, current added representations are preserved. */
-        clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepRepresentations?: boolean }) => {
+         * If `keepColors`, current residue coloring is preserved. If `keepOpacity`, current residue opacity is preserved. If `keepRepresentations`, current added representations are preserved. */
+        clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepOpacity?: boolean, keepRepresentations?: boolean }) => {
             // Structure list to apply to
             const structures = this.getStructures(structureNumberOrId);
             for (const struct of structures) {
@@ -835,6 +875,10 @@ export class PDBeMolstarPlugin {
                 if (!options?.keepColors) {
                     const componentsToClear = struct.structureRef.components.filter(c => !c.cell.transform.tags?.includes(Tags.AddedComponent));
                     await clearStructureOverpaint(this.plugin, componentsToClear);
+                }
+                if (!options?.keepOpacity) {
+                    const componentsToClear = struct.structureRef.components.filter(c => !c.cell.transform.tags?.includes(Tags.AddedComponent));
+                    await clearStructureTransparency(this.plugin, componentsToClear);
                 }
                 // Remove added reprs
                 if (!options?.keepRepresentations) {

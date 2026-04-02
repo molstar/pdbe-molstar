@@ -150,6 +150,13 @@
                     Select Chain B:1-6, B:15-20, with representations
                 </button>
                 <br>
+                <button onclick="viewerInstance.visual.select({ data: [
+                        { label_asym_id: 'A', color: null, opacity: 0.6 }, 
+                        { label_asym_id: 'B', color: null, opacity: 1 }], 
+                        nonSelectedOpacity: 0.1 })">
+                    Select chains with opacity
+                </button>
+                <br>
                 <button onclick="viewerInstance.visual.select({ data: [{ uniprot_accession: 'P02070', start_uniprot_residue_number: 122, end_uniprot_residue_number: 142, color: '#ff00ff' }], nonSelectedColor: '#ffffff' })">
                     Select Uniprot
                 </button>

@@ -24,6 +24,7 @@ import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
+import { Transparency } from 'molstar/lib/mol-theme/transparency';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf';
@@ -676,9 +677,38 @@ export async function applyOverpaint(plugin: PluginContext, structRef: Structure
     await update.commit();
 }
 
+/** Apply transparency to every representation of every component in a structure.
+ * Excludes representations created as "added representations" by `PDBeMolstarPlugin.visual.select`. */
+export async function applyTransparency(plugin: PluginContext, structRef: StructureRef, transparencyLayers: Transparency.BundleLayer[]) {
+    if (transparencyLayers.length === 0) return;
+    const update = plugin.build();
+    for (const component of structRef.components) {
+        if (component.cell.transform.tags?.includes(Tags.AddedComponent)) continue;
+        for (const repr of component.representations) {
+            const currentTransparency = plugin.state.data.select(StateSelection.Generators
+                .ofTransformer(StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle, repr.cell.transform.ref)
+                .withTag(Tags.Transparency));
+            if (currentTransparency.length === 0) {
+                // Create a new transparency
+                update.to(repr.cell.transform.ref).apply(
+                    StateTransforms.Representation.TransparencyStructureRepresentation3DFromBundle,
+                    { layers: transparencyLayers },
+                    { tags: Tags.Transparency },
+                );
+            } else {
+                // Add layers to existing transparency
+                update.to(currentTransparency[0]).update(old => ({ layers: old.layers.concat(transparencyLayers) }));
+            }
+        }
+    }
+    await update.commit();
+}
+
 export const Tags = {
     /** Tag needed for `clearStructureOverpaint`; defined in src/mol-plugin-state/helpers/structure-overpaint.ts but private */
     Overpaint: 'overpaint-controls',
+    /** Tag needed for `clearStructureTransparency`; defined in src/mol-plugin-state/helpers/structure-transparency.ts but private */
+    Transparency: 'transparency-controls',
     /** Marks structure components added by `select` */
     AddedComponent: 'pdbe-molstar.added-component',
 } as const;
