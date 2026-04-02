@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PDBeurope/pdbe-molstar.git"
+    "url": "git+https://github.com/molstar/pdbe-molstar.git"
   },
   "keywords": [
     "Molstar",
@@ -41,9 +41,9 @@
   ],
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/PDBeurope/pdbe-molstar/issues"
+    "url": "https://github.com/molstar/pdbe-molstar/issues"
   },
-  "homepage": "https://github.com/PDBeurope/pdbe-molstar#readme",
+  "homepage": "https://github.com/molstar/pdbe-molstar#readme",
   "devDependencies": {
     "@babel/core": "^7.17.10",
     "@babel/plugin-transform-runtime": "^7.17.10",
