@@ -36,8 +36,7 @@ npm run watch
 - Update `CHANGELOG.md`
 - Git commit and push (commit message e.g. "Version 1.2.3")
 - Create a git tag matching the version with prepended "v" (e.g. "v1.2.3")
-- The GitHub repo will automatically be mirrored to EBI GitLab (might take up to 1 hour)
-- CICD pipeline in EBI GitLab will automatically publish the package to npm (https://www.npmjs.com/package/pdbe-molstar)
+- GitHub workflow will automatically publish npm package (https://www.npmjs.com/package/pdbe-molstar)
 - The files will become available via JSDeliver
   - Latest version including development versions:
     - https://cdn.jsdelivr.net/npm/pdbe-molstar@dev/build/pdbe-molstar-plugin.js
