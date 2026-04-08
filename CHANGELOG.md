@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file, following the suggestions of [Keep a CHANGELOG](http://keepachangelog.com/). This project adheres to [Semantic Versioning](http://semver.org/) for its most widely used - and defacto - public interfaces.
 
 ## [Unreleased]
+- Mol* core dependency updated to 5.8.0
 
 ## [v3.11.0] - 2026-04-02
 - Mol* core dependency updated to 5.7.0
