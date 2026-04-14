@@ -453,7 +453,7 @@ export class PDBeMolstarPlugin {
     }
 
     /** Remove loaded structure(s).
-     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+     * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure.
      * If `structureNumberOrId` is undefined, remove all structures.
      * You will likely need to call `await this.visual.reset({ camera: true })` afterwards. */
     async deleteStructure(structureNumberOrId?: number | string) {
@@ -529,13 +529,13 @@ export class PDBeMolstarPlugin {
 
     /** Get loci corresponding to a selection within a structure.
      * If `params` contains more items, return loci for the union of the selections.
-     * If `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+     * If `structureNumber` is provided, use the specified structure (numbered from 1!; use negative index to count backwards); otherwise use the last added structure. */
     getLociForParams(params: QueryParam[], structureNumberOrId?: number | string): StructureElement.Loci | EmptyLoci {
         const struct = (structureNumberOrId !== undefined) ?
             this.getStructure(structureNumberOrId)?.cell.obj?.data
             : this.assemblyRef ?
                 (this.plugin.state.data.select(this.assemblyRef)[0]?.obj as PluginStateObject.Molecule.Structure | undefined)?.data
-                : undefined;
+                : this.getStructure(-1)?.cell.obj?.data;
         if (!struct) return EmptyLoci;
         return QueryHelper.getInteractivityLoci(params, struct);
     }
@@ -574,13 +574,20 @@ export class PDBeMolstarPlugin {
     }
 
     /** Get structure ref for a structure with given `structureNumberOrId`.
-     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+     * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure.
      * If `structureNumberOrId` is undefined, return refs for all loaded structures. */
     private getStructures(structureNumberOrId: number | string | undefined): { structureRef: StructureRef, number: number }[] {
         const allStructures = this.plugin.managers.structure.hierarchy.current.structures.map((structureRef, i) => ({ structureRef, number: i + 1 }));
         if (typeof structureNumberOrId === 'number') {
-            const theStructure = allStructures[structureNumberOrId - 1];
-            return theStructure ? [theStructure] : [];
+            if (structureNumberOrId > 0) { // count forwards from 1
+                const theStructure = allStructures[structureNumberOrId - 1];
+                return theStructure ? [theStructure] : [];
+            } else if (structureNumberOrId < 0) { // count backwards from -1
+                const theStructure = allStructures[allStructures.length + structureNumberOrId];
+                return theStructure ? [theStructure] : [];
+            } else {
+                throw new Error('0 is not a valid value for structureNumberOrId, as structures are numbered from 1');
+            }
         } else if (typeof structureNumberOrId === 'string') {
             const structRef = this.structureRefMap.get(structureNumberOrId);
             if (structRef === undefined) {
@@ -598,7 +605,7 @@ export class PDBeMolstarPlugin {
         }
     }
     /** Get StructureRef for a structure with given `structureNumberOrId`.
-     * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure. */
+     * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure. */
     getStructure(structureNumberOrId: number | string): StructureRef | undefined {
         return this.getStructures(structureNumberOrId)[0]?.structureRef;
     }
@@ -664,7 +671,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** Change the visibility of a structure.
-         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure.
+         * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure.
          * If `visibility` is undefined, toggle current visibility state. */
         structureVisibility: async (structureNumberOrId: string | number, visibility?: boolean) => {
             const struct = this.getStructure(structureNumberOrId);
@@ -695,7 +702,7 @@ export class PDBeMolstarPlugin {
 
         /** Focus (zoom) on the part of the structure defined by `selection`.
          * If `selection` contains more items, focus on the union of those.
-         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure;
          * if not provided, will use the last added structure. */
         focus: async (selection: QueryParam[], structureNumberOrId?: number | string) => {
             const loci = this.getLociForParams(selection, structureNumberOrId);
@@ -706,7 +713,7 @@ export class PDBeMolstarPlugin {
          * This includes behaviors like "show non-covalent interactions" or "show streamed volume data"
          * but not camera adjustment (call `.visual.focus` for that).
          * If `data` contains more items, focus on the union of those.
-         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!);
+         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!; use negative index to count backwards);
          * otherwise use the last added structure. */
         interactivityFocus: async (params: { data: QueryParam[], structureId?: string, structureNumber?: number }) => {
             const structureNumberOrId = params.structureId ?? params.structureNumber;
@@ -717,7 +724,7 @@ export class PDBeMolstarPlugin {
         /** Trigger highlight on the part of the structure defined by `data`
          * (this will look the same as when the user hovers over a part of the structure).
          * If `focus`, also zoom on the highlighted part.
-         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!); otherwise use the last added structure. */
+         * If `structureId` or `structureNumber` is provided, use the specified structure (numbered from 1!; use negative index to count backwards); otherwise use the last added structure. */
         highlight: async (params: { data: QueryParam[], color?: AnyColor, focus?: boolean, structureId?: string, structureNumber?: number }) => {
             const loci = this.getLociForParams(params.data, params.structureId ?? params.structureNumber);
             if (Loci.isEmpty(loci)) return;
@@ -740,7 +747,7 @@ export class PDBeMolstarPlugin {
          * If any items in `data` contain `opacity`, set opacity accordingly, set opacity to `nonSelectedOpacity` (or 1) for the rest of the structure.
          * If any items in `data` contain `focus`, zoom to the union of these items.
          * If any items in `data` contain `sideChain` or `representation`, add extra representations to them (colored in `representationColor` if provided).
-         * If `structureNumber` is provided, apply to the specified structure (numbered from 1!); otherwise apply to all loaded structures.
+         * If `structureNumber` is provided, apply to the specified structure (numbered from 1!; use negative index to count backwards); otherwise apply to all loaded structures.
          * Remove any previously added coloring, opacity, and/or extra representations, unless `keepColors`, `keepOpacity`, and/or `keepRepresentations` is set. */
         select: async (params: {
             data: (QueryParam & { color?: AnyColor, opacity?: number, sideChain?: boolean, representation?: string, representationColor?: AnyColor, representationOpacity?: number, focus?: boolean })[],
@@ -864,7 +871,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any coloring and extra representations previously added by the `select` method.
-         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure;
          * if not provided, will apply to all loaded structures.
          * If `keepColors`, current residue coloring is preserved. If `keepOpacity`, current residue opacity is preserved. If `keepRepresentations`, current added representations are preserved. */
         clearSelection: async (structureNumberOrId?: number | string, options?: { keepColors?: boolean, keepOpacity?: boolean, keepRepresentations?: boolean }) => {
@@ -896,7 +903,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** Color the parts of sequence in the sequence panel defined by `data`. Color the rest of the sequence in `nonSelectedColor` if provided.
-         * If `structureId` or `structureNumber` is provided, apply to the specified structure (`structureNumber` numbered from 1!); otherwise apply to all loaded structures.
+         * If `structureId` or `structureNumber` is provided, apply to the specified structure (`structureNumber` numbered from 1!; use negative index to count backwards); otherwise apply to all loaded structures.
          * Remove any previously added coloring, unless `keepColors` is set. */
         sequenceColor: async (params: {
             data: (QueryParam & { color?: AnyColor })[],
@@ -965,7 +972,7 @@ export class PDBeMolstarPlugin {
         },
 
         /** Remove any sequence coloring previously added by the `sequenceColor` method.
-         * `structureNumberOrId` is either index (numbered from 1!) or the ID that was provided when loading the structure;
+         * `structureNumberOrId` is either index (numbered from 1!; use negative index to count backwards) or the ID that was provided when loading the structure;
          * if not provided, will apply to all loaded structures. */
         clearSequenceColor: async (structureNumberOrId?: number | string) => {
             if (typeof structureNumberOrId === 'number')

@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Mol* core dependency updated to 5.8.0
+- Helper functions that use the last added structure work also for MVS structures
 
 ## [v3.11.0] - 2026-04-02
 - Mol* core dependency updated to 5.7.0
