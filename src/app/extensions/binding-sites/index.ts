@@ -6,6 +6,7 @@ import { getStructureUrl } from '../../helpers';
 import { transform } from '../../superposition';
 import type { PDBeMolstarPlugin } from '../../viewer';
 import type { BindingSitesApiResponseData, BindingSitesData, BoundMoleculesApiResponseData, ChemCompClusterApiResponseData, ChemCompClusterData } from './api-types';
+import { Structure } from 'molstar/lib/mol-model/structure';
 
 
 const PDB_BOUND_MOLECULES_API_TEMPLATE = `https://www.ebi.ac.uk/pdbe/api/v2/pdb/bound_molecules/{pdb}`;
@@ -61,15 +62,14 @@ function selectBmsByClusterAndAddPdbId(clusterData: ChemCompClusterData, binding
     return out;
 }
 
-async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clusterData: ChemCompClusterData, bindingSiteId: string, unprotId: string) {
+async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clusterData: ChemCompClusterData, bindingSiteId: string, uniprotId: string) {
     console.log('bindingSiteId:', bindingSiteId)
     console.log('bsData:', bsData)
     console.log('clusterData:', clusterData)
     const ligands = bsData[bindingSiteId].ligands
-    const residues = Array.from(bsData[bindingSiteId].uniprot_residues).sort((a, b) => a - b);
-    const bindingResidueSet = new Set(residues);
+    const residues = new Set(bsData[bindingSiteId].uniprot_residues);
     console.log('ligands:', ligands)
-    console.log('residues:', residues)
+    console.log('residues:', Array.from(residues).sort((a, b) => a - b))
 
     const representativePdb = bsData[bindingSiteId].ligands[0].entry_id;
     const representativePdbAuthAsymId = bsData[bindingSiteId].ligands[0].chem_comps[0].auth_asym_id;
@@ -88,6 +88,19 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
     let reprBsCoords: { [uniprotResNum: number]: [number, number, number] } | undefined; // TODO: properly select representative structure binding site coords (from the whole structure), don't assume it is the first one
 
     console.time('load&superpose')
+
+    // const query = {
+    //     "queries": [
+    //         { "entryId": "1cbs", "query": "residueInteraction", "params": { "atom_site": [{ "label_comp_id": "REA" }], "radius": 5 } },
+    //         { "entryId": "1tqn", "query": "full", "copy_all_categories": true },
+    //     ],
+    //     "encoding": "cif",
+    //     "asTarGz": false,
+    // };
+    // const queryUrl = `https://www.ebi.ac.uk/pdbe/model-server/v1/query-many?query=${JSON.stringify(query)}`;
+    // const qText = await (await fetch(queryUrl)).text();
+    // console.log(qText)
+
     const bmStructIds: string[] = [];
     for (const bm of bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT)) {
         // TODO: parallelize ligand loading and superposition
@@ -122,40 +135,14 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
         const bmStruct = viewer.getStructure(bmStructId)?.cell.obj?.data;
         if (!bmStruct) throw new Error(`Failed to load ligand structure ${bmStructId}`);
 
-        const srcData = bmStruct.model.sourceData
-        if (!MmcifFormat.is(srcData)) throw new Error(`Structure data in unsupported format "${srcData.kind}", must be mmCIF/BCIF.`);
-        const a = srcData.data.db.atom_site;
-        const bsCoords: { [uniprotResNum: number]: [number, number, number] } = {};
-        for (let i = 0; i < a._rowCount; i++) {
-            if (!TraceAtoms.has(a.label_atom_id.value(i))) continue;
-            if (a.group_PDB.value(i) !== 'ATOM') continue;
-            // Assuming a.pdbx_sifts_xref_db_name is 'UNP' (should we check this?)
-            if (a.pdbx_sifts_xref_db_acc.value(i) !== unprotId) continue;
-            const uniprotNum = parseInt(a.pdbx_sifts_xref_db_num.value(i));
-            if (!bindingResidueSet.has(uniprotNum)) continue;
-            // console.log('trace atom', a.group_PDB.value(i), a.label_atom_id.value(i), a.label_asym_id.value(i), a.label_seq_id.value(i), '|', a.pdbx_sifts_xref_db_name.value(i), a.pdbx_sifts_xref_db_acc.value(i), uniprotNum, a.pdbx_sifts_xref_db_res.value(i))
-            bsCoords[uniprotNum] = [a.Cartn_x.value(i), a.Cartn_y.value(i), a.Cartn_z.value(i)];
-            // TODO: this assumes there is only one matching residue, we should select the nearest residue if there are multiple
-        }
+        const bsCoords = extractTraceCoordsByUniprot(bmStruct, uniprotId, residues);
+        console.log(bm.entry_id, bm.ligand_id, bm.bm_id, Object.keys(bsCoords).length,)
 
         if (!reprBsCoords) {
             // This is first structure (representative)
             reprBsCoords = bsCoords;
         } else {
-            // This is not representative structure
-            const a = { x: [] as number[], y: [] as number[], z: [] as number[] };
-            const b = { x: [] as number[], y: [] as number[], z: [] as number[] };
-            for (const uniprotResId in bsCoords) {
-                if (!reprBsCoords[uniprotResId]) continue;
-                a.x.push(reprBsCoords[uniprotResId][0]);
-                a.y.push(reprBsCoords[uniprotResId][1]);
-                a.z.push(reprBsCoords[uniprotResId][2]);
-                b.x.push(bsCoords[uniprotResId][0]);
-                b.y.push(bsCoords[uniprotResId][1]);
-                b.z.push(bsCoords[uniprotResId][2]);
-            }
-
-            const superposition = MinimizeRmsd.compute({ a, b });
+            const superposition = superposeUniprotCoords(reprBsCoords, bsCoords);
             // console.log('superposed', bmStructId, superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
             await transform(viewer.plugin, viewer.getStructure(bmStructId)!.cell, superposition.bTransform);
         }
@@ -168,6 +155,43 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
     console.log('bm:', bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT).length, bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT))
     console.log('bmStructIds:', bmStructIds.length, bmStructIds)
     // await animate(viewer, bmStructIds, { frameMs: 100, repeat: 10 });
+}
+
+type UniprotCoords = { [uniprotResNum: number]: [number, number, number] }
+
+function extractTraceCoordsByUniprot(struct: Structure, uniprotId: string, uniprotResidues: Set<number>): UniprotCoords {
+    const srcData = struct.model.sourceData;
+    if (!MmcifFormat.is(srcData)) throw new Error(`Structure data in unsupported format "${srcData.kind}", must be mmCIF/BCIF.`);
+
+    const a = srcData.data.db.atom_site;
+    const coords: UniprotCoords = {};
+    for (let i = 0; i < a._rowCount; i++) {
+        if (!TraceAtoms.has(a.label_atom_id.value(i))) continue; // Select only trace atoms (CA etc.)
+        // Assuming a.pdbx_sifts_xref_db_name is 'UNP' (should we check this?)
+        if (a.pdbx_sifts_xref_db_acc.value(i) !== uniprotId) continue;
+        const uniprotNum = parseInt(a.pdbx_sifts_xref_db_num.value(i));
+        if (!uniprotResidues.has(uniprotNum)) continue;
+        coords[uniprotNum] = [a.Cartn_x.value(i), a.Cartn_y.value(i), a.Cartn_z.value(i)];
+        // console.log('trace atom', a.group_PDB.value(i), a.label_atom_id.value(i), a.label_asym_id.value(i), a.label_seq_id.value(i), '|', a.pdbx_sifts_xref_db_name.value(i), a.pdbx_sifts_xref_db_acc.value(i), uniprotNum, a.pdbx_sifts_xref_db_res.value(i))
+        // TODO: this assumes there is only one matching residue, we should select the nearest residue if there are multiple
+        // TODO: possible optimization: put coords into 1 array instead of 3-tuples per residue
+    }
+    return coords;
+}
+
+function superposeUniprotCoords(aCoords: UniprotCoords, bCoords: UniprotCoords): MinimizeRmsd.Result {
+    const a = { x: [] as number[], y: [] as number[], z: [] as number[] };
+    const b = { x: [] as number[], y: [] as number[], z: [] as number[] };
+    for (const uniprotResId in bCoords) {
+        if (!aCoords[uniprotResId]) continue;
+        a.x.push(aCoords[uniprotResId][0]);
+        a.y.push(aCoords[uniprotResId][1]);
+        a.z.push(aCoords[uniprotResId][2]);
+        b.x.push(bCoords[uniprotResId][0]);
+        b.y.push(bCoords[uniprotResId][1]);
+        b.z.push(bCoords[uniprotResId][2]);
+    }
+    return MinimizeRmsd.compute({ a, b });
 }
 
 async function animate(viewer: PDBeMolstarPlugin, structIds: string[], options: { frameMs: number, repeat: number | undefined }) {
