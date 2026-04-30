@@ -483,6 +483,15 @@ export function transform(plugin: PluginContext, s: StateObjectRef<PSO.Molecule.
     return plugin.runTask(plugin.state.data.updateTree(b));
 }
 
+/** Apply tranformation to a structure. Only use once per structure, combining multiple transformations is not implemented. */
+export function transformMany(plugin: PluginContext, transformations: [StateObjectRef<PSO.Molecule.Structure>, Mat4][]) {
+    const update = plugin.state.data.build();
+    for (const [s, matrix] of transformations) {
+        update.to(s).insert(StateTransforms.Model.TransformStructureConformation, { transform: { name: 'matrix', params: { data: matrix, transpose: false } } });
+    }
+    return plugin.runTask(plugin.state.data.updateTree(update));
+}
+
 async function afTransform(plugin: PluginContext, s: StateObjectRef<PluginStateObject.Molecule.Structure>, matrix: Mat4, coordinateSystem?: SymmetryOperator) {
     const r = StateObjectRef.resolveAndCheck(plugin.state.data, s);
     if (!r) return;

@@ -1,32 +1,48 @@
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
+import { Structure } from 'molstar/lib/mol-model/structure';
 import { TraceAtoms } from 'molstar/lib/mol-model/structure/model/types';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { getStructureUrl } from '../../helpers';
 import { transform } from '../../superposition';
 import type { PDBeMolstarPlugin } from '../../viewer';
 import type { BindingSitesApiResponseData, BindingSitesData, BoundMoleculesApiResponseData, ChemCompClusterApiResponseData, ChemCompClusterData } from './api-types';
-import { Structure } from 'molstar/lib/mol-model/structure';
+import { Download, ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
+import { ModelFromTrajectory, StructureFromModel, StructureFromTrajectory, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
+import { Representation } from 'molstar/lib/mol-repr/representation';
+import { OverpaintStructureRepresentation3DFromBundle, OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
+import { StateSelection } from 'molstar/lib/mol-state';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
+import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { CreateGroup } from 'molstar/lib/mol-plugin-state/transforms/misc';
+import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
+import { ColorNames } from 'molstar/lib/mol-util/color/names';
 
 
 const PDB_BOUND_MOLECULES_API_TEMPLATE = `https://www.ebi.ac.uk/pdbe/api/v2/pdb/bound_molecules/{pdb}`;
 const PDB_STRUCTURE_URL_TEMPLATE = 'https://www.ebi.ac.uk/pdbe/entry-files/{pdb}.bcif';
+const MODEL_SERVER_URL = 'https://www.ebi.ac.uk/pdbe/model-server/v1/';
 const BINDING_SITE_RADIUS = 5; // TODO: fine-tune this radius (5 does not cover some residues, e.g. 5jvy UNP Q05769 186 F)
-const DEBUG_LIGAND_COUNT_LIMIT = undefined;//6;
+const DEBUG_LIGAND_COUNT_LIMIT: number | undefined = undefined;
 
 
 /** Internal reference to structure of representative entry */
 const REPRESENTATIVE_STRUCT_ID = 'representative';
-function ligandStructId(pdbId: string, labelAsymId: string) {
-    return `ligand-${pdbId}-${labelAsymId}`;
+// function ligandStructId_(pdbId: string, labelAsymId: string) {
+//     return `ligand-${pdbId}-${labelAsymId}`;
+// }
+function ligandStructTag(ligand: BindingSitesData[string]['ligands'][number]) {
+    const pdbId = ligand.entry_id;
+    const labelAsymId = ligand.chem_comps[0].label_asym_id; // TODO: confirm this is correct
+    const symOp = ligand.chem_comps[0].sym_op ?? '';
+    return `ligand-struct-${pdbId}-${labelAsymId}${symOp}`;
 }
-
 
 export async function demo(viewer: PDBeMolstarPlugin) {
     console.log('Hello superposition')
 
     const uniprotId = 'Q05769';
-    const bindingSiteId = '1';
+    const bindingSiteId = '2';
 
     const bsUrl = `tmp/binding-site-superposition/${uniprotId}_bs.json`;
     const clusterUrl = `tmp/binding-site-superposition/${uniprotId}_chem_comp_cluster.json`;
@@ -87,56 +103,76 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
 
     let reprBsCoords: { [uniprotResNum: number]: [number, number, number] } | undefined; // TODO: properly select representative structure binding site coords (from the whole structure), don't assume it is the first one
 
+    const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
+
     console.time('load&superpose')
+    console.time('load-multi')
+    console.time('fetch')
 
-    // const query = {
-    //     "queries": [
-    //         { "entryId": "1cbs", "query": "residueInteraction", "params": { "atom_site": [{ "label_comp_id": "REA" }], "radius": 5 } },
-    //         { "entryId": "1tqn", "query": "full", "copy_all_categories": true },
-    //     ],
-    //     "encoding": "cif",
-    //     "asTarGz": false,
-    // };
-    // const queryUrl = `https://www.ebi.ac.uk/pdbe/model-server/v1/query-many?query=${JSON.stringify(query)}`;
-    // const qText = await (await fetch(queryUrl)).text();
-    // console.log(qText)
+    const response = await fetch(...queryManyRequest(ligandsToSuperpose, { method: 'POST', encoding: 'bcif', radius: BINDING_SITE_RADIUS }));
+    const qBytes = await response.bytes();
+    console.timeEnd('fetch')
 
-    const bmStructIds: string[] = [];
-    for (const bm of bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT)) {
+    console.time('update state')
+    const update = viewer.plugin.build();
+    // const cif = update
+    //     .toRoot()
+    //     .apply(RawData, { data: qBytes })
+    //     .apply(ParseCif, {});
+    // for (let i = 0; i < ligandsToSuperpose.length; i++) {
+    //     const ligand = ligandsToSuperpose[i];
+    //     cif
+    //         .apply(CreateGroup, { label: `${ligand.entry_id} ${ligand.chem_comps[0].label_asym_id}`, description: ligand.ligand_id }, { state: { isCollapsed: true } })
+    //         .apply(TrajectoryFromMmCif, { blockHeader: '', blockIndex: i })
+    //         .apply(ModelFromTrajectory, {})
+    //         .apply(StructureFromModel, {}, { tags: [ligandStructTag(ligand)] })
+    //         .apply(StructureRepresentation3D, { type: { name: 'ball-and-stick', params: {} } });
+    // }
+    const traj = update
+        .toRoot()
+        .apply(RawData, { data: qBytes })
+        .apply(ParseCif, {})
+        .apply(TrajectoryFromMmCif, { loadAllBlocks: true });
+    for (let i = 0; i < ligandsToSuperpose.length; i++) {
+        const ligand = ligandsToSuperpose[i];
+        traj
+            .apply(CreateGroup, { label: `${ligand.entry_id} ${ligand.chem_comps[0].label_asym_id}${ligand.chem_comps[0].sym_op ?? ''}`, description: ligand.ligand_id }, { state: { isCollapsed: true } })
+            .apply(ModelFromTrajectory, { modelIndex: i }, { state: { isGhost: false } })
+            .apply(StructureFromModel, {}, { tags: [ligandStructTag(ligand)] })
+            .apply(StructureRepresentation3D, { type: { name: 'ball-and-stick', params: {} } })
+            .apply(OverpaintStructureRepresentation3DFromScript, { // TODO: think if structures can be colored more smartly
+                layers: [
+                    { script: { language: 'pymol', expression: 'all' }, color: ColorNames.gray, clear: false },
+                    { script: { language: 'pymol', expression: 'het' }, color: ColorNames.magenta, clear: false },
+                ],
+            });
+    }
+    await update.commit();
+    console.timeEnd('update state')
+    console.timeEnd('load-multi')
+
+    console.time('superpose')
+    const bmStructTags: string[] = [];
+
+    const structRefs = getStructureRefsByTag(viewer.plugin);
+    console.log('structRefs:', Object.keys(structRefs).length, structRefs)
+    console.log('structures:', viewer.plugin.managers.structure.hierarchy.current.structures.length)
+    console.log('ligandsToSuperpose:', new Set(ligandsToSuperpose.map(ligand => ligandStructTag(ligand))).size)
+    console.log('ligandsToSuperpose:', ligandsToSuperpose.length, ligandsToSuperpose)
+    // console.log('duplicates:', findDuplicates(ligandsToSuperpose, ligandStructTag))
+
+    // return;
+
+    for (const bm of ligandsToSuperpose) {
         // TODO: parallelize ligand loading and superposition
-        const pdbId = bm.entry_id;
-        const labelAsymId = bm.chem_comps[0].label_asym_id; // TODO: confirm this is correct
-        const bmStructId = ligandStructId(pdbId, labelAsymId)
-        bmStructIds.push(bmStructId);
+        const bmStructTag = ligandStructTag(bm)
+        bmStructTags.push(bmStructTag);
 
-        const structUrl = getStructureUrl(viewer.initParams, {
-            pdbId: pdbId,
-            queryType: 'residueInteraction',
-            queryParams: {
-                label_asym_id: labelAsymId,
-                radius: BINDING_SITE_RADIUS,
-                encoding: 'bcif',
-                assembly_name: undefined,
-            },
-        });
-
-        await viewer.load({
-            id: bmStructId,
-            url: structUrl,
-            format: 'mmcif',
-            isBinary: true,
-            assemblyId: undefined,
-        }, false);
-        // TODO: implement download retry logic, ModelServer tends to crash, according to Mihai
-        // TODO: load via ModelServer query-many
-        await viewer.visual.structureVisibility(bmStructId, false); // Hide structure until superposed
-        await viewer.visual.select({ data: [{ label_asym_id: labelAsymId, color: 'magenta' }], nonSelectedColor: 'gray', structureId: bmStructId });
-
-        const bmStruct = viewer.getStructure(bmStructId)?.cell.obj?.data;
-        if (!bmStruct) throw new Error(`Failed to load ligand structure ${bmStructId}`);
+        const bmStruct = structRefs[bmStructTag].cell.obj?.data;
+        if (!bmStruct) throw new Error(`Failed to load ligand structure ${bmStructTag}`);
 
         const bsCoords = extractTraceCoordsByUniprot(bmStruct, uniprotId, residues);
-        console.log(bm.entry_id, bm.ligand_id, bm.bm_id, Object.keys(bsCoords).length,)
+        // console.log(bm.entry_id, bm.ligand_id, bm.bm_id, Object.keys(bsCoords).length,)
 
         if (!reprBsCoords) {
             // This is first structure (representative)
@@ -144,16 +180,19 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
         } else {
             const superposition = superposeUniprotCoords(reprBsCoords, bsCoords);
             // console.log('superposed', bmStructId, superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
-            await transform(viewer.plugin, viewer.getStructure(bmStructId)!.cell, superposition.bTransform);
+            await transform(viewer.plugin, structRefs[bmStructTag].cell, superposition.bTransform);
         }
-        await viewer.visual.structureVisibility(bmStructId, true); // Reveal superposed structure
+        // await viewer.visual.structureVisibility(bmStructTag, true); // Reveal superposed structure
     }
+    console.timeEnd('superpose')
     console.timeEnd('load&superpose')
-    // 16 s (81 ligands, individual ModelServer queries)
+    // load&superpose: 16 s (81 ligands, individual ModelServer queries)
+    // load:           10 s (81 ligands, individual ModelServer queries)
+    // load:           2.5 s (81 ligands, ModelServer query-many, POST bcif, pass via RawData)
 
     // TODO: solve duplicities in bmStructIds!!!!! (binding site 2)
-    console.log('bm:', bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT).length, bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT))
-    console.log('bmStructIds:', bmStructIds.length, bmStructIds)
+    console.log('bm:', ligandsToSuperpose.length, ligandsToSuperpose)
+    console.log('bmStructIds:', bmStructTags.length, bmStructTags)
     // await animate(viewer, bmStructIds, { frameMs: 100, repeat: 10 });
 }
 
@@ -194,6 +233,34 @@ function superposeUniprotCoords(aCoords: UniprotCoords, bCoords: UniprotCoords):
     return MinimizeRmsd.compute({ a, b });
 }
 
+function queryManyRequest(ligandsToSuperpose: BindingSitesData[string]['ligands'], options: { method: 'GET' | 'POST', encoding: 'cif' | 'bcif', radius: number }): [url: string, requestInit: RequestInit | undefined] {
+    const query = {
+        queries: ligandsToSuperpose.map(bm => ({
+            entryId: bm.entry_id,
+            query: "residueInteraction",
+            params: { atom_site: [{ label_asym_id: bm.chem_comps[0].label_asym_id /* TODO: confirm this is correct */ }], radius: options.radius },
+        })),
+        encoding: options.encoding,
+        asTarGz: false,
+    };
+    switch (options.method) {
+        case 'GET':
+            return [`${MODEL_SERVER_URL.replace(/\/$/, '')}/query-many?query=${JSON.stringify(query)}`, undefined];
+        case 'POST':
+            return [`${MODEL_SERVER_URL.replace(/\/$/, '')}/query-many`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(query) }];
+    }
+}
+
+function getStructureRefsByTag(plugin: PluginContext) {
+    const out: { [tag: string]: StructureRef } = {};
+    for (const structRef of plugin.managers.structure.hierarchy.current.structures) {
+        for (const tag of structRef.cell.transform.tags ?? []) {
+            out[tag] = structRef;
+        }
+    }
+    return out;
+}
+
 async function animate(viewer: PDBeMolstarPlugin, structIds: string[], options: { frameMs: number, repeat: number | undefined }) {
     let rep = 0;
     for (const structId of structIds) await viewer.visual.structureVisibility(structId, false);
@@ -206,4 +273,17 @@ async function animate(viewer: PDBeMolstarPlugin, structIds: string[], options: 
         }
     }
     for (const structId of structIds) await viewer.visual.structureVisibility(structId, true);
+}
+
+function findDuplicates<T>(items: T[], key: (item: T) => string) {
+    const out: { [key: string]: T[] } = {};
+    for (const item of items) {
+        (out[key(item)] ??= []).push(item);
+    }
+    for (const keyValue of Object.keys(out)) {
+        if (out[keyValue].length < 2) {
+            delete out[keyValue];
+        }
+    }
+    return out;
 }
