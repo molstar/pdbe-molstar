@@ -2,27 +2,21 @@ import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rm
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
 import { Structure } from 'molstar/lib/mol-model/structure';
 import { TraceAtoms } from 'molstar/lib/mol-model/structure/model/types';
-import { sleep } from 'molstar/lib/mol-util/sleep';
-import { getStructureUrl } from '../../helpers';
-import { transform, transformMany } from '../../superposition';
-import type { PDBeMolstarPlugin } from '../../viewer';
-import type { BindingSitesApiResponseData, BindingSitesData, BoundMoleculesApiResponseData, ChemCompClusterApiResponseData, ChemCompClusterData } from './api-types';
-import { Download, ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
-import { ModelFromTrajectory, StructureFromModel, StructureFromTrajectory, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
-import { Representation } from 'molstar/lib/mol-repr/representation';
-import { OverpaintStructureRepresentation3DFromBundle, OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
-import { StateSelection } from 'molstar/lib/mol-state';
-import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
+import { ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
 import { CreateGroup } from 'molstar/lib/mol-plugin-state/transforms/misc';
-import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
-import { ColorNames } from 'molstar/lib/mol-util/color/names';
-import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
+import { ModelFromTrajectory, StructureFromModel, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
+import { OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/state';
+import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { Task } from 'molstar/lib/mol-task';
+import { ColorNames } from 'molstar/lib/mol-util/color/names';
+import { sleep } from 'molstar/lib/mol-util/sleep';
+import { transformMany } from '../../superposition';
+import type { PDBeMolstarPlugin } from '../../viewer';
+import type { BindingSitesApiResponseData, BindingSitesData } from './api-types';
 
 
-const PDB_BOUND_MOLECULES_API_TEMPLATE = `https://www.ebi.ac.uk/pdbe/api/v2/pdb/bound_molecules/{pdb}`;
 const PDB_STRUCTURE_URL_TEMPLATE = 'https://www.ebi.ac.uk/pdbe/entry-files/{pdb}.bcif';
 const MODEL_SERVER_URL = 'https://www.ebi.ac.uk/pdbe/model-server/v1/';
 const BINDING_SITE_RADIUS = 5; // TODO: fine-tune this radius (5 does not cover some residues, e.g. 5jvy UNP Q05769 186 F)
@@ -31,9 +25,6 @@ const DEBUG_LIGAND_COUNT_LIMIT: number | undefined = undefined;
 
 /** Internal reference to structure of representative entry */
 const REPRESENTATIVE_STRUCT_ID = 'representative';
-// function ligandStructId_(pdbId: string, labelAsymId: string) {
-//     return `ligand-${pdbId}-${labelAsymId}`;
-// }
 function ligandStructTag(ligand: BindingSitesData[string]['ligands'][number]) {
     const pdbId = ligand.entry_id;
     const labelAsymId = ligand.chem_comps[0].label_asym_id; // TODO: confirm this is correct
@@ -42,60 +33,25 @@ function ligandStructTag(ligand: BindingSitesData[string]['ligands'][number]) {
 }
 
 export async function demo(viewer: PDBeMolstarPlugin) {
-    console.log('Hello superposition')
-
     const uniprotId = 'Q05769';
-    const bindingSiteId = '2';
+    const bindingSiteId = '1';
 
     const bsUrl = `tmp/binding-site-superposition/${uniprotId}_bs.json`;
-    const clusterUrl = `tmp/binding-site-superposition/${uniprotId}_chem_comp_cluster.json`;
     const bsApiData: BindingSitesApiResponseData = await (await fetch(bsUrl)).json();
-    const clusterApiData: ChemCompClusterApiResponseData = await (await fetch(clusterUrl)).json();
-    await doMagic(viewer, bsApiData[uniprotId], clusterApiData[uniprotId], bindingSiteId, uniprotId);
+    // const clusterUrl = `tmp/binding-site-superposition/${uniprotId}_chem_comp_cluster.json`;
+    // const clusterApiData: ChemCompClusterApiResponseData = await (await fetch(clusterUrl)).json();
+    await doMagic(viewer, bsApiData[uniprotId], bindingSiteId, uniprotId);
 }
 
-async function getBmInfo(pdbId: string): Promise<BoundMoleculesApiResponseData> {
-    const bmUrl = PDB_BOUND_MOLECULES_API_TEMPLATE.replace('{pdb}', pdbId);
-    return await (await fetch(bmUrl)).json();
-}
-
-async function getBmInfos(pdbIds: string[]): Promise<BoundMoleculesApiResponseData> {
-    const out: BoundMoleculesApiResponseData = {};
-    await Promise.all(pdbIds.map(async (pdbId) => {
-        const bmInfo = await getBmInfo(pdbId);
-        if (!bmInfo[pdbId]) throw new Error(`Bad response for ${pdbId}: ${bmInfo}`);
-        out[pdbId] = bmInfo[pdbId];
-    }));
-    return out;
-}
-
-function selectBmsByClusterAndAddPdbId(clusterData: ChemCompClusterData, bindingSiteId: string) {
-    const out: (ChemCompClusterData[string][number] & { pdbId: string })[] = [];
-    for (const pdbId in clusterData) {
-        for (const bm of clusterData[pdbId]) {
-            if (bm.cluster_id !== parseInt(bindingSiteId)) continue; // TODO: is this correct
-            out.push({ ...bm, pdbId });
-        }
-    }
-    if (out.length === 0) throw new Error(`No ligands for cluster binding site ${bindingSiteId}`);
-    return out;
-}
-
-async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clusterData: ChemCompClusterData, bindingSiteId: string, uniprotId: string) {
+async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSiteId: string, uniprotId: string) {
     return await viewer.plugin.runTask(Task.create('Load binding site superposition', async (runtime) => {
-        console.log('bindingSiteId:', bindingSiteId)
-        console.log('bsData:', bsData)
-        console.log('clusterData:', clusterData)
-        const ligands = bsData[bindingSiteId].ligands
+        console.log(uniprotId, 'bindingSiteId:', bindingSiteId)
         const residues = new Set(bsData[bindingSiteId].uniprot_residues);
-        console.log('ligands:', ligands)
-        console.log('residues:', Array.from(residues).sort((a, b) => a - b))
         const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
-        
-        const representativePdb = bsData[bindingSiteId].ligands[0].entry_id;
-        const representativePdbAuthAsymId = bsData[bindingSiteId].ligands[0].chem_comps[0].auth_asym_id;
-        
+        const representativePdb = bsData[bindingSiteId].ligands[0].entry_id; // TODO: how to select representative structure
+
         await runtime.update('Loading representative protein structure');
+        console.time('load representative structure')
         await viewer.load({
             id: REPRESENTATIVE_STRUCT_ID,
             url: PDB_STRUCTURE_URL_TEMPLATE.replace('{pdb}', representativePdb),
@@ -103,35 +59,19 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
             isBinary: PDB_STRUCTURE_URL_TEMPLATE.endsWith('.bcif'),
             assemblyId: undefined,
         }, false);
-
         const reprStruct = viewer.getStructure(REPRESENTATIVE_STRUCT_ID)?.cell.obj?.data;
         if (!reprStruct) throw new Error(`Failed to load representative structure ${representativePdb}`);
-        
-        await runtime.update(`Loading ${ligandsToSuperpose.length} ligands`);
-        console.time('load&superpose')
-        console.time('load-multi')
-        console.time('fetch')
+        console.timeEnd('load representative structure')
 
+        console.time('load&superpose')
+
+        await runtime.update(`Downloading ${ligandsToSuperpose.length} ligands`);
+        console.time('load')
         const response = await fetch(...queryManyRequest(ligandsToSuperpose, { method: 'POST', encoding: 'bcif', radius: BINDING_SITE_RADIUS }));
         const qBytes = await response.bytes();
-        console.timeEnd('fetch')
 
-        console.time('update state')
         const bmStructTags: string[] = [];
         const update = viewer.plugin.build();
-        // const cif = update
-        //     .toRoot()
-        //     .apply(RawData, { data: qBytes })
-        //     .apply(ParseCif, {});
-        // for (let i = 0; i < ligandsToSuperpose.length; i++) {
-        //     const ligand = ligandsToSuperpose[i];
-        //     cif
-        //         .apply(CreateGroup, { label: `${ligand.entry_id} ${ligand.chem_comps[0].label_asym_id}`, description: ligand.ligand_id }, { state: { isCollapsed: true } })
-        //         .apply(TrajectoryFromMmCif, { blockHeader: '', blockIndex: i })
-        //         .apply(ModelFromTrajectory, {})
-        //         .apply(StructureFromModel, {}, { tags: [ligandStructTag(ligand)] })
-        //         .apply(StructureRepresentation3D, { type: { name: 'ball-and-stick', params: {} } });
-        // }
         const traj = update
             .toRoot()
             .apply(RawData, { data: qBytes })
@@ -154,23 +94,14 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
                 });
         }
         await update.commit();
-        console.timeEnd('update state')
-        console.timeEnd('load-multi')
-
-        console.time('superpose')
-
-        const structRefs = getStructureRefsByTag(viewer.plugin);
-        console.log('structRefs:', Object.keys(structRefs).length, structRefs)
-        console.log('structures:', viewer.plugin.managers.structure.hierarchy.current.structures.length)
-        console.log('ligandsToSuperpose:', new Set(ligandsToSuperpose.map(ligand => ligandStructTag(ligand))).size)
-        console.log('ligandsToSuperpose:', ligandsToSuperpose.length, ligandsToSuperpose)
-
-        const transforms: { [structTag: string]: MinimizeRmsd.Result } = {};
-
-        let reprBsCoords: { [uniprotResNum: number]: [number, number, number] } | undefined; // TODO: properly select representative structure binding site coords (from the whole structure), don't assume it is the first one
+        console.timeEnd('load')
 
         await runtime.update(`Superposing ${ligandsToSuperpose.length} ligands`);
+        console.time('superpose')
         console.time('superpose compute')
+        const structRefs = getStructureRefsByTag(viewer.plugin);
+        const transforms: { [structTag: string]: MinimizeRmsd.Result } = {};
+        let reprBsCoords: { [uniprotResNum: number]: [number, number, number] } | undefined; // TODO: properly select representative structure binding site coords (from the whole structure), don't assume it is the first one
         for (const bm of ligandsToSuperpose) {
             // TODO: parallelize ligand loading and superposition
             const tag = ligandStructTag(bm);
@@ -179,7 +110,6 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
             if (!bmStruct) throw new Error(`Failed to load ligand structure ${tag}`);
 
             const bsCoords = extractTraceCoordsByUniprot(bmStruct, uniprotId, residues);
-            // console.log(bm.entry_id, bm.ligand_id, bm.bm_id, Object.keys(bsCoords).length,)
 
             if (!reprBsCoords) { // This is first structure (representative)
                 reprBsCoords = bsCoords;
@@ -188,37 +118,29 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, clus
             const superposition = superposeUniprotCoords(reprBsCoords, bsCoords);
             // console.log('superposed', bmStructId, superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
             transforms[tag] = superposition;
-            // await transform(viewer.plugin, structRefs[bmStructTag].cell, superposition.bTransform);
-            // await viewer.visual.structureVisibility(bmStructTag, true); // Reveal superposed structure
         }
         console.timeEnd('superpose compute')
-        console.log('bmStructTags:', bmStructTags, structRefs, transforms)
         console.time('superpose transform')
         await transformMany(viewer.plugin, bmStructTags.map(tag => [structRefs[tag].cell, transforms[tag].bTransform]));
         console.timeEnd('superpose transform')
-
-        console.time('show')
         for (const tag of bmStructTags) {
             setSubtreeVisibility(viewer.state, structRefs[tag].cell.transform.ref, false);
         }
-        console.timeEnd('show')
-
-
         console.timeEnd('superpose')
+
         console.timeEnd('load&superpose')
         // load&superpose: 16 s (81 ligands, individual ModelServer queries)
         // load:           10 s (81 ligands, individual ModelServer queries)
         // load:           2.5 s (81 ligands, ModelServer query-many, POST bcif, pass via RawData)
         // load&superpose: 2.776 s (81 ligands, ModelServer query-many, POST bcif, pass via RawData; transform in one go)
 
-        // TODO: solve duplicities in bmStructIds!!!!! (binding site 2)
-        console.log('bm:', ligandsToSuperpose.length, ligandsToSuperpose)
-        console.log('bmStructIds:', bmStructTags.length, bmStructTags)
         // await animate(viewer, bmStructIds, { frameMs: 100, repeat: 10 });
     }));
 }
 
-type UniprotCoords = { [uniprotResNum: number]: [number, number, number] }
+interface UniprotCoords {
+    [uniprotResNum: number]: [number, number, number],
+}
 
 function extractTraceCoordsByUniprot(struct: Structure, uniprotId: string, uniprotResidues: Set<number>): UniprotCoords {
     const srcData = struct.model.sourceData;
@@ -259,7 +181,7 @@ function queryManyRequest(ligandsToSuperpose: BindingSitesData[string]['ligands'
     const query = {
         queries: ligandsToSuperpose.map(bm => ({
             entryId: bm.entry_id,
-            query: "residueInteraction",
+            query: 'residueInteraction',
             params: { atom_site: [{ label_asym_id: bm.chem_comps[0].label_asym_id /* TODO: confirm this is correct */ }], radius: options.radius },
         })),
         encoding: options.encoding,

@@ -25,6 +25,7 @@ export default tsEslint.config(
             '@typescript-eslint/no-namespace': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
             '@typescript-eslint/no-empty-object-type': 'off',
+            '@typescript-eslint/array-type': 'off',
 
             // ADDITIONAL RULES - GENERAL
             'eqeqeq': 'error', // Forbid using `==`, enforce `===`
