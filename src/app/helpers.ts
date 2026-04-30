@@ -589,7 +589,7 @@ export async function runWithProgressMessage(plugin: PluginContext, progressMess
 /** Parameters for a request to ModelServer */
 export interface ModelServerRequest {
     pdbId: string,
-    queryType: 'full' | 'residueSurroundings' | 'atoms', // add more when needed
+    queryType: 'full' | 'residueSurroundings' | 'residueInteraction' | 'atoms', // add more when needed
     queryParams?: Record<string, any>,
 }
 
@@ -603,9 +603,9 @@ export function getStructureUrl(initParams: InitParams, request: ModelServerRequ
         return `${pdbeUrl}/entry-files/download/${request.pdbId}${suffix}`;
     } else {
         const queryParams = {
-            ...request.queryParams,
             encoding: initParams.encoding,
             lowPrecisionCoords: initParams.lowPrecisionCoords ? 1 : undefined,
+            ...request.queryParams,
         };
         const queryString = Object.entries(queryParams).filter(([key, value]) => value !== undefined).map(([key, value]) => `${key}=${value}`).join('&');
         const url = `${pdbeUrl}/model-server/v1/${request.pdbId}/${request.queryType}`;

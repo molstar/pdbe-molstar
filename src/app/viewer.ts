@@ -49,6 +49,7 @@ import { ColorNames } from 'molstar/lib/mol-util/color/names';
 import { RxEventHelper } from 'molstar/lib/mol-util/rx-event-helper';
 import { CustomEvents } from './custom-events';
 import { PDBeDomainAnnotations } from './domain-annotations/behavior';
+import * as BindingSites from './extensions/binding-sites';
 import * as Complexes from './extensions/complexes';
 import * as Foldseek from './extensions/foldseek';
 import * as Interactions from './extensions/interactions';
@@ -1162,6 +1163,7 @@ export class PDBeMolstarPlugin {
 
     /** Helper functions related to specific views or use cases */
     static extensions = {
+        BindingSites: BindingSites,
         Complexes: Complexes,
         Foldseek: Foldseek,
         Interactions: Interactions,

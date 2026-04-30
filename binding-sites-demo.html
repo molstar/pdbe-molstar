@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>PDBe Molstar</title>
+
+    <!-- Molstar CSS & JS -->
+    <link rel="stylesheet" type="text/css" href="./build/pdbe-molstar-light.css">
+    <script type="text/javascript" src="./build/pdbe-molstar-plugin.js"></script>
+
+    <style>
+        body {
+            padding: 30px;
+        }
+
+        #myViewer {
+            width: 600px;
+            height: 600px;
+            position: relative;
+            /* margin-top: 100px; */
+            margin-right: 20px;
+        }
+
+        .spinner_aj0A {
+            transform-origin: center;
+            animation: spinner_KYSC .75s infinite linear
+        }
+
+        @keyframes spinner_KYSC {
+            100% {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h3>PDBe Mol* JS Plugin Demo</h3>
+    <div class="viewerSection" style="display: flex; flex-direction: row;">
+        <!-- Molstar container -->
+        <div id="myViewer"></div>
+        <div style="display: block;">
+        </div>
+    </div>
+
+    <script>
+        function getJsonParam(paramName) {
+            const paramString = new URL(window.location).searchParams.get(paramName);
+            const param = JSON.parse(paramString);
+            return param ?? undefined;
+        }
+
+        async function initMolstar() {
+            const viewerInstance = new PDBeMolstarPlugin();
+            const viewerContainer = document.getElementById('myViewer');
+
+            const defaultOptions = {
+                bgColor: 'white',
+            };
+            const options = {
+                ...defaultOptions,
+                ...getJsonParam('options'),
+            };
+            await viewerInstance.render(viewerContainer, options);
+            return viewerInstance;
+        }
+
+        let viewer; // PDBeMolstarPlugin
+        initMolstar()
+            .then(instance => viewer = instance)
+            .then(() => PDBeMolstarPlugin.extensions.BindingSites.demo(viewer));
+
+    </script>
+
+</body>
+
+</html>
