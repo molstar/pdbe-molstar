@@ -23,6 +23,8 @@ import type { BindingSitesApiResponseData, BindingSitesData } from './api-types'
 
 
 const PDB_STRUCTURE_URL_TEMPLATE = 'https://www.ebi.ac.uk/pdbe/entry-files/{pdb}.bcif';
+// const PDB_STRUCTURE_URL_TEMPLATE = 'http://127.0.0.1:1339/tmp/binding-site-superposition/{pdb}_updated.cif';
+// const PDB_STRUCTURE_URL_TEMPLATE = 'http://127.0.0.1:1339/tmp/binding-site-superposition/{pdb}_updated-shuffled-atoms.cif';
 const MODEL_SERVER_URL = 'https://www.ebi.ac.uk/pdbe/model-server/v1/';
 const BINDING_SITE_RADIUS = 5; // TODO: fine-tune this radius (5 does not cover some residues, e.g. 5jvy UNP Q05769 186 F)
 const DEBUG_LIGAND_COUNT_LIMIT: number | undefined = undefined;
@@ -55,7 +57,7 @@ export async function demo(viewer: PDBeMolstarPlugin) {
 function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSiteId: string, uniprotId: string) {
     return Task.create('Load binding site superposition', async (runtime) => {
         console.log(uniprotId, 'bindingSiteId:', bindingSiteId)
-        const residues = new Set(bsData[bindingSiteId].uniprot_residues);
+        const bsResidues = new Set(bsData[bindingSiteId].uniprot_residues);
         const representativePdb = bsData[bindingSiteId].ligands[0].entry_id; // TODO: how to select representative structure
         const representativePdbAuthAsymId = bsData[bindingSiteId].ligands[0].chem_comps[0].auth_asym_id;
         const representativePdbSymOp = bsData[bindingSiteId].ligands[0].chem_comps[0].sym_op;
@@ -71,37 +73,31 @@ function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSit
         }, false);
         const reprStruct = viewer.getStructure(REPRESENTATIVE_STRUCT_ID)?.cell.obj?.data;
         if (!reprStruct) throw new Error(`Failed to load representative structure ${representativePdb}`);
-        const reprBsSelector: QueryParam[] = Array.from(residues).map(res => ({
+        const reprBsSelector: QueryParam[] = Array.from(bsResidues).map(res => ({
             auth_asym_id: representativePdbAuthAsymId,
             uniprot_accession: uniprotId,
             uniprot_residue_number: res,
         }));
         const reprBsStruct = StructureSelection.unionStructure(StructureQuery.run(QueryHelper.getQueryObject(reprBsSelector, reprStruct), reprStruct));
-        console.log('repr BS struct:', reprBsSelector, reprBsStruct)
         const bsSphere = reprBsStruct.boundary.sphere;
         const globalSphere = reprStruct.boundary.sphere;
         await turnFocusSphereForward(viewer.plugin, bsSphere, globalSphere, { focus: true, durationMs: 0 });
-        const reprBsCoords = extractTraceCoordsByUniprot(reprBsStruct, uniprotId, residues); // TODO: fix this extraction
-
+        const reprBsCoords = extractTraceCoordsByUniprot(reprBsStruct, uniprotId, bsResidues);
         console.timeEnd('load representative structure')
-
 
         // TODO: Download and superpose in batches to avoid needing POST+RawData and smoothen UX
 
         console.time('load&superpose all')
         const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
         for (const ligandBatch of divideToBatches(ligandsToSuperpose, LIGAND_BATCH_SIZE)) {
-            // const width = 25;
-            // const dones = Math.floor(ligandBatch.progress.percentDone / 100 * width)
-            // const bar = '▇'.repeat(dones) + '▁'.repeat(width - dones);
             await runtime.update(`Loading ligands... ${ligandBatch.progress.percentDone.toFixed(0)}%`);
-            await superposeLigands(viewer.plugin, ligandBatch.jobs, uniprotId, residues, reprBsCoords);
+            await superposeLigands(viewer.plugin, ligandBatch.jobs, uniprotId, bsResidues, reprBsCoords);
         }
         console.timeEnd('load&superpose all')
     });
 }
 
-async function superposeLigands(plugin: PluginContext, ligands: Ligand[], uniprotId: string, uniprotBindingSiteResidues: Set<number>,reprBsCoords:UniprotCoords) {
+async function superposeLigands(plugin: PluginContext, ligands: Ligand[], uniprotId: string, uniprotBindingSiteResidues: Set<number>, reprBsCoords: UniprotCoords) {
     console.time('load&superpose')
     console.time('load')
     const response = await fetch(...queryManyRequest(ligands, { method: 'POST', encoding: 'bcif', radius: BINDING_SITE_RADIUS }));
@@ -127,6 +123,7 @@ async function superposeLigands(plugin: PluginContext, ligands: Ligand[], unipro
                 layers: [
                     { script: { language: 'pymol', expression: 'all' }, color: ColorNames.gray, clear: false },
                     { script: { language: 'pymol', expression: 'het' }, color: ColorNames.magenta, clear: false },
+                    { script: { language: 'pymol', expression: 'resn HOH' }, color: ColorNames.red, clear: false },
                 ],
             });
     }
@@ -145,7 +142,7 @@ async function superposeLigands(plugin: PluginContext, ligands: Ligand[], unipro
 
         const bsCoords = extractTraceCoordsByUniprot(bmStruct, uniprotId, uniprotBindingSiteResidues);
         const superposition = superposeUniprotCoords(reprBsCoords, bsCoords);
-        // console.log('superposed', bmStructId, superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
+        // console.log('superposed', superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
         transforms[tag] = superposition;
     }
     await transformMany(plugin, bmStructTags.map(tag => [structRefs[tag].cell, transforms[tag].bTransform]));
@@ -165,21 +162,29 @@ interface UniprotCoords {
 }
 
 function extractTraceCoordsByUniprot(struct: Structure, uniprotId: string, uniprotResidues: Set<number>): UniprotCoords {
-    const srcData = struct.model.sourceData;
-    if (!MmcifFormat.is(srcData)) throw new Error(`Structure data in unsupported format "${srcData.kind}", must be mmCIF/BCIF.`);
-
-    const a = srcData.data.db.atom_site;
     const coords: UniprotCoords = {};
-    for (let i = 0; i < a._rowCount; i++) {
-        if (!TraceAtoms.has(a.label_atom_id.value(i))) continue; // Select only trace atoms (CA etc.)
-        // Assuming a.pdbx_sifts_xref_db_name is 'UNP' (should we check this?)
-        if (a.pdbx_sifts_xref_db_acc.value(i) !== uniprotId) continue;
-        const uniprotNum = parseInt(a.pdbx_sifts_xref_db_num.value(i));
-        if (!uniprotResidues.has(uniprotNum)) continue;
-        coords[uniprotNum] = [a.Cartn_x.value(i), a.Cartn_y.value(i), a.Cartn_z.value(i)];
-        // console.log('trace atom', a.group_PDB.value(i), a.label_atom_id.value(i), a.label_asym_id.value(i), a.label_seq_id.value(i), '|', a.pdbx_sifts_xref_db_name.value(i), a.pdbx_sifts_xref_db_acc.value(i), uniprotNum, a.pdbx_sifts_xref_db_res.value(i))
-        // TODO: this assumes there is only one matching residue, we should select the nearest residue if there are multiple
-        // TODO: possible optimization: put coords into 1 array instead of 3-tuples per residue
+    for (const unit of struct.units) {
+        const srcData = unit.model.sourceData;
+        if (!MmcifFormat.is(srcData)) throw new Error(`Structure data in unsupported format "${srcData.kind}", must be mmCIF/BCIF.`);
+
+        const atomSourceIndex = unit.model.atomicHierarchy.atomSourceIndex;
+        const srcAtomSite = srcData.data.db.atom_site;
+        for (let i = 0, n = unit.elements.length; i < n; i++) {
+            /** Index of atom in model (might be reordered) */
+            const iElem = unit.elements[i];
+            /** Index of atom in the original CIF (before reordering) */
+            const iSrc = atomSourceIndex.value(iElem);
+
+            const label_atom_id = srcAtomSite.label_atom_id.value(iSrc);
+            if (!TraceAtoms.has(label_atom_id)) continue; // Select only trace atoms (CA etc.)
+            const pdbx_sifts_xref_db_acc = srcAtomSite.pdbx_sifts_xref_db_acc.value(iSrc);
+            if (pdbx_sifts_xref_db_acc !== uniprotId) continue;
+            const pdbx_sifts_xref_db_num = parseInt(srcAtomSite.pdbx_sifts_xref_db_num.value(iSrc));
+            if (!uniprotResidues.has(pdbx_sifts_xref_db_num)) continue;
+            // Assuming pdbx_sifts_xref_db_name is 'UNP' (should we check this?)
+            coords[pdbx_sifts_xref_db_num] = [srcAtomSite.Cartn_x.value(iSrc), srcAtomSite.Cartn_y.value(iSrc), srcAtomSite.Cartn_z.value(iSrc)];
+            // TODO: this assumes there is only one matching residue, we should select the nearest residue if there are multiple
+        }
     }
     return coords;
 }
