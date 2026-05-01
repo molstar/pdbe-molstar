@@ -6,7 +6,7 @@ import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-m
 import { TraceAtoms } from 'molstar/lib/mol-model/structure/model/types';
 import { changeCameraRotation } from 'molstar/lib/mol-plugin-state/manager/focus-camera/orient-axes';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
-import { ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
+import { Download, ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
 import { CreateGroup } from 'molstar/lib/mol-plugin-state/transforms/misc';
 import { ModelFromTrajectory, StructureFromModel, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
 import { OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
@@ -28,7 +28,9 @@ const PDB_STRUCTURE_URL_TEMPLATE = 'https://www.ebi.ac.uk/pdbe/entry-files/{pdb}
 const MODEL_SERVER_URL = 'https://www.ebi.ac.uk/pdbe/model-server/v1/';
 const BINDING_SITE_RADIUS = 5; // TODO: fine-tune this radius (5 does not cover some residues, e.g. 5jvy UNP Q05769 186 F)
 const DEBUG_LIGAND_COUNT_LIMIT: number | undefined = undefined;
-const LIGAND_BATCH_SIZE: number | undefined = 16; // TODO: select batch size to avoid URL length >2000
+/** Size of batch for downloading and superposing ligands (selected so that ModelServer request URL length does not exceed limit 2000) */
+const LIGAND_BATCH_SIZE: number | undefined = 12;
+const URL_LENGTH_LIMIT = 2000;
 
 
 type Ligand = BindingSitesData[string]['ligands'][number];
@@ -50,7 +52,6 @@ export async function demo(viewer: PDBeMolstarPlugin) {
     const bsApiData: BindingSitesApiResponseData = await (await fetch(bsUrl)).json();
     // const clusterUrl = `tmp/binding-site-superposition/${uniprotId}_chem_comp_cluster.json`;
     // const clusterApiData: ChemCompClusterApiResponseData = await (await fetch(clusterUrl)).json();
-    // await doMagic(viewer, bsApiData[uniprotId], bindingSiteId, uniprotId);
     return await viewer.plugin.runTask(doMagic(viewer, bsApiData[uniprotId], bindingSiteId, uniprotId));
 }
 
@@ -60,10 +61,10 @@ function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSit
         const bsResidues = new Set(bsData[bindingSiteId].uniprot_residues);
         const representativePdb = bsData[bindingSiteId].ligands[0].entry_id; // TODO: how to select representative structure
         const representativePdbAuthAsymId = bsData[bindingSiteId].ligands[0].chem_comps[0].auth_asym_id;
-        const representativePdbSymOp = bsData[bindingSiteId].ligands[0].chem_comps[0].sym_op;
+        const representativePdbSymOp = bsData[bindingSiteId].ligands[0].chem_comps[0].sym_op; // TODO: show correct assembly and use sym_op
 
-        await runtime.update('Loading representative protein structure');
         console.time('load representative structure')
+        await runtime.update('Loading representative protein structure');
         await viewer.load({
             id: REPRESENTATIVE_STRUCT_ID,
             url: PDB_STRUCTURE_URL_TEMPLATE.replace('{pdb}', representativePdb),
@@ -85,8 +86,6 @@ function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSit
         const reprBsCoords = extractTraceCoordsByUniprot(reprBsStruct, uniprotId, bsResidues);
         console.timeEnd('load representative structure')
 
-        // TODO: Download and superpose in batches to avoid needing POST+RawData and smoothen UX
-
         console.time('load&superpose all')
         const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
         for (const ligandBatch of divideToBatches(ligandsToSuperpose, LIGAND_BATCH_SIZE)) {
@@ -100,20 +99,20 @@ function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSit
 async function superposeLigands(plugin: PluginContext, ligands: Ligand[], uniprotId: string, uniprotBindingSiteResidues: Set<number>, reprBsCoords: UniprotCoords) {
     console.time('load&superpose')
     console.time('load')
-    const response = await fetch(...queryManyRequest(ligands, { method: 'POST', encoding: 'bcif', radius: BINDING_SITE_RADIUS }));
-    const qBytes = await response.bytes();
 
-    const bmStructTags: string[] = [];
+    const url = queryManyRequestUrl(ligands, { encoding: 'bcif', radius: BINDING_SITE_RADIUS });
+    const structTags: string[] = [];
+
     const update = plugin.build();
     const traj = update
         .toRoot()
-        .apply(RawData, { data: qBytes })
+        .apply(Download, { url: url, isBinary: true })
         .apply(ParseCif, {})
         .apply(TrajectoryFromMmCif, { loadAllBlocks: true });
     for (let i = 0; i < ligands.length; i++) {
         const ligand = ligands[i];
         const tag = ligandStructTag(ligand);
-        bmStructTags.push(tag);
+        structTags.push(tag);
         traj
             .apply(CreateGroup, { label: `${ligand.entry_id} ${ligand.chem_comps[0].label_asym_id}${ligand.chem_comps[0].sym_op ?? ''}`, description: ligand.ligand_id }, { state: { isCollapsed: true } })
             .apply(ModelFromTrajectory, { modelIndex: i }, { state: { isGhost: false } })
@@ -145,8 +144,8 @@ async function superposeLigands(plugin: PluginContext, ligands: Ligand[], unipro
         // console.log('superposed', superposition.nAlignedElements, 'RMSD:', superposition.rmsd)
         transforms[tag] = superposition;
     }
-    await transformMany(plugin, bmStructTags.map(tag => [structRefs[tag].cell, transforms[tag].bTransform]));
-    for (const tag of bmStructTags) {
+    await transformMany(plugin, structTags.map(tag => [structRefs[tag].cell, transforms[tag].bTransform]));
+    for (const tag of structTags) {
         setSubtreeVisibility(plugin.state.data, structRefs[tag].cell.transform.ref, false);
     }
     console.timeEnd('superpose')
@@ -204,9 +203,10 @@ function superposeUniprotCoords(aCoords: UniprotCoords, bCoords: UniprotCoords):
     return MinimizeRmsd.compute({ a, b });
 }
 
-function queryManyRequest(ligandsToSuperpose: Ligand[], options: { method: 'GET' | 'POST', encoding: 'cif' | 'bcif', radius: number }): [url: string, requestInit: RequestInit | undefined] {
+/** Return ModelServer request URL for querying residue surroundings of multiple ligands */
+function queryManyRequestUrl(ligands: Ligand[], options: { encoding: 'cif' | 'bcif', radius: number }): string {
     const query = {
-        queries: ligandsToSuperpose.map(bm => ({
+        queries: ligands.map(bm => ({
             entryId: bm.entry_id,
             query: 'residueInteraction',
             params: { atom_site: [{ label_asym_id: bm.chem_comps[0].label_asym_id /* TODO: confirm this is correct */ }], radius: options.radius },
@@ -214,12 +214,13 @@ function queryManyRequest(ligandsToSuperpose: Ligand[], options: { method: 'GET'
         encoding: options.encoding,
         asTarGz: false,
     };
-    switch (options.method) {
-        case 'GET':
-            return [`${MODEL_SERVER_URL.replace(/\/$/, '')}/query-many?query=${JSON.stringify(query)}`, undefined];
-        case 'POST':
-            return [`${MODEL_SERVER_URL.replace(/\/$/, '')}/query-many`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(query) }];
+    const url = `${MODEL_SERVER_URL.replace(/\/$/, '')}/query-many?query=${JSON.stringify(query)}`;
+    const escapedUrl = new URL(url).toString();
+    const urlLength = escapedUrl.toString().length;
+    if (urlLength > URL_LENGTH_LIMIT) {
+        console.warn(`ModelServer request URL (${urlLength} characters) exceeded recommended URL length limit (${URL_LENGTH_LIMIT} characters). Request might fail depending on the browser.`);
     }
+    return escapedUrl;
 }
 
 function getStructureRefsByTag(plugin: PluginContext) {
