@@ -1,17 +1,22 @@
+import { Sphere3D } from 'molstar/lib/mol-math/geometry';
+import { EPSILON, Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
-import { Structure } from 'molstar/lib/mol-model/structure';
+import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { TraceAtoms } from 'molstar/lib/mol-model/structure/model/types';
+import { changeCameraRotation } from 'molstar/lib/mol-plugin-state/manager/focus-camera/orient-axes';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
 import { ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
 import { CreateGroup } from 'molstar/lib/mol-plugin-state/transforms/misc';
 import { ModelFromTrajectory, StructureFromModel, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
 import { OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/state';
+import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { Task } from 'molstar/lib/mol-task';
 import { ColorNames } from 'molstar/lib/mol-util/color/names';
 import { sleep } from 'molstar/lib/mol-util/sleep';
+import { QueryHelper, QueryParam } from '../../helpers';
 import { transformMany } from '../../superposition';
 import type { PDBeMolstarPlugin } from '../../viewer';
 import type { BindingSitesApiResponseData, BindingSitesData } from './api-types';
@@ -49,6 +54,8 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bind
         const residues = new Set(bsData[bindingSiteId].uniprot_residues);
         const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
         const representativePdb = bsData[bindingSiteId].ligands[0].entry_id; // TODO: how to select representative structure
+        const representativePdbAuthAsymId = bsData[bindingSiteId].ligands[0].chem_comps[0].auth_asym_id;
+        const representativePdbSymOp = bsData[bindingSiteId].ligands[0].chem_comps[0].sym_op;
 
         await runtime.update('Loading representative protein structure');
         console.time('load representative structure')
@@ -61,9 +68,19 @@ async function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bind
         }, false);
         const reprStruct = viewer.getStructure(REPRESENTATIVE_STRUCT_ID)?.cell.obj?.data;
         if (!reprStruct) throw new Error(`Failed to load representative structure ${representativePdb}`);
+        const reprBsSelector: QueryParam[] = Array.from(residues).map(res => ({
+            auth_asym_id: representativePdbAuthAsymId,
+            uniprot_accession: uniprotId,
+            uniprot_residue_number: res,
+        }));
+        const globalSphere = reprStruct.boundary.sphere;
+        const bsSphere = StructureSelection.unionStructure(StructureQuery.run(QueryHelper.getQueryObject(reprBsSelector, reprStruct), reprStruct)).boundary.sphere;
+        await turnFocusSphereForward(viewer.plugin, bsSphere, globalSphere, { focus: true, durationMs: 0 });
         console.timeEnd('load representative structure')
 
         console.time('load&superpose')
+
+        // TODO: Download and superpose in batches to avoid needing POST+RawData and smoothen UX
 
         await runtime.update(`Downloading ${ligandsToSuperpose.length} ligands`);
         console.time('load')
@@ -229,5 +246,34 @@ function findDuplicates<T>(items: T[], key: (item: T) => string) {
             delete out[keyValue];
         }
     }
+    return out;
+}
+
+async function turnFocusSphereForward(plugin: PluginContext, focusSphere: Sphere3D, globalSphere: Sphere3D, options?: { focus?: boolean, durationMs?: number }) {
+    plugin.canvas3d?.commit();
+    const currentSnapshot = plugin.canvas3d!.camera.getSnapshot();
+    const dirZ = Vec3.sub(Vec3(), focusSphere.center, globalSphere.center);
+    Vec3.normalize(dirZ, dirZ);
+    const dirX = safeCross(Vec3(), currentSnapshot.up, dirZ);
+    Vec3.normalize(dirX, dirX);
+    const dirY = Vec3.cross(Vec3(), dirZ, dirX);
+    Vec3.normalize(dirY, dirY);
+    const rotation = Mat3.fromColumns(Mat3(), dirX, dirY, dirZ);
+    Mat3.transpose(rotation, rotation);
+    const focus = options?.focus ? plugin.canvas3d!.camera.getFocus(focusSphere.center, focusSphere.radius) : undefined;
+    const newSnapshot = changeCameraRotation({ ...currentSnapshot, ...focus }, rotation);
+    await PluginCommands.Camera.SetSnapshot(plugin, { snapshot: newSnapshot, durationMs: options?.durationMs ?? 0 });
+}
+
+function safeCross(out: Vec3, a: Vec3, b: Vec3) {
+    const sqSizeA = Vec3.squaredMagnitude(a);
+    const sqSizeB = Vec3.squaredMagnitude(b);
+    Vec3.cross(out, a, b);
+    if (Vec3.squaredMagnitude(out) > EPSILON * EPSILON * sqSizeA * sqSizeB) return out;
+    // Were almost parallel, try cross(Y, b)
+    Vec3.cross(out, Vec3.create(0, 1, 0), b);
+    if (Vec3.squaredMagnitude(out) > EPSILON * EPSILON * sqSizeB) return out;
+    // Were almost parallel, try cross(X, b)
+    Vec3.cross(out, Vec3.create(1, 0, 0), b);
     return out;
 }

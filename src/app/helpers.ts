@@ -381,7 +381,7 @@ type ArrayKeys<T> = Exclude<{ [key in keyof T]: never[] extends T[key] ? key : n
 
 export namespace QueryHelper {
 
-    export function getQueryObject(params: QueryParam[], contextData: Structure): Expression {
+    export function getQueryObject(params: QueryParam[], contextData: Structure): StructureQuery {
         const selections: Partial<AtomsQueryParams>[] = [];
 
         /** `undefined` means SIFTSMappingMapping has not been retrieved yet. `null` means SIFTSMappingMapping has been retrieved unsuccessfully.  */
@@ -519,7 +519,7 @@ export namespace QueryHelper {
     }
 
     export function getInteractivityLoci(params: QueryParam[], contextData: Structure) {
-        const sel = StructureQuery.run(QueryHelper.getQueryObject(params, contextData) as any, contextData);
+        const sel = StructureQuery.run(QueryHelper.getQueryObject(params, contextData), contextData);
         return StructureSelection.toLociWithSourceUnits(sel);
     }
 
