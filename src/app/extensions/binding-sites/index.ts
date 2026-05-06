@@ -1,14 +1,19 @@
+import { CustomLabelProps, CustomLabelRepresentationProvider } from 'molstar/lib/extensions/mvs/components/custom-label/representation';
+import { MVSBuildPrimitiveShape, MVSInlinePrimitiveData, MVSShapeRepresentation3D } from 'molstar/lib/extensions/mvs/components/primitives';
+import { Selector } from 'molstar/lib/extensions/mvs/components/selector';
+import { MVSNode } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
+import { ComponentExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Sphere3D } from 'molstar/lib/mol-math/geometry';
 import { EPSILON, Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { MinimizeRmsd } from 'molstar/lib/mol-math/linear-algebra/3d/minimize-rmsd';
 import { MmcifFormat } from 'molstar/lib/mol-model-formats/structure/mmcif';
-import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
+import { Structure, StructureElement, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { TraceAtoms } from 'molstar/lib/mol-model/structure/model/types';
 import { changeCameraRotation } from 'molstar/lib/mol-plugin-state/manager/focus-camera/orient-axes';
 import { StructureRef } from 'molstar/lib/mol-plugin-state/manager/structure/hierarchy-state';
-import { Download, ParseCif, RawData } from 'molstar/lib/mol-plugin-state/transforms/data';
+import { Download, ParseCif } from 'molstar/lib/mol-plugin-state/transforms/data';
 import { CreateGroup } from 'molstar/lib/mol-plugin-state/transforms/misc';
-import { ModelFromTrajectory, StructureFromModel, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
+import { CustomModelProperties, ModelFromTrajectory, StructureFromModel, TrajectoryFromMmCif } from 'molstar/lib/mol-plugin-state/transforms/model';
 import { OverpaintStructureRepresentation3DFromScript, StructureRepresentation3D } from 'molstar/lib/mol-plugin-state/transforms/representation';
 import { setSubtreeVisibility } from 'molstar/lib/mol-plugin/behavior/static/state';
 import { PluginCommands } from 'molstar/lib/mol-plugin/commands';
@@ -85,6 +90,8 @@ function doMagic(viewer: PDBeMolstarPlugin, bsData: BindingSitesData, bindingSit
         await turnFocusSphereForward(viewer.plugin, bsSphere, globalSphere, { focus: true, durationMs: 0 });
         const reprBsCoords = extractTraceCoordsByUniprot(reprBsStruct, uniprotId, bsResidues);
         console.timeEnd('load representative structure')
+
+        await addBsLabels(viewer.plugin, viewer.getStructure(REPRESENTATIVE_STRUCT_ID)!, { bindingSiteId, uniprot_accession: uniprotId, uniprot_residue_numbers: bsResidues, auth_asym_id: representativePdbAuthAsymId });
 
         console.time('load&superpose all')
         const ligandsToSuperpose = bsData[bindingSiteId].ligands.slice(0, DEBUG_LIGAND_COUNT_LIMIT);
@@ -299,4 +306,101 @@ function divideToBatches<T>(jobs: T[], batchSize: number = Infinity) {
         });
     }
     return out;
+}
+
+async function addBsLabels(plugin: PluginContext, structRef: StructureRef, params: { bindingSiteId: string, auth_asym_id: string, uniprot_accession: string, uniprot_residue_numbers: Iterable<number> }) {
+    // Binding site label
+    await addLabels(
+        plugin,
+        structRef,
+        [{
+            text: `Binding site ${params.bindingSiteId}`,
+            selector: Array.from(params.uniprot_residue_numbers).map(res => ({
+                auth_asym_id: params.auth_asym_id,
+                uniprot_accession: params.uniprot_accession,
+                uniprot_residue_number: res,
+            })),
+        }],
+        {
+            sizeFactor: 0.9,
+            attachment: 'bottom-center',
+            tether: true,
+            tetherLength: 1,
+            backgroundColor: ColorNames.yellow,
+        }
+    );
+
+    // Residue labels
+    await addLabels(
+        plugin,
+        structRef,
+        Array.from(params.uniprot_residue_numbers).map(res => ({
+            text: `${res}`,
+            selector: [{
+                auth_asym_id: params.auth_asym_id,
+                uniprot_accession: params.uniprot_accession,
+                uniprot_residue_number: res,
+            }],
+        })),
+        {
+            sizeFactor: 0.9,
+        }
+    );
+
+    // await addLabelsPrimitives(plugin, structRef, [{ text: 'Bar', selector: [{}] }]);
+}
+
+async function addLabels(plugin: PluginContext, structRef: StructureRef, labels: { text: string, selector: QueryParam[] }[], props: Partial<Omit<CustomLabelProps, 'items'>> = {}) {
+    const modelProps = structRef.model?.properties?.cell;
+    if (modelProps && !modelProps.params?.values.properties?.['mvs-is-mvs-model']?.isMvs) {
+        await plugin.build().to(modelProps).update(CustomModelProperties, old => ({
+            ...old,
+            properties: {
+                ...old.properties,
+                'mvs-is-mvs-model': { isMvs: true },
+            },
+        })).commit();
+    }
+
+    const struct = structRef.cell.obj?.data;
+    if (!struct) throw new Error(`Failed to get structure for displaying labels`);
+
+    const bundles = labels.map(({ text, selector }) => ({ text, bundle: StructureElement.Bundle.fromSelection(StructureQuery.run(QueryHelper.getQueryObject(selector, struct), struct)) }));
+
+    await plugin.build()
+        .to(structRef.cell)
+        .apply(StructureRepresentation3D, {
+            type: {
+                name: CustomLabelRepresentationProvider.name,
+                params: {
+                    ...props,
+                    items: bundles.map(({ text, bundle }) => ({
+                        text: text,
+                        position: { name: 'selection', params: { selector: { name: 'bundle', params: bundle } satisfies Selector } },
+                    })),
+                } satisfies Partial<CustomLabelProps>,
+            },
+        })
+        .commit();
+}
+
+async function addLabelsPrimitives(plugin: PluginContext, structRef: StructureRef, labels: { text: string, selector: ComponentExpressionT[] }[]) {
+    const struct = structRef.cell.obj?.data;
+    if (!struct) throw new Error(`Failed to get structure for displaying labels`);
+
+    await plugin.build()
+        .to(structRef.cell)
+        .apply(MVSInlinePrimitiveData, {
+            node: {
+                kind: 'primitives',
+                params: {} as any,
+                children: labels.map(label => ({
+                    kind: 'primitive',
+                    params: { kind: 'label', text: label.text, position: { expressions: label.selector }, label_color: 'white', label_offset: 0, label_size: 2 },
+                } satisfies MVSNode<'primitive'>)),
+            },
+        })
+        .apply(MVSBuildPrimitiveShape, { kind: 'labels' })
+        .apply(MVSShapeRepresentation3D, {})
+        .commit();
 }
