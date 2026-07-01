@@ -7,7 +7,7 @@ import { CustomTooltipsProps, CustomTooltipsProvider } from 'molstar/lib/extensi
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { PDBeStructureQualityReport } from 'molstar/lib/extensions/pdbe';
-import { Canvas3DProps } from 'molstar/lib/mol-canvas3d/canvas3d';
+import { Canvas3DProps, DefaultCanvas3DParams } from 'molstar/lib/mol-canvas3d/canvas3d';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { EmptyLoci, Loci } from 'molstar/lib/mol-model/loci';
 import { StructureElement } from 'molstar/lib/mol-model/structure';
@@ -82,12 +82,19 @@ export class PDBeMolstarPlugin {
         loadComplete: this._ev<boolean>(),
     };
 
-    plugin: PluginContext;
-    initParams: InitParams;
-    targetElement: HTMLElement;
+    private _plugin?: PluginContext;
+    get plugin(): PluginContext { if (this._plugin) return this._plugin; else throw new Error('`PDBeMolstarPlugin.plugin` has not been initialized. You must await `render` method first.'); }
+    set plugin(value: PluginContext) { this._plugin = value; }
+
+    initParams: InitParams = DefaultParams;
+
+    private _targetElement?: HTMLElement;
+    get targetElement(): HTMLElement { if (this._targetElement) return this._targetElement; else throw new Error('`PDBeMolstarPlugin.targetElement` has not been initialized. You must await `render` method first.'); }
+    set targetElement(value: HTMLElement) { this._targetElement = value; }
+
     assemblyRef = '';
-    defaultRendererProps: Canvas3DProps['renderer'];
-    defaultMarkingProps: Canvas3DProps['marking'];
+    defaultRendererProps: Canvas3DProps['renderer'] = DefaultCanvas3DParams.renderer;
+    defaultMarkingProps: Canvas3DProps['marking'] = DefaultCanvas3DParams.marking;
     isHighlightColorUpdated = false;
     isSelectedColorUpdated = false;
     /** Keeps track of representations added by `.visual.select` for each structure. */
