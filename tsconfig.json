@@ -16,7 +16,7 @@
         "noEmitHelpers": true,
         "allowSyntheticDefaultImports": true,
         "jsx": "react-jsx",
-        "lib": ["es2018", "dom"],
+        "lib": ["ES2019", "DOM", "ES2020.String"],
         "rootDir": "src/app",
         "outDir": "lib",
         "composite": true, // required if we want to set "tsBuildInfoFile"
