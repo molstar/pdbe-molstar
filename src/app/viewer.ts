@@ -72,6 +72,7 @@ import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
 import { TrackballControlsProps } from 'molstar/lib/mol-canvas3d/controls/trackball';
+import { LeftPanelTabName } from 'molstar/lib/mol-plugin/layout';
 
 
 export class PDBeMolstarPlugin {
@@ -276,7 +277,7 @@ export class PDBeMolstarPlugin {
 
         if (this.initParams.superposition) {
             // Set left panel tab
-            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as any);
+            this.plugin.behaviors.layout.leftPanelTabName.next('segments' as LeftPanelTabName);
 
             // Initialise superposition
             initSuperposition(this.plugin, this.events.loadComplete);
@@ -394,11 +395,11 @@ export class PDBeMolstarPlugin {
                 PluginCustomState(this.plugin).events?.isBusy.next(true);
                 if (fullLoad) await this.clear();
                 const isHetView = this.initParams.ligandView ? true : false;
-                let downloadOptions: any = undefined;
+                let downloadOptions: Parameters<typeof Asset.Url>[1] = undefined;
                 let isBranchedView = false;
                 if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
-                    isBranchedView = true;
                     downloadOptions = { body: JSON.stringify(this.initParams.ligandView.label_comp_id_list), headers: [['Content-type', 'application/json']] };
+                    isBranchedView = true;
                 }
 
                 const data = await this.plugin.builders.data.download({ url: Asset.Url(url, downloadOptions), isBinary }, { state: { isGhost: true } });
@@ -693,7 +694,7 @@ export class PDBeMolstarPlugin {
             }
         },
 
-        /** With `isSpinning` parameter, switch visual rotation on or off. Without `isSpinning` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */
+        /** With `spin` parameter, switch visual rotation on or off. Without `spin` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */
         toggleSpin: async (spin?: boolean, resetCamera?: boolean) => {
             if (!this.plugin.canvas3d) return;
             const trackball = this.plugin.canvas3d.props.trackball;
@@ -1024,7 +1025,7 @@ export class PDBeMolstarPlugin {
 
         /** Remove any custom tooltips added by the `tooltips` method. */
         clearTooltips: async (structureNumberOrId?: number | string) => {
-            await this.visual.tooltips({ data: [], structureId: structureNumberOrId as any });
+            await this.visual.tooltips({ data: [], structureId: structureNumberOrId as string | undefined });
         },
 
         /** Set highlight and/or selection color.

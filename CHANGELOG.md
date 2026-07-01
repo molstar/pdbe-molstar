@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file, following t
 
 ## [Unreleased]
 - Updated TypeScript build config
+- Fix toggleSpin (broken since v3.11.0)
 
 ## [v3.12.0] - 2026-04-24
 - Mol* core dependency updated to 5.8.0
