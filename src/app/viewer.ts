@@ -71,6 +71,7 @@ import { PDBeViewport_NoFullscreen } from './ui/pdbe-viewport';
 import { PDBeViewportControls } from './ui/pdbe-viewport-controls';
 import { UIComponents } from './ui/split-ui/components';
 import { LayoutSpec, createPluginSplitUI, resolveHTMLElement } from './ui/split-ui/split-ui';
+import { TrackballControlsProps } from 'molstar/lib/mol-canvas3d/controls/trackball';
 
 
 export class PDBeMolstarPlugin {
@@ -693,17 +694,17 @@ export class PDBeMolstarPlugin {
         },
 
         /** With `isSpinning` parameter, switch visual rotation on or off. Without `isSpinning` parameter, toggle rotation. If `resetCamera`, also reset the camera zoom. */
-        toggleSpin: async (isSpinning?: boolean, resetCamera?: boolean) => {
+        toggleSpin: async (spin?: boolean, resetCamera?: boolean) => {
             if (!this.plugin.canvas3d) return;
             const trackball = this.plugin.canvas3d.props.trackball;
-
-            let toggleSpinParam: any = trackball.animate.name === 'spin' ? { name: 'off', params: {} } : { name: 'spin', params: { speed: 1 } };
-
-            if (typeof isSpinning !== 'undefined') {
-                toggleSpinParam = { name: 'off', params: {} };
-                if (isSpinning) toggleSpinParam = { name: 'spin', params: { speed: 1 } };
+            if (spin === undefined) {
+                spin = (trackball.animate.name !== 'spin'); // toggle current spin state
             }
-            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: toggleSpinParam } } });
+            const animationParams: TrackballControlsProps['animate'] =
+                spin ?
+                    { name: 'spin', params: { speed: 0.1, axis: Vec3.create(0, 1, 0) } }
+                    : { name: 'off', params: {} };
+            await PluginCommands.Canvas3D.SetSettings(this.plugin, { settings: { trackball: { ...trackball, animate: animationParams } } });
             if (resetCamera) await PluginCommands.Camera.Reset(this.plugin, {});
         },
 
