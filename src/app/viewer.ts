@@ -398,7 +398,7 @@ export class PDBeMolstarPlugin {
                 let downloadOptions: Parameters<typeof Asset.Url>[1] = undefined;
                 let isBranchedView = false;
                 if (this.initParams.ligandView && this.initParams.ligandView.label_comp_id_list) {
-                    downloadOptions = { body: JSON.stringify(this.initParams.ligandView.label_comp_id_list), headers: [['Content-type', 'application/json']] };
+                    downloadOptions = { body: JSON.stringify(this.initParams.ligandView.label_comp_id_list), headers: { 'Content-type': 'application/json' } };
                     isBranchedView = true;
                 }
 
