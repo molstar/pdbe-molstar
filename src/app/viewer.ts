@@ -52,6 +52,7 @@ import { PDBeDomainAnnotations } from './domain-annotations/behavior';
 import * as Complexes from './extensions/complexes';
 import * as Foldseek from './extensions/foldseek';
 import * as Interactions from './extensions/interactions';
+import * as InterfaceOpening from './extensions/interface-opening';
 import { StateGallery, StateGalleryExtensionFunctions } from './extensions/state-gallery/behavior';
 import { StateGalleryManager } from './extensions/state-gallery/manager';
 import { StateGalleryControls } from './extensions/state-gallery/ui';
@@ -1174,6 +1175,7 @@ export class PDBeMolstarPlugin {
         Complexes: Complexes,
         Foldseek: Foldseek,
         Interactions: Interactions,
+        InterfaceOpening: InterfaceOpening,
         MVS: { MVSData, loadMVS },
         StateGallery: StateGalleryExtensionFunctions,
     };
