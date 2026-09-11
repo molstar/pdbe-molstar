@@ -80,10 +80,9 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     console.log('box', box)
     const OPENING_RADIUS_FACTOR = 1.2;
     const OPENING_RADIUS_EXTRA = 5;
-    const openingRadius = Vec3.magnitude(box.dirB);
-    const openingRadiusExtended = openingRadius * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
-    const hingepoint = Vec3.scaleAndSub(Vec3(), box.origin, box.dirB, openingRadiusExtended / openingRadius);
-    // TODO: set camera position and/or replace pure rotation by rotation plus translation
+    const openingRadius = Vec3.magnitude(box.dirB) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
+    Vec3.setMagnitude(box.dirB, box.dirB, openingRadius);
+    Vec3.setMagnitude(box.dirA, box.dirA, Vec3.magnitude(box.dirA) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA);
 
     // const translate = Vec3.scale(Vec3(), interfaceNormal, 20);
     // const translate = Vec3.scale(Vec3(), pca1.dirC, 5);
@@ -101,18 +100,18 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             // otherPoints: midpoints,
             otherPca: midpointsPca,
             cameraPca: box,
+            // openingRadius: openingRadiusExtended,
             translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             cameraPca: box,
-            // translate,
-            hingepoint,
+            // openingRadius: openingRadiusExtended,
+            anim: 'forward',
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             cameraPca: box,
-            // translate,
-            hingepoint,
-            invertAnimation: true,
+            // openingRadius: openingRadiusExtended,
+            anim: 'backward',
         }),
     ], {});
     await loadMVS(plugin, mvs1);
