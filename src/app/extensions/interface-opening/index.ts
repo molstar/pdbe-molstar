@@ -93,9 +93,13 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     console.log('PCA2:', Vec3.magnitude(pca2.dirA), Vec3.magnitude(pca2.dirB), Vec3.magnitude(pca2.dirC))
     console.log('PCAmidpoints:', Vec3.magnitude(midpointsPca.dirA), Vec3.magnitude(midpointsPca.dirB), Vec3.magnitude(midpointsPca.dirC))
 
+    const descriptionClosed = `### Interface view\n**[Close](#closing)** &mdash; [Open](#opening)`;
+    const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **[Open](#opening)**`;
+
     const mvs1 = MVSData.createMultistate([
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             // interface1, interface2,
+            snapshotDescription: descriptionClosed,
             pca1, pca2,
             // otherPoints: midpoints,
             otherPca: midpointsPca,
@@ -104,11 +108,15 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
+            snapshotKey: 'opening',
+            snapshotDescription: descriptionOpen,
             cameraPca: box,
             // openingRadius: openingRadiusExtended,
             anim: 'forward',
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
+            snapshotKey: 'closing',
+            snapshotDescription: descriptionClosed,
             cameraPca: box,
             // openingRadius: openingRadiusExtended,
             anim: 'backward',

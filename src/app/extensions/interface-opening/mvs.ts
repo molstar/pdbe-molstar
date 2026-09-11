@@ -38,7 +38,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
     options?: {
         interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
         translate?: Vec3, otherPoints?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D,
-        anim?: 'forward' | 'backward',
+        anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
     }
 ) {
     const TRANSITION_DURATION = 2500;
@@ -48,13 +48,13 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
 
     // Set camera
     if (options?.cameraPca) {
-        const visRadius = Math.max(Vec3.magnitude(options.cameraPca.dirA), 2 * Vec3.magnitude(options.cameraPca.dirB))
+        const visRadius = Math.max(Vec3.magnitude(options.cameraPca.dirA), 2 * Vec3.magnitude(options.cameraPca.dirB));
         const dist = 2 * visRadius;
         base.root.camera({
             target: MvsVector(options.cameraPca.origin),
             position: MvsVector(Vec3.add(_vec, options.cameraPca.origin, Vec3.setMagnitude(_vec, options.cameraPca.dirB, dist))),
             up: MvsVector(options.cameraPca.dirA),
-        })
+        });
     }
 
     // Apply initial structure transforms
@@ -73,6 +73,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
         rotation: eye,
         translation: zero,
+        // TODO: fix init transforms in backwards animation
     });
     structB.transform({
         ref: 'rotateB',
@@ -155,10 +156,11 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         const anim = base.root.animation();
         const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
         const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, options.cameraPca.dirA);
-        Vec3.setMagnitude(_vec, options.cameraPca.dirC, Vec3.magnitude(options.cameraPca.dirB));
+        Vec3.setMagnitude(_vec, options.cameraPca.dirC, Vec3.magnitude(options.cameraPca.dirB) * 2);
         const transB = MvsVector(_vec);
         Vec3.negate(_vec, _vec);
         const transA = MvsVector(_vec);
+        // TODO: adjust rotation+translation vs pure rotation
         anim.interpolate({
             target_ref: 'rotateA',
             property: 'rotation',
@@ -197,7 +199,13 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         });
     }
 
-    return base.root.getSnapshot({ linger_duration_ms: 5000, transition_duration_ms: options?.translate ? 0 : TRANSITION_DURATION });
+    return base.root.getSnapshot({
+        key: options?.snapshotKey,
+        description: options?.snapshotDescription,
+        description_format: 'markdown',
+        linger_duration_ms: 5000,
+        transition_duration_ms: TRANSITION_DURATION,
+    });
 }
 
 

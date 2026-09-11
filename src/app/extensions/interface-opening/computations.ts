@@ -195,7 +195,7 @@ export function getMidPoints(a: Coords, b: Coords, radius: number): { midpoints:
     }
     return {
         midpoints: { x: Float32Array.from(midX), y: Float32Array.from(midY), z: Float32Array.from(midZ) },
-        vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) }
+        vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) },
     };
 }
 
