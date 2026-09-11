@@ -5,8 +5,9 @@ import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
-import { getCoordsWithin, getPca, getStructureCoords } from './computations';
+import { Coords, getCoordsWithin, getMidPoints, getPca, getStructureCoords } from './computations';
 import { mvsDummy, mvsInterface } from './mvs';
+import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
 
 
 // Examples:
@@ -47,17 +48,72 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const interfaceCenter = Vec3.scale(Vec3(), Vec3.add(_vec, pca1.origin, pca2.origin), 0.5);
 
     // Compute major and minor axis of the interface:
-    // - PCA of interacting atoms centered for the whole interface, projected on interface plane
-    // - alternatives: PCA of interacting atoms centered for each partner separately, projected on interface plane?
+    // - PCA of interacting atoms centered for the whole interface, projected on the interface plane
+    // - alternatives: PCA of interacting atoms centered for each partner separately, projected on the interface plane?
+    const interfaceMerged = Coords.concat(interface1, interface2);
+    // const projected = Coords.projectOnPlane(Coords.center(interfaceMerged), interfaceNormal);
+    // const projected = Coords.projectOnPlane(interfaceMerged, interfaceNormal, Coords.getCenter(interfaceMerged));
+    // const projected = Coords.addVector(Coords.projectOnPlane(Coords.center(interfaceMerged), interfaceNormal), Coords.getCenter(interfaceMerged))
 
-    const translate = Vec3.scale(Vec3(), interfaceNormal, 5);
+    const { midpoints, vectors } = getMidPoints(interface1, interface2, INTERFACE_RADIUS);
+    console.log('midpoints', interface1.x.length, interface2.x.length, midpoints.x.length)
+    // TODO: try to make midpoints smoother (closer to the real mid-surface of the interface)
+    const meanVector = Coords.getCenter(vectors);
+    console.log('meanVector', meanVector, Vec3.magnitude(meanVector))
+    const midpointsPca = getPca(midpoints, PCA_TYPE);
+
+    const openingPca = PrincipalAxes.calculateNormalizedAxes(midpointsPca);
+    const center1 = Coords.getCenter(interface1);
+    const center2 = Coords.getCenter(interface2);
+    const centerInterface = Vec3.center(Vec3(), center1, center2);
+    const centerProteins = Vec3.center(Vec3(), Coords.getCenter(coords1), Coords.getCenter(coords2));
+    if (Vec3.dot(openingPca.dirC, Vec3.sub(Vec3(), center2, center1)) < 0) {
+        Vec3.negate(openingPca.dirC, openingPca.dirC); // right on screen (direction of movement of the second partner)
+    }
+    if (Vec3.dot(openingPca.dirB, Vec3.sub(Vec3(), centerInterface, centerProteins)) < 0) {
+        Vec3.negate(openingPca.dirB, openingPca.dirB); // out on screen (out of the opening interface)
+    }
+    Vec3.cross(openingPca.dirA, openingPca.dirB, openingPca.dirC); // up on screen (hinge axis)
+    console.log('openingPca', openingPca)
+
+    const box = PrincipalAxes.calculateBoxAxes(Coords.flatten(interfaceMerged), openingPca);
+    console.log('box', box)
+    const OPENING_RADIUS_FACTOR = 1.2;
+    const OPENING_RADIUS_EXTRA = 5;
+    const openingRadius = Vec3.magnitude(box.dirB);
+    const openingRadiusExtended = openingRadius * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
+    const hingepoint = Vec3.scaleAndSub(Vec3(), box.origin, box.dirB, openingRadiusExtended / openingRadius);
+    // TODO: set camera position and/or replace pure rotation by rotation plus translation
+
+    // const translate = Vec3.scale(Vec3(), interfaceNormal, 20);
+    // const translate = Vec3.scale(Vec3(), pca1.dirC, 5);
+    // const translate = Vec3.scale(Vec3(), meanVector, 20 / Vec3.magnitude(meanVector));
+    const translate = Vec3.scale(Vec3(), midpointsPca.dirC, 5);
 
     console.log('PCA1:', Vec3.magnitude(pca1.dirA), Vec3.magnitude(pca1.dirB), Vec3.magnitude(pca1.dirC))
     console.log('PCA2:', Vec3.magnitude(pca2.dirA), Vec3.magnitude(pca2.dirB), Vec3.magnitude(pca2.dirC))
+    console.log('PCAmidpoints:', Vec3.magnitude(midpointsPca.dirA), Vec3.magnitude(midpointsPca.dirB), Vec3.magnitude(midpointsPca.dirC))
 
     const mvs1 = MVSData.createMultistate([
-        mvsInterface(pdbId, assemblyId, partner1, partner2, { interface1, interface2, pca1, pca2 }),
-        mvsInterface(pdbId, assemblyId, partner1, partner2, { interface1, interface2, pca1, pca2, translate }),
+        mvsInterface(pdbId, assemblyId, partner1, partner2, {
+            // interface1, interface2,
+            pca1, pca2,
+            // otherPoints: midpoints,
+            otherPca: midpointsPca,
+            cameraPca: box,
+            translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
+        }),
+        mvsInterface(pdbId, assemblyId, partner1, partner2, {
+            cameraPca: box,
+            // translate,
+            hingepoint,
+        }),
+        mvsInterface(pdbId, assemblyId, partner1, partner2, {
+            cameraPca: box,
+            // translate,
+            hingepoint,
+            invertAnimation: true,
+        }),
     ], {});
     await loadMVS(plugin, mvs1);
 }
