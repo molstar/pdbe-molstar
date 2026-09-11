@@ -1,5 +1,5 @@
 import { OrderedSet } from 'molstar/lib/mol-data/int';
-import { GridLookup3D, PositionData } from 'molstar/lib/mol-math/geometry';
+import { GridLookup3D, PositionData, Result } from 'molstar/lib/mol-math/geometry';
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
 import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
@@ -257,7 +257,7 @@ export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoi
             const dOpt = sweetSpot(pA, qA, pB, qB, dist);
             if (dOpt < 0 || dOpt > dist) throw new Error(`dOpt out of bounds: ${dOpt} not in [0, ${dist}]`); // DEBUG
             Vec3.scaleAndAdd(_vec, u, dir, dOpt);
-            // if (Math.abs(dOpt / dist - 0.5) > 1e-6) continue; // Skip non-middle points?
+            if (Math.abs(dOpt / dist - 0.5) > 1e-8) continue; // Skip non-middle points?
 
             midX.push(_vec[0]);
             midY.push(_vec[1]);
@@ -272,6 +272,59 @@ export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoi
         midpoints: { x: Float32Array.from(midX), y: Float32Array.from(midY), z: Float32Array.from(midZ) },
         vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) },
     };
+}
+
+export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
+    const nA = a.x.length;
+    const nB = b.x.length;
+    const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
+    const bData: PositionData = { ...b, indices: OrderedSet.ofBounds(0, nB) };
+    const lookupA = GridLookup3D(aData, getBoundary(aData));
+    const lookupB = GridLookup3D(bData, getBoundary(bData));
+    const midX: number[] = [];
+    const midY: number[] = [];
+    const midZ: number[] = [];
+    const diffX: number[] = [];
+    const diffY: number[] = [];
+    const diffZ: number[] = [];
+
+    const lookupResult = Result.create(); // to avoid reusing lookupB's internal result object within nested loop
+    const u = Vec3(), v = Vec3(), dir = Vec3(), mid = Vec3();
+    for (let i = 0; i < nA; i++) {
+        lookupB.find(a.x[i], a.y[i], a.z[i], radius, lookupResult);
+        for (let idx = 0; idx < lookupResult.count; idx++) { // Cannot iterate over result.indices directly, as it can contain more than result.count elements (hurray undocumented behavior!)
+            const j = lookupResult.indices[idx];
+            Coords.toVector(u, a, i);
+            Coords.toVector(v, b, j);
+            Vec3.center(mid, u, v);
+            const dist = Vec3.distance(u, v);
+            const resA = lookupA.find(mid[0], mid[1], mid[2], 0.5 * dist);
+            if (lookupResultHasOtherThan(resA, i)) continue;
+            const resB = lookupB.find(mid[0], mid[1], mid[2], 0.5 * dist);
+            if (lookupResultHasOtherThan(resB, j)) continue;
+
+            midX.push(mid[0]);
+            midY.push(mid[1]);
+            midZ.push(mid[2]);
+
+            Vec3.normalize(dir, Vec3.sub(dir, v, u));
+            diffX.push(dir[0]);
+            diffY.push(dir[1]);
+            diffZ.push(dir[2]);
+        }
+    }
+    return {
+        midpoints: { x: Float32Array.from(midX), y: Float32Array.from(midY), z: Float32Array.from(midZ) },
+        vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) },
+    };
+}
+
+/** Return true if the lookup result contains index other than `otherThan` */
+function lookupResultHasOtherThan<T>(result: Result<T>, otherThan: T) {
+    for (let i = 0; i < result.count; i++) {
+        if (result.indices[i] !== otherThan) return true;
+    }
+    return false;
 }
 
 export function getPca(coords: Coords, type: 'moments' | 'box') {
@@ -317,7 +370,7 @@ function sweetSpot(pA: number[], qA: number[], pB: number[], qB: number[], xMax:
     if (objective(high) <= 0) return high;
 
     const MAX_ITERS = 64;
-    const TOLERANCE = 1e-3;
+    const TOLERANCE = 0;
     for (let iter = 0; iter < MAX_ITERS; iter++) {
         const middle = 0.5 * (low + high);
         const obj = objective(middle);
