@@ -2,12 +2,12 @@ import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import { ComponentExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
+import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
-import { Coords, getCoordsWithin, getMidPoints, getPca, getStructureCoords } from './computations';
+import { Coords, getCoordsWithin, getMidpoints, getTrueMidpoints, getPca, getStructureCoords } from './computations';
 import { mvsDummy, mvsInterface } from './mvs';
-import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
 
 
 // Examples:
@@ -55,14 +55,28 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     // const projected = Coords.projectOnPlane(interfaceMerged, interfaceNormal, Coords.getCenter(interfaceMerged));
     // const projected = Coords.addVector(Coords.projectOnPlane(Coords.center(interfaceMerged), interfaceNormal), Coords.getCenter(interfaceMerged))
 
-    const { midpoints, vectors } = getMidPoints(interface1, interface2, INTERFACE_RADIUS);
-    console.log('midpoints', interface1.x.length, interface2.x.length, midpoints.x.length)
-    // TODO: try to make midpoints smoother (closer to the real mid-surface of the interface)
-    const meanVector = Coords.getCenter(vectors);
-    console.log('meanVector', meanVector, Vec3.magnitude(meanVector))
-    const midpointsPca = getPca(midpoints, PCA_TYPE);
+    console.time('getMidPoints')
+    const midpoints = getMidpoints(interface1, interface2, INTERFACE_RADIUS);
+    console.timeEnd('getMidPoints')
+    console.log('midpoints', interface1.x.length, interface2.x.length, midpoints.midpoints.x.length)
+    console.time('getMidPointsSmart')
+    const midpointsTrue = getTrueMidpoints(interface1, interface2, INTERFACE_RADIUS);
+    console.timeEnd('getMidPointsSmart')
+    console.log('midpointsSmart', interface1.x.length, interface2.x.length, midpointsTrue.midpoints.x.length)
 
-    const openingPca = PrincipalAxes.calculateNormalizedAxes(midpointsPca);
+    // TODO: try to make midpoints smoother (closer to the real mid-surface of the interface)
+    const meanVector = Coords.getCenter(midpoints.vectors);
+    console.log('meanVector', meanVector, Vec3.magnitude(meanVector))
+    const midpointsPca = getPca(midpoints.midpoints, PCA_TYPE);
+    const trueMidpointsPca = getPca(midpointsTrue.midpoints, PCA_TYPE);
+
+    console.log('PCA1:', Vec3.magnitude(pca1.dirA), Vec3.magnitude(pca1.dirB), Vec3.magnitude(pca1.dirC))
+    console.log('PCA2:', Vec3.magnitude(pca2.dirA), Vec3.magnitude(pca2.dirB), Vec3.magnitude(pca2.dirC))
+    console.log('PCAmidpoints:', Vec3.magnitude(midpointsPca.dirA), Vec3.magnitude(midpointsPca.dirB), Vec3.magnitude(midpointsPca.dirC), Vec3.normalize(Vec3(), midpointsPca.dirC))
+    console.log('PCAmidpointsSmart:', Vec3.magnitude(trueMidpointsPca.dirA), Vec3.magnitude(trueMidpointsPca.dirB), Vec3.magnitude(trueMidpointsPca.dirC), Vec3.normalize(Vec3(), trueMidpointsPca.dirC))
+
+    // const openingPca = PrincipalAxes.calculateNormalizedAxes(midpointsPca);
+    const openingPca = PrincipalAxes.calculateNormalizedAxes(trueMidpointsPca);
     const center1 = Coords.getCenter(interface1);
     const center2 = Coords.getCenter(interface2);
     const centerInterface = Vec3.center(Vec3(), center1, center2);
@@ -87,38 +101,33 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     // const translate = Vec3.scale(Vec3(), interfaceNormal, 20);
     // const translate = Vec3.scale(Vec3(), pca1.dirC, 5);
     // const translate = Vec3.scale(Vec3(), meanVector, 20 / Vec3.magnitude(meanVector));
-    const translate = Vec3.scale(Vec3(), midpointsPca.dirC, 5);
-
-    console.log('PCA1:', Vec3.magnitude(pca1.dirA), Vec3.magnitude(pca1.dirB), Vec3.magnitude(pca1.dirC))
-    console.log('PCA2:', Vec3.magnitude(pca2.dirA), Vec3.magnitude(pca2.dirB), Vec3.magnitude(pca2.dirC))
-    console.log('PCAmidpoints:', Vec3.magnitude(midpointsPca.dirA), Vec3.magnitude(midpointsPca.dirB), Vec3.magnitude(midpointsPca.dirC))
+    const translate = Vec3.scale(Vec3(), box.dirC, 5);
 
     const descriptionClosed = `### Interface view\n**[Close](#closing)** &mdash; [Open](#opening)`;
     const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **[Open](#opening)**`;
 
     const mvs1 = MVSData.createMultistate([
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
-            // interface1, interface2,
             snapshotDescription: descriptionClosed,
-            pca1, pca2,
-            // otherPoints: midpoints,
-            otherPca: midpointsPca,
+            interface1, interface2,
+            otherPoints: midpoints.midpoints,
+            otherPoints2: midpointsTrue.midpoints,
+            pca1, pca2, otherPca: midpointsPca,
             cameraPca: box,
-            // openingRadius: openingRadiusExtended,
-            translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
+            // translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             snapshotKey: 'opening',
             snapshotDescription: descriptionOpen,
             cameraPca: box,
-            // openingRadius: openingRadiusExtended,
+            // translate,
             anim: 'forward',
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             snapshotKey: 'closing',
             snapshotDescription: descriptionClosed,
             cameraPca: box,
-            // openingRadius: openingRadiusExtended,
+            // translate,
             anim: 'backward',
         }),
     ], {});

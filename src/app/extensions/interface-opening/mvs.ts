@@ -32,12 +32,13 @@ const COLOR_A_STRONG = 'royalblue' satisfies ColorT;
 const COLOR_B = 'orange' satisfies ColorT;
 const COLOR_B_STRONG = 'brown' satisfies ColorT;
 const COLOR_OTHER = 'magenta' satisfies ColorT;
+const COLOR_OTHER2 = 'cyan' satisfies ColorT;
 
 
 export function mvsInterface(pdbId: string, assemblyId: string | undefined, partner1: ComponentExpressionT[], partner2: ComponentExpressionT[],
     options?: {
         interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
-        translate?: Vec3, otherPoints?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D,
+        translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D,
         anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
     }
 ) {
@@ -97,6 +98,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
     if (options?.interface1) addPoints(primitives, options.interface1, COLOR_A_STRONG);
     if (options?.interface2) addPoints(primitives, options.interface2, COLOR_B_STRONG);
     if (options?.otherPoints) addPoints(primitives, options.otherPoints, COLOR_OTHER);
+    if (options?.otherPoints2) addPoints(primitives, options.otherPoints2, COLOR_OTHER2);
     if (options?.pca1) addAxes(primitives, options.pca1, COLOR_A_STRONG);
     if (options?.pca2) addAxes(primitives, options.pca2, COLOR_B_STRONG);
     if (options?.otherPca) addAxes(primitives, options.otherPca, COLOR_OTHER);

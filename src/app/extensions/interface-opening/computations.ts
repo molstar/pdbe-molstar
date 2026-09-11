@@ -1,9 +1,10 @@
 import { OrderedSet } from 'molstar/lib/mol-data/int';
-import { GridLookup3D } from 'molstar/lib/mol-math/geometry';
+import { GridLookup3D, PositionData } from 'molstar/lib/mol-math/geometry';
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
 import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
 import { Structure, StructureElement } from 'molstar/lib/mol-model/structure';
+import { range } from 'molstar/lib/mol-util/array';
 
 
 const _vec = Vec3();
@@ -102,6 +103,12 @@ export const Coords = {
         return pivot ? Coords.addVector(out, pivot) : out;
         // TODO: do this on flat coords for better performance
     },
+    toVector(out: Vec3, coords: Coords, i: number) {
+        out[0] = coords.x[i];
+        out[1] = coords.y[i];
+        out[2] = coords.z[i];
+        return out;
+    },
 };
 
 
@@ -156,7 +163,7 @@ export function getCoordsWithin(coords: Coords, target: Coords, radius: number):
     return { x: Float32Array.from(x), y: Float32Array.from(y), z: Float32Array.from(z) };
 }
 
-export function getMidPoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
+export function getMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
     const bData = {
         x: b.x,
         y: b.y,
@@ -174,13 +181,7 @@ export function getMidPoints(a: Coords, b: Coords, radius: number): { midpoints:
     const nA = a.x.length;
     for (let i = 0; i < nA; i++) {
         const result = lookup.find(a.x[i], a.y[i], a.z[i], radius);
-        // console.log('sqd', ...result.squaredDistances.slice(0, result.count))
         if (result.count === 0) continue;
-        // let best = 0;
-        // for (let idx = 0; idx < result.count; idx++) { // Cannot iterate over result.indices directly, as it can contain more than result.count elements (hurray undocumented behavior!)
-        //     if (result.squaredDistances[idx] < result.squaredDistances[best]) best = idx;
-        // }
-        // const idx = best;
         for (let idx = 0; idx < result.count; idx++) { // Cannot iterate over result.indices directly, as it can contain more than result.count elements (hurray undocumented behavior!)
             const j = result.indices[idx];
             midX.push(0.5 * (a.x[i] + b.x[j]));
@@ -199,9 +200,159 @@ export function getMidPoints(a: Coords, b: Coords, radius: number): { midpoints:
     };
 }
 
+export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
+    const nA = a.x.length;
+    const nB = b.x.length;
+    const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
+    const bData: PositionData = { ...b, indices: OrderedSet.ofBounds(0, nB) };
+    const lookupA = GridLookup3D(aData, getBoundary(aData));
+    const lookupB = GridLookup3D(bData, getBoundary(bData));
+    const midX: number[] = [];
+    const midY: number[] = [];
+    const midZ: number[] = [];
+    const diffX: number[] = [];
+    const diffY: number[] = [];
+    const diffZ: number[] = [];
+
+    const forwardResults = range(nA).map(i => {
+        const result = lookupB.find(a.x[i], a.y[i], a.z[i], radius);
+        return result.indices.slice(0, result.count);
+    });
+    const backwardResults = range(nB).map(j => {
+        const result = lookupA.find(b.x[j], b.y[j], b.z[j], radius);
+        return result.indices.slice(0, result.count);
+    });
+    const u = Vec3(), v = Vec3(), u_ = Vec3(), v_ = Vec3(), dir = Vec3(), rel = Vec3();
+    for (let i = 0; i < nA; i++) {
+        const result = forwardResults[i];
+        for (const j of result) {
+            const backResult = backwardResults[j];
+            if (!backResult.includes(i)) throw new Error('Fuuuu'); // DEBUG
+            Coords.toVector(u, a, i);
+            Coords.toVector(v, b, j);
+            const dist = Vec3.distance(u, v);
+            Vec3.normalize(dir, Vec3.sub(_vec, v, u));
+            const pA: number[] = [];
+            const qA: number[] = [];
+            for (const i_ of backResult) {
+                Coords.toVector(u_, a, i_);
+                Vec3.sub(rel, u_, u);
+                const p = Vec3.dot(rel, dir);
+                const q = Vec3.squaredMagnitude(Vec3.cross(_vec, rel, dir));
+                if ((p < 0 || p > dist) && i_ !== i) continue; // Discard points that cannot affect the result, make sure not to discard self due to rounding
+                pA.push(p);
+                qA.push(q);
+            }
+            const pB: number[] = [];
+            const qB: number[] = [];
+            for (const j_ of result) {
+                Coords.toVector(v_, b, j_);
+                Vec3.sub(rel, v_, u);
+                const p = Vec3.dot(rel, dir);
+                const q = Vec3.squaredMagnitude(Vec3.cross(_vec, rel, dir));
+                if ((p < 0 || p > dist) && j_ !== j) continue; // Discard points that cannot affect the result, make sure not to discard self due to rounding
+                pB.push(p);
+                qB.push(q);
+            }
+            const dOpt = sweetSpot(pA, qA, pB, qB, dist);
+            if (dOpt < 0 || dOpt > dist) throw new Error(`dOpt out of bounds: ${dOpt} not in [0, ${dist}]`); // DEBUG
+            Vec3.scaleAndAdd(_vec, u, dir, dOpt);
+            // if (Math.abs(dOpt / dist - 0.5) > 1e-6) continue; // Skip non-middle points?
+
+            midX.push(_vec[0]);
+            midY.push(_vec[1]);
+            midZ.push(_vec[2]);
+
+            diffX.push(dir[0]);
+            diffY.push(dir[1]);
+            diffZ.push(dir[2]);
+        }
+    }
+    return {
+        midpoints: { x: Float32Array.from(midX), y: Float32Array.from(midY), z: Float32Array.from(midZ) },
+        vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) },
+    };
+}
+
 export function getPca(coords: Coords, type: 'moments' | 'box') {
     const flatCoords = Coords.flatten(coords);
     if (type === 'moments') return PrincipalAxes.calculateMomentsAxes(flatCoords);
     else return PrincipalAxes.ofPositions(flatCoords).boxAxes;
 }
 
+/** Return real number x from interval [0, xMax], such that
+ * F(x) == G(x),
+ * where
+ * * F(x) = min(f(i, x) for i from 0 to nA-1)
+ * * G(x) = min(g(j, x) for j from 0 to nB-1),
+ * * f(i, x) = x > pA[i] ? (x - pA[i])**2 + qA[i] : qA[i],
+ * * g(j, x) = x < pB[j] ? (pB[j] - x)**2 + qB[j] : qB[j],
+ *  */
+function sweetSpot(pA: number[], qA: number[], pB: number[], qB: number[], xMax: number) {
+    const nA = pA.length;
+    const nB = pB.length;
+    const evaluateF = (x: number) => {
+        let value = Infinity;
+        for (let i = 0; i < nA; i++) {
+            const delta = x - pA[i];
+            const candidate = (delta > 0 ? delta * delta : 0) + qA[i];
+            if (candidate < value) value = candidate;
+        }
+        return value;
+    };
+    const evaluateG = (x: number) => {
+        let value = Infinity;
+        for (let j = 0; j < nB; j++) {
+            const delta = pB[j] - x;
+            const candidate = (delta > 0 ? delta * delta : 0) + qB[j];
+            if (candidate < value) value = candidate;
+        }
+        return value;
+    };
+    const objective = (x: number) => evaluateF(x) - evaluateG(x);
+
+    let low = 0;
+    let high = xMax;
+    if (objective(low) >= 0) return low;
+    if (objective(high) <= 0) return high;
+
+    const MAX_ITERS = 64;
+    const TOLERANCE = 1e-3;
+    for (let iter = 0; iter < MAX_ITERS; iter++) {
+        const middle = 0.5 * (low + high);
+        const obj = objective(middle);
+        if (Math.abs(obj) <= TOLERANCE) return middle;
+        if (obj <= 0) low = middle;
+        else high = middle;
+    }
+
+    const out = 0.5 * (low + high);
+    return out;
+}
+
+
+const EPSILON = 1e-6;
+function assertEqual(x: number, y: number, epsilon: number = EPSILON) {
+    if (Math.abs(x - y) > epsilon) {
+        throw new Error(`Fuuu x!==y: ${x} ${y}`);
+    }
+}
+
+// INTERFACE_RADIUS 6 (1hlu):
+// getMidpoints: 1 ms
+// getTrueMidpoints: 5099 ms (ref sweetSpot)
+// getTrueMidpoints: 67 ms (sweetSpot with seq search)
+// getTrueMidpoints: 16 ms (sweetSpot with bin search)
+
+
+// INTERFACE_RADIUS 8 (1hlu):
+// getMidpoints: 2.5 ms
+// getTrueMidpoints: 48635 ms (ref sweetSpot)
+// getTrueMidpoints: 344 ms (sweetSpot with seq search)
+// getTrueMidpoints: 90 ms (sweetSpot with bin search)
+// getTrueMidpoints: 69 ms (avoid vec allocation)
+
+// INTERFACE_RADIUS 10 (1hlu):
+// getMidpoints: 2.8 ms
+// getTrueMidpoints: 348 ms (sweetSpot with bin search)
+// getTrueMidpoints: 278 ms (avoid vec allocation)
