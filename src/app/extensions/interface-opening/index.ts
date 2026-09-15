@@ -6,7 +6,7 @@ import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/princi
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
-import { Coords, getCoordsWithin, getMidpoints, getTrueMidpoints, getPca, getStructureCoords, getTrueContactMidpoints } from './computations';
+import { Coords, getCoordsWithin, getMidpoints, getTrueMidpoints, getPca, getStructureCoords, getTrueContactMidpoints, getForceAndTorque } from './computations';
 import { mvsDummy, mvsInterface } from './mvs';
 
 
@@ -70,6 +70,14 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     console.timeEnd('getTrueContactMidpoints')
     console.log('midpointsContact', interface1.x.length, interface2.x.length, midpointsContact.midpoints.x.length)
 
+    const inertiaA = Coords.getInertia(coords1);
+    const inertiaB = Coords.getInertia(coords2);
+    const forces = {
+        ...getForceAndTorque({ ...midpointsContact, surfaceA: interface1, surfaceB: interface2 }, inertiaA.center, inertiaB.center),
+        inertiaA,
+        inertiaB,
+    };
+
     // TODO: try to make midpoints smoother (closer to the real mid-surface of the interface)
     const meanVector = Coords.getCenter(midpoints.vectors);
     console.log('meanVector', meanVector, Vec3.magnitude(meanVector))
@@ -112,16 +120,18 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     // const translate = Vec3.setMagnitude(Vec3(), meanVector, 20);
     const translate = Vec3.setMagnitude(Vec3(), box.dirC, 20);
 
-    const descriptionClosed = `### Interface view\n**[Close](#closing)** &mdash; [Open](#opening)`;
-    const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **[Open](#opening)**`;
+    // const descriptionClosed = `### Interface view\n**[Close](#closing)** &mdash; [Open](#opening)`;
+    // const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **[Open](#opening)**`;
+    const descriptionClosed = `### Interface view\n**Close** &mdash; [Open](#opening)`;
+    const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **Open**`;
 
     const mvs1 = MVSData.createMultistate([
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             snapshotDescription: descriptionClosed,
-            interface1, interface2,
-            otherPoints: midpoints.midpoints,
-            otherPoints2: midpointsContact.midpoints,
-            pca1, pca2, otherPca: midpointsPca,
+            // interface1, interface2,
+            // otherPoints: midpoints.midpoints,
+            // otherPoints2: midpointsContact.midpoints,
+            // pca1, pca2, otherPca: midpointsPca,
             cameraPca: box,
             // translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
         }),
@@ -130,6 +140,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             snapshotDescription: descriptionOpen,
             cameraPca: box,
             // translate,
+            forces,
             anim: 'forward',
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
@@ -137,6 +148,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             snapshotDescription: descriptionClosed,
             cameraPca: box,
             // translate,
+            forces,
             anim: 'backward',
         }),
     ], {});

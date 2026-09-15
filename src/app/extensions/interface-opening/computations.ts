@@ -1,7 +1,7 @@
 import { OrderedSet } from 'molstar/lib/mol-data/int';
 import { GridLookup3D, PositionData, Result } from 'molstar/lib/mol-math/geometry';
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
-import { Vec3 } from 'molstar/lib/mol-math/linear-algebra';
+import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
 import { Structure, StructureElement } from 'molstar/lib/mol-model/structure';
 import { range } from 'molstar/lib/mol-util/array';
@@ -93,13 +93,6 @@ export const Coords = {
             out.y[i] = _vec[1];
             out.z[i] = _vec[2];
         }
-        // if (pivot) {
-        //     return {
-        //         x: new Float32Array([pivot[0]]),
-        //         y: new Float32Array([pivot[1]]),
-        //         z: new Float32Array([pivot[2]]),
-        //     };
-        // }
         return pivot ? Coords.addVector(out, pivot) : out;
         // TODO: do this on flat coords for better performance
     },
@@ -109,7 +102,40 @@ export const Coords = {
         out[2] = coords.z[i];
         return out;
     },
+    getInertia(coords: Coords): Inertia {
+        const center = Coords.getCenter(coords);
+        let ixx = 0;
+        let iyy = 0;
+        let izz = 0;
+        let ixy = 0;
+        let ixz = 0;
+        let iyz = 0;
+        const n = coords.x.length;
+        for (let i = 0; i < n; i++) {
+            const x = coords.x[i] - center[0];
+            const y = coords.y[i] - center[1];
+            const z = coords.z[i] - center[2];
+            ixx += y * y + z * z;
+            iyy += x * x + z * z;
+            izz += x * x + y * y;
+            ixy -= x * y;
+            ixz -= x * z;
+            iyz -= y * z;
+        }
+        const tensor = Mat3.create(
+            ixx, ixy, ixz,
+            ixy, iyy, iyz,
+            ixz, iyz, izz,
+        );
+        return { center, tensor, mass: n };
+    },
 };
+
+export interface Inertia {
+    center: Vec3,
+    tensor: Mat3,
+    mass: number,
+}
 
 
 /** Get atom coordinates from a structure, ignore hydrogens */
@@ -274,7 +300,7 @@ export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoi
     };
 }
 
-export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
+export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords, indicesA: number[], indicesB: number[] } {
     const nA = a.x.length;
     const nB = b.x.length;
     const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
@@ -287,6 +313,8 @@ export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): {
     const diffX: number[] = [];
     const diffY: number[] = [];
     const diffZ: number[] = [];
+    const indicesA: number[] = [];
+    const indicesB: number[] = [];
 
     const lookupResult = Result.create(); // to avoid reusing lookupB's internal result object within nested loop
     const u = Vec3(), v = Vec3(), dir = Vec3(), mid = Vec3();
@@ -311,11 +339,45 @@ export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): {
             diffX.push(dir[0]);
             diffY.push(dir[1]);
             diffZ.push(dir[2]);
+
+            indicesA.push(i);
+            indicesB.push(j);
         }
     }
     return {
         midpoints: { x: Float32Array.from(midX), y: Float32Array.from(midY), z: Float32Array.from(midZ) },
         vectors: { x: Float32Array.from(diffX), y: Float32Array.from(diffY), z: Float32Array.from(diffZ) },
+        indicesA,
+        indicesB,
+    };
+}
+
+export function getForceAndTorque(contacts: ReturnType<typeof getTrueContactMidpoints> & { surfaceA: Coords, surfaceB: Coords }, pivotA: Vec3, pivotB: Vec3) {
+    const { vectors, indicesA, indicesB, surfaceA, surfaceB } = contacts;
+    const n = indicesA.length;
+    const u = Vec3(), v = Vec3(), f = Vec3(), t = Vec3();
+    const sumFa = Vec3.zero(), sumTa = Vec3.zero(), sumFb = Vec3.zero(), sumTb = Vec3.zero();
+    for (let i = 0; i < n; i++) {
+        Coords.toVector(u, surfaceA, indicesA[i]);
+        Coords.toVector(v, surfaceB, indicesB[i]);
+        Coords.toVector(f, vectors, i);
+        Vec3.cross(t, Vec3.sub(t, v, pivotB), f);
+        Vec3.add(sumFb, sumFb, f);
+        Vec3.add(sumTb, sumTb, t);
+        Vec3.negate(f, f);
+        Vec3.cross(t, Vec3.sub(t, u, pivotA), f);
+        Vec3.add(sumFa, sumFa, f);
+        Vec3.add(sumTa, sumTa, t);
+    }
+    return {
+        // forceA: Vec3.scale(sumFa, sumFa, 1 / n),
+        // torqueA: Vec3.scale(sumTa, sumTa, 1 / n),
+        // forceB: Vec3.scale(sumFb, sumFb, 1 / n),
+        // torqueB: Vec3.scale(sumTb, sumTb, 1 / n),
+        forceA: sumFa,
+        torqueA: sumTa,
+        forceB: sumFb,
+        torqueB: sumTb,
     };
 }
 

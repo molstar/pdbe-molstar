@@ -5,10 +5,11 @@ import { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mv
 import { Axes3D } from 'molstar/lib/mol-math/geometry';
 import { Mat3, Quat, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { range } from 'molstar/lib/mol-util/array';
-import { Coords } from './computations';
+import { Coords, Inertia } from './computations';
 
 
 const _vec = Vec3();
+const _mat = Mat3();
 
 function mvsBase(pdbId: string, assemblyId: string | undefined, nStructureCopies: number) {
     const root = MVSData.createBuilder();
@@ -40,6 +41,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
         translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D,
         anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
+        forces?: { forceA: Vec3, torqueA: Vec3, forceB: Vec3, torqueB: Vec3, inertiaA: Inertia, inertiaB: Inertia },
     }
 ) {
     const TRANSITION_DURATION = 2500;
@@ -67,6 +69,18 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
     });
     structB.transform({
         ref: 'transformB',
+        translation: zero,
+    });
+    structA.transform({
+        ref: 'rotateA-force',
+        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        rotation: eye,
+        translation: zero,
+    });
+    structB.transform({
+        ref: 'rotateB-force',
+        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        rotation: eye,
         translation: zero,
     });
     structA.transform({
@@ -128,84 +142,152 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         });
     }
 
-    // Animation translate
-    if (options?.anim && options.translate) {
-        const anim = base.root.animation();
-        const translateA = MvsVector(Vec3.negate(_vec, options.translate));
-        const translateB = MvsVector(options.translate);
-        anim.interpolate({
-            target_ref: 'transformA',
-            property: 'translation',
-            kind: 'vec3',
-            start: options.anim === 'backward' ? translateA : zero,
-            end: options.anim === 'backward' ? zero : translateA,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
-        anim.interpolate({
-            target_ref: 'transformB',
-            property: 'translation',
-            kind: 'vec3',
-            start: options.anim === 'backward' ? translateB : zero,
-            end: options.anim === 'backward' ? zero : translateB,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
-    }
-    // Animation with hinge
-    if (options?.anim && !options.translate) {
-        if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
-        const anim = base.root.animation();
-        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
-        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, options.cameraPca.dirA);
-        Vec3.setMagnitude(_vec, options.cameraPca.dirC, Vec3.magnitude(options.cameraPca.dirB) * 2);
-        const transB = MvsVector(_vec);
-        Vec3.negate(_vec, _vec);
-        const transA = MvsVector(_vec);
-        // TODO: adjust rotation+translation vs pure rotation
-        anim.interpolate({
-            target_ref: 'rotateA',
-            property: 'rotation',
-            kind: 'rotation_matrix',
-            start: options.anim === 'backward' ? rotA : eye,
-            end: options.anim === 'backward' ? eye : rotA,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
-        anim.interpolate({
-            target_ref: 'rotateB',
-            property: 'rotation',
-            kind: 'rotation_matrix',
-            start: options.anim === 'backward' ? rotB : eye,
-            end: options.anim === 'backward' ? eye : rotB,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
-        anim.interpolate({
-            target_ref: 'rotateA',
-            property: 'translation',
-            kind: 'vec3',
-            start: options.anim === 'backward' ? transA : zero,
-            end: options.anim === 'backward' ? zero : transA,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
-        anim.interpolate({
-            target_ref: 'rotateB',
-            property: 'translation',
-            kind: 'vec3',
-            start: options.anim === 'backward' ? transB : zero,
-            end: options.anim === 'backward' ? zero : transB,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-        });
+    if (options?.anim) {
+        // Animation translate
+        if (options.translate) {
+            const anim = base.root.animation();
+            const translateA = MvsVector(Vec3.negate(_vec, options.translate));
+            const translateB = MvsVector(options.translate);
+            anim.interpolate({
+                target_ref: 'transformA',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? translateA : zero,
+                end: options.anim === 'backward' ? zero : translateA,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+            anim.interpolate({
+                target_ref: 'transformB',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? translateB : zero,
+                end: options.anim === 'backward' ? zero : translateB,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+        }
+        // Animation with forces
+        else if (options.forces) {
+            const anim = base.root.animation();
+            const TORQUE_FACTOR = 200;
+            const FORCE_FACTOR = 0;
+            const transA = MvsVector(Vec3.scale(_vec, options.forces.forceA, FORCE_FACTOR / options.forces.inertiaA.mass));
+            const transB = MvsVector(Vec3.scale(_vec, options.forces.forceB, FORCE_FACTOR / options.forces.inertiaB.mass));
+
+            const rotVecA = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueA, Mat3.invert(_mat, options.forces.inertiaA.tensor)), TORQUE_FACTOR);
+            const rotVecB = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueB, Mat3.invert(_mat, options.forces.inertiaB.tensor)), TORQUE_FACTOR);
+
+            // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
+            const MAX_ROT = .99 * Math.PI;
+            const safeguardFactor = 1 / Math.max(Vec3.magnitude(rotVecA) / MAX_ROT, Vec3.magnitude(rotVecB) / MAX_ROT, 1);
+            if (safeguardFactor !== 1) {
+                Vec3.scale(rotVecA, rotVecA, safeguardFactor);
+                Vec3.scale(rotVecB, rotVecB, safeguardFactor);
+            }
+
+            console.log('rotVecs', Vec3.magnitude(rotVecA), Vec3.magnitude(rotVecB))
+
+            const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
+            const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
+            console.log('rotMats', rotA, rotB)
+
+            if (Vec3.magnitude(rotVecA) >= 1e-3) {
+                anim.interpolate({
+                    target_ref: 'rotateA-force',
+                    property: 'rotation',
+                    kind: 'rotation_matrix',
+                    start: options.anim === 'backward' ? rotA : eye,
+                    end: options.anim === 'backward' ? eye : rotA,
+                    start_ms: 0,
+                    duration_ms: TRANSITION_DURATION,
+                });
+            }
+            if (Vec3.magnitude(rotVecB) >= 1e-3) {
+                anim.interpolate({
+                    target_ref: 'rotateB-force',
+                    property: 'rotation',
+                    kind: 'rotation_matrix',
+                    start: options.anim === 'backward' ? rotB : eye,
+                    end: options.anim === 'backward' ? eye : rotB,
+                    start_ms: 0,
+                    duration_ms: TRANSITION_DURATION,
+                });
+            }
+            anim.interpolate({
+                target_ref: 'rotateA-force',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? transA : zero,
+                end: options.anim === 'backward' ? zero : transA,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+            anim.interpolate({
+                target_ref: 'rotateB-force',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? transB : zero,
+                end: options.anim === 'backward' ? zero : transB,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+        }
+        // Animation with hinge
+        else {
+            if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
+            const anim = base.root.animation();
+            const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
+            const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, options.cameraPca.dirA);
+            Vec3.setMagnitude(_vec, options.cameraPca.dirC, Vec3.magnitude(options.cameraPca.dirB) * 2);
+            const transB = MvsVector(_vec);
+            Vec3.negate(_vec, _vec);
+            const transA = MvsVector(_vec);
+            // TODO: adjust rotation+translation vs pure rotation
+            anim.interpolate({
+                target_ref: 'rotateA',
+                property: 'rotation',
+                kind: 'rotation_matrix',
+                start: options.anim === 'backward' ? rotA : eye,
+                end: options.anim === 'backward' ? eye : rotA,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+            anim.interpolate({
+                target_ref: 'rotateB',
+                property: 'rotation',
+                kind: 'rotation_matrix',
+                start: options.anim === 'backward' ? rotB : eye,
+                end: options.anim === 'backward' ? eye : rotB,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+            anim.interpolate({
+                target_ref: 'rotateA',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? transA : zero,
+                end: options.anim === 'backward' ? zero : transA,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+            anim.interpolate({
+                target_ref: 'rotateB',
+                property: 'translation',
+                kind: 'vec3',
+                start: options.anim === 'backward' ? transB : zero,
+                end: options.anim === 'backward' ? zero : transB,
+                start_ms: 0,
+                duration_ms: TRANSITION_DURATION,
+            });
+        }
     }
 
     return base.root.getSnapshot({
         key: options?.snapshotKey,
         description: options?.snapshotDescription,
         description_format: 'markdown',
-        linger_duration_ms: 5000,
+        linger_duration_ms: 1000,
         transition_duration_ms: TRANSITION_DURATION,
     });
 }
