@@ -1,7 +1,9 @@
 import { decomposeRotationMatrix } from 'molstar/lib/extensions/mvs/load-helpers';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
+import { MVSAnimationNodeParams } from 'molstar/lib/extensions/mvs/tree/animation/animation-tree';
 import type MVSBuilder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
-import { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
+import { ColorT, ComponentExpressionT, EasingT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Axes3D } from 'molstar/lib/mol-math/geometry';
 import { Mat3, Quat, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { range } from 'molstar/lib/mol-util/array';
@@ -44,8 +46,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         forces?: { forceA: Vec3, torqueA: Vec3, forceB: Vec3, torqueB: Vec3, inertiaA: Inertia, inertiaB: Inertia },
     }
 ) {
-    const TRANSITION_DURATION = 5000;
-    const FORCE_DURATION = 0.25 * TRANSITION_DURATION;
+    const TRANSITION_DURATION = 2500;
 
     const base = mvsBase(pdbId, assemblyId, 2);
     const [structA, structB] = base.structs;
@@ -101,8 +102,9 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
     // Structure representations
     const reprParams: Parameters<MVSBuilder.Component['representation']>[0] = {
         type: 'surface',
+        // surface_type: 'gaussian',
         // type: 'ball_and_stick', size_factor: 0.25,
-    };
+    }; // TODO: fall back to gaussian surface when structures big?
     const reprA = structA.component({ selector: partner1 }).representation(reprParams).color({ color: COLOR_A });
     const reprB = structB.component({ selector: partner2 }).representation(reprParams).color({ color: COLOR_B });
     if (options?.interfaceSelector1) reprA.color({ color: COLOR_A_STRONG, selector: options.interfaceSelector1 });
@@ -144,8 +146,8 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
     }
 
     if (options?.anim) {
-        // Animation translate
         if (options.translate) {
+            // Animation translate
             const anim = base.root.animation();
             const translateA = MvsVector(Vec3.negate(_vec, options.translate));
             const translateB = MvsVector(options.translate);
@@ -167,17 +169,25 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
                 start_ms: 0,
                 duration_ms: TRANSITION_DURATION,
             });
-        }
-        // Animation with forces
-        else if (options.forces) {
+        } else if (options.forces) {
+            // Animation with forces
+            if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
             const anim = base.root.animation();
-            const TORQUE_FACTOR = 60;
-            const FORCE_FACTOR = 0;
-            const transA = MvsVector(Vec3.scale(_vec, options.forces.forceA, FORCE_FACTOR / options.forces.inertiaA.mass));
-            const transB = MvsVector(Vec3.scale(_vec, options.forces.forceB, FORCE_FACTOR / options.forces.inertiaB.mass));
+            const TORQUE_FACTOR = 50;
+            const FORCE_FACTOR = TORQUE_FACTOR;
 
+            const transVecA = Vec3.scale(Vec3(), options.forces.forceA, FORCE_FACTOR / options.forces.inertiaA.mass);
+            const transVecB = Vec3.scale(Vec3(), options.forces.forceB, FORCE_FACTOR / options.forces.inertiaB.mass);
             const rotVecA = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueA, Mat3.invert(_mat, options.forces.inertiaA.tensor)), TORQUE_FACTOR);
             const rotVecB = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueB, Mat3.invert(_mat, options.forces.inertiaB.tensor)), TORQUE_FACTOR);
+
+            // Limit rotation to axis parallel to interface normal
+            const forcedAxis = options.cameraPca.dirC;
+            Vec3.projectOnVector(rotVecA, rotVecA, forcedAxis);
+            Vec3.projectOnVector(rotVecB, rotVecB, forcedAxis);
+            // Limit translation to interface plane
+            Vec3.projectOnPlane(transVecA, transVecA, forcedAxis);
+            Vec3.projectOnPlane(transVecB, transVecB, forcedAxis);
 
             // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
             const MAX_ROT = .99 * Math.PI;
@@ -187,65 +197,70 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
                 Vec3.scale(rotVecB, rotVecB, safeguardFactor);
             }
 
-            console.log('rotVecs', Vec3.magnitude(rotVecA), Vec3.magnitude(rotVecB))
-
+            const transA = MvsVector(transVecA);
+            const transB = MvsVector(transVecB);
             const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
             const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
-            console.log('rotMats', rotA, rotB)
-            // TODO: try to include only the torque component parallel to the interface normal?
 
-            const startMs = options.anim === 'backward' ? TRANSITION_DURATION - FORCE_DURATION : 0;
-            if (Vec3.magnitude(rotVecA) >= 1e-3) {
+            const FORCE_DURATION = 0.2 * TRANSITION_DURATION;
+            const INV_FORCE_DURATION = 0.3 * TRANSITION_DURATION;
+            const common1 = {
+                start_ms: options.anim === 'backward' ? TRANSITION_DURATION - FORCE_DURATION - INV_FORCE_DURATION : 0,
+                duration_ms: options.anim === 'backward' ? INV_FORCE_DURATION : FORCE_DURATION,
+                easing: 'sin-in-out',
+            } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
+            const common2 = {
+                start_ms: options.anim === 'backward' ? TRANSITION_DURATION - FORCE_DURATION : FORCE_DURATION,
+                duration_ms: options.anim === 'backward' ? FORCE_DURATION : INV_FORCE_DURATION,
+                easing: 'sin-in-out',
+            } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
+
+            if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
-                    target_ref: 'rotateA-force',
-                    property: 'rotation',
-                    kind: 'rotation_matrix',
-                    start: eye,
-                    end: rotA,
-                    start_ms: startMs,
-                    duration_ms: FORCE_DURATION,
-                    frequency: 2,
-                    alternate_direction: true,
+                    ...common1,
+                    target_ref: 'rotateA-force', property: 'rotation', kind: 'rotation_matrix',
+                    start: eye, end: rotA,
+                });
+                anim.interpolate({
+                    ...common2,
+                    target_ref: 'rotateA-force', property: 'rotation', kind: 'rotation_matrix',
+                    start: rotA, end: eye,
                 });
             }
-            if (Vec3.magnitude(rotVecB) >= 1e-3) {
+            if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
-                    target_ref: 'rotateB-force',
-                    property: 'rotation',
-                    kind: 'rotation_matrix',
-                    start: eye,
-                    end: rotB,
-                    start_ms: startMs,
-                    duration_ms: FORCE_DURATION,
-                    frequency: 2,
-                    alternate_direction: true,
+                    ...common1,
+                    target_ref: 'rotateB-force', property: 'rotation', kind: 'rotation_matrix',
+                    start: eye, end: rotB,
+                });
+                anim.interpolate({
+                    ...common2,
+                    target_ref: 'rotateB-force', property: 'rotation', kind: 'rotation_matrix',
+                    start: rotB, end: eye,
                 });
             }
             anim.interpolate({
-                target_ref: 'rotateA-force',
-                property: 'translation',
-                kind: 'vec3',
-                start: zero,
-                end: transA,
-                start_ms: startMs,
-                duration_ms: FORCE_DURATION,
-                frequency: 2,
-                alternate_direction: true,
+                ...common1,
+                target_ref: 'rotateA-force', property: 'translation', kind: 'vec3',
+                start: zero, end: transA,
             });
             anim.interpolate({
-                target_ref: 'rotateB-force',
-                property: 'translation',
-                kind: 'vec3',
-                start: zero,
-                end: transB,
-                start_ms: startMs,
-                duration_ms: FORCE_DURATION,
-                frequency: 2,
-                alternate_direction: true,
+                ...common2,
+                target_ref: 'rotateA-force', property: 'translation', kind: 'vec3',
+                start: transA, end: zero,
+            });
+            anim.interpolate({
+                ...common1,
+                target_ref: 'rotateB-force', property: 'translation', kind: 'vec3',
+                start: zero, end: transB,
+            });
+            anim.interpolate({
+                ...common2,
+                target_ref: 'rotateB-force', property: 'translation', kind: 'vec3',
+                start: transB, end: zero,
             });
         }
         // Animation with hinge
-        // else {
         if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
         const anim = base.root.animation();
         const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
@@ -254,44 +269,45 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         const transB = MvsVector(_vec);
         Vec3.negate(_vec, _vec);
         const transA = MvsVector(_vec);
-        // TODO: adjust rotation+translation vs pure rotation
+
+        const common = {
+            start_ms: 0,
+            duration_ms: TRANSITION_DURATION,
+            easing: 'sin-in-out',
+        } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
+
         anim.interpolate({
+            ...common,
             target_ref: 'rotateA',
             property: 'rotation',
             kind: 'rotation_matrix',
             start: options.anim === 'backward' ? rotA : eye,
             end: options.anim === 'backward' ? eye : rotA,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
         });
         anim.interpolate({
+            ...common,
             target_ref: 'rotateB',
             property: 'rotation',
             kind: 'rotation_matrix',
             start: options.anim === 'backward' ? rotB : eye,
             end: options.anim === 'backward' ? eye : rotB,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
         });
         anim.interpolate({
+            ...common,
             target_ref: 'rotateA',
             property: 'translation',
             kind: 'vec3',
             start: options.anim === 'backward' ? transA : zero,
             end: options.anim === 'backward' ? zero : transA,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
         });
         anim.interpolate({
+            ...common,
             target_ref: 'rotateB',
             property: 'translation',
             kind: 'vec3',
             start: options.anim === 'backward' ? transB : zero,
             end: options.anim === 'backward' ? zero : transB,
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
         });
-        // }
     }
 
     return base.root.getSnapshot({

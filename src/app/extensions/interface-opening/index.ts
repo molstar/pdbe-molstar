@@ -6,7 +6,7 @@ import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/princi
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
-import { Coords, getCoordsWithin, getMidpoints, getTrueMidpoints, getPca, getStructureCoords, getTrueContactMidpoints, getForceAndTorque } from './computations';
+import { Coords, getCoordsWithin, getForceAndTorque, getMidpoints, getPca, getStructureCoords, getTrueContactMidpoints, getTrueMidpoints } from './computations';
 import { mvsDummy, mvsInterface } from './mvs';
 
 
@@ -14,6 +14,7 @@ import { mvsDummy, mvsInterface } from './mvs';
 // - 1hlu A-B: nice PyMOL example from https://dgoppenheimer.github.io/oppenheimer-blog/2016/12/30/profilin-actin-movie/
 // - 1hda A-B, A-C, A-D: kinda nice
 // - 2p9u D-F: ugly twisted interface
+// - 8eiu TA-DA: uglissimo (small protein inserted within ribosomal unit)
 
 
 export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, assemblyId: string | undefined, partner1: ComponentExpressionT[], partner2: ComponentExpressionT[]) {
@@ -109,19 +110,18 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
 
     const box = PrincipalAxes.calculateBoxAxes(Coords.flatten(interfaceMerged), openingPca);
     console.log('box', box)
-    const OPENING_RADIUS_FACTOR = 1.2;
+    const OPENING_RADIUS_FACTOR = 1.1;
     const OPENING_RADIUS_EXTRA = 5;
     const openingRadius = Vec3.magnitude(box.dirB) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
     Vec3.setMagnitude(box.dirB, box.dirB, openingRadius);
     Vec3.setMagnitude(box.dirA, box.dirA, Vec3.magnitude(box.dirA) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA);
 
+    // TODO: increase box.dirB to avoid overlap of whole chains (2p9u C-D almost touching)
     // const translate = Vec3.setMagnitude(Vec3(), interfaceNormal, 20);
     // const translate = Vec3.setMagnitude(Vec3(), pca1.dirC, 20);
     // const translate = Vec3.setMagnitude(Vec3(), meanVector, 20);
     const translate = Vec3.setMagnitude(Vec3(), box.dirC, 20);
 
-    // const descriptionClosed = `### Interface view\n**[Close](#closing)** &mdash; [Open](#opening)`;
-    // const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **[Open](#opening)**`;
     const descriptionClosed = `### Interface view\n**Close** &mdash; [Open](#opening)`;
     const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **Open**`;
 
