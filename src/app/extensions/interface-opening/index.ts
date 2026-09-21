@@ -103,24 +103,30 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
         Vec3.negate(openingPca.dirC, openingPca.dirC); // right on screen (direction of movement of the second partner)
     }
     if (Vec3.dot(openingPca.dirB, Vec3.sub(Vec3(), centerInterface, centerProteins)) < 0) {
-        Vec3.negate(openingPca.dirB, openingPca.dirB); // out on screen (out of the opening interface)
+        Vec3.negate(openingPca.dirB, openingPca.dirB); // out of screen (out of the opening interface)
     }
     Vec3.cross(openingPca.dirA, openingPca.dirB, openingPca.dirC); // up on screen (hinge axis)
-    console.log('openingPca', openingPca)
 
     const box = PrincipalAxes.calculateBoxAxes(Coords.flatten(interfaceMerged), openingPca);
-    console.log('box', box)
-    const OPENING_RADIUS_FACTOR = 1.1;
-    const OPENING_RADIUS_EXTRA = 5;
-    const openingRadius = Vec3.magnitude(box.dirB) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
-    Vec3.setMagnitude(box.dirB, box.dirB, openingRadius);
-    Vec3.setMagnitude(box.dirA, box.dirA, Vec3.magnitude(box.dirA) * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA);
+    const OPENING_RADIUS_FACTOR = 1.05;
+    const OPENING_RADIUS_EXTRA = 1;
+    const boxWholeA = PrincipalAxes.calculateBoxAxes(Coords.flatten(coords1), openingPca);
+    const openingRadiusA = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeA.origin, boxWholeA.dirB), box.origin), box.dirB));
+    const boxWholeB = PrincipalAxes.calculateBoxAxes(Coords.flatten(coords2), openingPca);
+    const openingRadiusB = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeB.origin, boxWholeB.dirB), box.origin), box.dirB));
+    const openingRadius = (openingRadiusA + openingRadiusB) / 2 * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
+
+    const BOX_SIZE_FACTOR = 1.05;
+    const BOX_SIZE_EXTRA = 5;
+    Vec3.setMagnitude(box.dirA, box.dirA, Vec3.magnitude(box.dirA) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
+    Vec3.setMagnitude(box.dirB, box.dirB, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
+    Vec3.setMagnitude(box.dirC, box.dirC, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
 
     // TODO: increase box.dirB to avoid overlap of whole chains (2p9u C-D almost touching)
     // const translate = Vec3.setMagnitude(Vec3(), interfaceNormal, 20);
     // const translate = Vec3.setMagnitude(Vec3(), pca1.dirC, 20);
     // const translate = Vec3.setMagnitude(Vec3(), meanVector, 20);
-    const translate = Vec3.setMagnitude(Vec3(), box.dirC, 20);
+    // const translate = Vec3.setMagnitude(Vec3(), box.dirC, 20);
 
     const descriptionClosed = `### Interface view\n**Close** &mdash; [Open](#opening)`;
     const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **Open**`;
@@ -133,12 +139,14 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             // otherPoints2: midpointsContact.midpoints,
             // pca1, pca2, otherPca: midpointsPca,
             cameraPca: box,
+            openingRadius,
             // translateAxis: { origin: Coords.getCenter(interfaceMerged), dir: translate },
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
             snapshotKey: 'opening',
             snapshotDescription: descriptionOpen,
             cameraPca: box,
+            openingRadius,
             // translate,
             forces,
             anim: 'forward',
@@ -147,6 +155,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             snapshotKey: 'closing',
             snapshotDescription: descriptionClosed,
             cameraPca: box,
+            openingRadius,
             // translate,
             forces,
             anim: 'backward',

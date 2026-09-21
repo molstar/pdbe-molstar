@@ -12,6 +12,9 @@ const _vec = Vec3();
 export interface Coords { x: Float32Array, y: Float32Array, z: Float32Array }
 
 export const Coords = {
+    length(coords: Coords): number{
+        return coords.x.length;
+    },
     empty(n: number): Coords {
         return {
             x: new Float32Array(n),
@@ -48,7 +51,7 @@ export const Coords = {
         };
     },
     addVector(coords: Coords, vector: Vec3): Coords {
-        const n = coords.x.length;
+        const n = Coords.length(coords);
         const [x0, y0, z0] = vector;
         const { x, y, z } = Coords.copy(coords);
         for (let i = 0; i < n; i++) {
@@ -59,7 +62,7 @@ export const Coords = {
         return { x, y, z };
     },
     subtractVector(coords: Coords, vector: Vec3): Coords {
-        const n = coords.x.length;
+        const n = Coords.length(coords);
         const [x0, y0, z0] = vector;
         const { x, y, z } = Coords.copy(coords);
         for (let i = 0; i < n; i++) {
@@ -73,14 +76,14 @@ export const Coords = {
         const sumX = coords.x.reduce((a, b) => a + b, 0);
         const sumY = coords.y.reduce((a, b) => a + b, 0);
         const sumZ = coords.z.reduce((a, b) => a + b, 0);
-        const n = coords.x.length;
+        const n = Coords.length(coords);
         return Vec3.create(sumX / n, sumY / n, sumZ / n);
     },
     center(coords: Coords): Coords {
         return Coords.subtractVector(coords, Coords.getCenter(coords));
     },
     projectOnPlane(coords: Coords, planeNormal: Vec3, pivot?: Vec3): Coords {
-        const n = coords.x.length;
+        const n = Coords.length(coords);
         const normal = Vec3.normalize(Vec3(), planeNormal);
         if (pivot) {
             coords = Coords.subtractVector(coords, pivot);
@@ -110,7 +113,7 @@ export const Coords = {
         let ixy = 0;
         let ixz = 0;
         let iyz = 0;
-        const n = coords.x.length;
+        const n = Coords.length(coords);
         for (let i = 0; i < n; i++) {
             const x = coords.x[i] - center[0];
             const y = coords.y[i] - center[1];
@@ -165,20 +168,22 @@ export function getStructureCoords(structure: Structure): Coords {
 
 /** Return subset of points from `coords` which lie within `radius` around any point in `target` */
 export function getCoordsWithin(coords: Coords, target: Coords, radius: number): Coords {
-    if (radius < 0 || target.x.length === 0) return { x: new Float32Array(0), y: new Float32Array(0), z: new Float32Array(0) };
+    const nCoords = Coords.length(coords);
+    const nTarget = Coords.length(target);
+    if (radius < 0 || nTarget === 0) return { x: new Float32Array(0), y: new Float32Array(0), z: new Float32Array(0) };
 
     const targetData = {
         x: target.x,
         y: target.y,
         z: target.z,
-        indices: OrderedSet.ofBounds(0, target.x.length),
+        indices: OrderedSet.ofBounds(0, nTarget),
     };
     const lookup = GridLookup3D(targetData, getBoundary(targetData));
     const x: number[] = [];
     const y: number[] = [];
     const z: number[] = [];
 
-    for (let i = 0; i < coords.x.length; i++) {
+    for (let i = 0; i < nCoords; i++) {
         if (lookup.find(coords.x[i], coords.y[i], coords.z[i], radius).count > 0) { // .find could be replaced by .check here
             x.push(coords.x[i]);
             y.push(coords.y[i]);
@@ -194,7 +199,7 @@ export function getMidpoints(a: Coords, b: Coords, radius: number): { midpoints:
         x: b.x,
         y: b.y,
         z: b.z,
-        indices: OrderedSet.ofBounds(0, b.x.length),
+        indices: OrderedSet.ofBounds(0, Coords.length(b)),
     };
     const lookup = GridLookup3D(bData, getBoundary(bData));
     const midX: number[] = [];
@@ -204,7 +209,7 @@ export function getMidpoints(a: Coords, b: Coords, radius: number): { midpoints:
     const diffY: number[] = [];
     const diffZ: number[] = [];
 
-    const nA = a.x.length;
+    const nA = Coords.length(a);
     for (let i = 0; i < nA; i++) {
         const result = lookup.find(a.x[i], a.y[i], a.z[i], radius);
         if (result.count === 0) continue;
@@ -227,8 +232,8 @@ export function getMidpoints(a: Coords, b: Coords, radius: number): { midpoints:
 }
 
 export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords } {
-    const nA = a.x.length;
-    const nB = b.x.length;
+    const nA = Coords.length(a);
+    const nB = Coords.length(b);
     const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
     const bData: PositionData = { ...b, indices: OrderedSet.ofBounds(0, nB) };
     const lookupA = GridLookup3D(aData, getBoundary(aData));
@@ -301,8 +306,8 @@ export function getTrueMidpoints(a: Coords, b: Coords, radius: number): { midpoi
 }
 
 export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): { midpoints: Coords, vectors: Coords, indicesA: number[], indicesB: number[] } {
-    const nA = a.x.length;
-    const nB = b.x.length;
+    const nA = Coords.length(a);
+    const nB = Coords.length(b);
     const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
     const bData: PositionData = { ...b, indices: OrderedSet.ofBounds(0, nB) };
     const lookupA = GridLookup3D(aData, getBoundary(aData));

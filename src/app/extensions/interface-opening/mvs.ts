@@ -41,7 +41,7 @@ const COLOR_OTHER2 = 'cyan' satisfies ColorT;
 export function mvsInterface(pdbId: string, assemblyId: string | undefined, partner1: ComponentExpressionT[], partner2: ComponentExpressionT[],
     options?: {
         interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
-        translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D,
+        translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D, openingRadius?: number, aspectRatio?: number,
         anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
         forces?: { forceA: Vec3, torqueA: Vec3, forceB: Vec3, torqueB: Vec3, inertiaA: Inertia, inertiaB: Inertia },
     }
@@ -53,7 +53,10 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
 
     // Set camera
     if (options?.cameraPca) {
-        const visRadius = Math.max(Vec3.magnitude(options.cameraPca.dirA), 2 * Vec3.magnitude(options.cameraPca.dirB));
+        const aspectRatio = options.aspectRatio ?? 1;
+        const rX = options.openingRadius !== undefined ? options.openingRadius + Vec3.magnitude(options.cameraPca.dirB) : 2 * Vec3.magnitude(options.cameraPca.dirB);
+        const rY = Vec3.magnitude(options.cameraPca.dirA);
+        const visRadius = Math.max(rX / aspectRatio, rY);
         const dist = 2 * visRadius;
         base.root.camera({
             target: MvsVector(options.cameraPca.origin),
@@ -265,7 +268,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         const anim = base.root.animation();
         const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
         const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, options.cameraPca.dirA);
-        Vec3.setMagnitude(_vec, options.cameraPca.dirC, Vec3.magnitude(options.cameraPca.dirB) * 2);
+        Vec3.setMagnitude(_vec, options.cameraPca.dirC, options.openingRadius ?? Vec3.magnitude(options.cameraPca.dirB));
         const transB = MvsVector(_vec);
         Vec3.negate(_vec, _vec);
         const transA = MvsVector(_vec);
