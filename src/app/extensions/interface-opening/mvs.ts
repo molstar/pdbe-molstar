@@ -1,14 +1,12 @@
-import { decomposeRotationMatrix } from 'molstar/lib/extensions/mvs/load-helpers';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
-import { MVSAnimationNodeParams } from 'molstar/lib/extensions/mvs/tree/animation/animation-tree';
 import type MVSBuilder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
-import { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
-import { ColorT, ComponentExpressionT, EasingT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Axes3D } from 'molstar/lib/mol-math/geometry';
-import { Mat3, Quat, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
+import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { range } from 'molstar/lib/mol-util/array';
 import { Coords, Inertia } from './computations';
 
+// TODO: prune unused functions
 
 const _vec = Vec3();
 const _mat = Mat3();
@@ -183,6 +181,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
             const transVecB = Vec3.scale(Vec3(), options.forces.forceB, FORCE_FACTOR / options.forces.inertiaB.mass);
             const rotVecA = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueA, Mat3.invert(_mat, options.forces.inertiaA.tensor)), TORQUE_FACTOR);
             const rotVecB = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueB, Mat3.invert(_mat, options.forces.inertiaB.tensor)), TORQUE_FACTOR);
+            // TODO: move rot, trans computation out of MVS function
 
             // Limit rotation to axis parallel to interface normal
             const forcedAxis = options.cameraPca.dirC;

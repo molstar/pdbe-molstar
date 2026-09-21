@@ -6,6 +6,7 @@ import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/princi
 import { Structure, StructureElement } from 'molstar/lib/mol-model/structure';
 import { range } from 'molstar/lib/mol-util/array';
 
+// TODO: prune unused functions
 
 const _vec = Vec3();
 
@@ -358,6 +359,7 @@ export function getTrueContactMidpoints(a: Coords, b: Coords, radius: number): {
 }
 
 export function getForceAndTorque(contacts: ReturnType<typeof getTrueContactMidpoints> & { surfaceA: Coords, surfaceB: Coords }, pivotA: Vec3, pivotB: Vec3) {
+    // TODO: refactor params
     const { vectors, indicesA, indicesB, surfaceA, surfaceB } = contacts;
     const n = indicesA.length;
     const u = Vec3(), v = Vec3(), f = Vec3(), t = Vec3();
@@ -449,30 +451,3 @@ function sweetSpot(pA: number[], qA: number[], pB: number[], qB: number[], xMax:
     const out = 0.5 * (low + high);
     return out;
 }
-
-
-const EPSILON = 1e-6;
-function assertEqual(x: number, y: number, epsilon: number = EPSILON) {
-    if (Math.abs(x - y) > epsilon) {
-        throw new Error(`Fuuu x!==y: ${x} ${y}`);
-    }
-}
-
-// INTERFACE_RADIUS 6 (1hlu):
-// getMidpoints: 1 ms
-// getTrueMidpoints: 5099 ms (ref sweetSpot)
-// getTrueMidpoints: 67 ms (sweetSpot with seq search)
-// getTrueMidpoints: 16 ms (sweetSpot with bin search)
-
-
-// INTERFACE_RADIUS 8 (1hlu):
-// getMidpoints: 2.5 ms
-// getTrueMidpoints: 48635 ms (ref sweetSpot)
-// getTrueMidpoints: 344 ms (sweetSpot with seq search)
-// getTrueMidpoints: 90 ms (sweetSpot with bin search)
-// getTrueMidpoints: 69 ms (avoid vec allocation)
-
-// INTERFACE_RADIUS 10 (1hlu):
-// getMidpoints: 2.8 ms
-// getTrueMidpoints: 348 ms (sweetSpot with bin search)
-// getTrueMidpoints: 278 ms (avoid vec allocation)
