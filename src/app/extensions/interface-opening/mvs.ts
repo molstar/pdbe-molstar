@@ -4,12 +4,11 @@ import { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mv
 import { Axes3D } from 'molstar/lib/mol-math/geometry';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { range } from 'molstar/lib/mol-util/array';
-import { Coords, Inertia } from './computations';
+import { Coords } from './computations';
 
 // TODO: prune unused functions
 
 const _vec = Vec3();
-const _mat = Mat3();
 
 function mvsBase(pdbId: string, assemblyId: string | undefined, nStructureCopies: number) {
     const root = MVSData.createBuilder();
@@ -41,7 +40,7 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
         interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
         translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D, openingRadius?: number, aspectRatio?: number,
         anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
-        forces?: { forceA: Vec3, torqueA: Vec3, forceB: Vec3, torqueB: Vec3, inertiaA: Inertia, inertiaB: Inertia },
+        impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
     }
 ) {
     const TRANSITION_DURATION = 2500;
@@ -170,18 +169,17 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
                 start_ms: 0,
                 duration_ms: TRANSITION_DURATION,
             });
-        } else if (options.forces) {
+        } else if (options.impulses) {
             // Animation with forces
             if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
             const anim = base.root.animation();
             const TORQUE_FACTOR = 50;
             const FORCE_FACTOR = TORQUE_FACTOR;
 
-            const transVecA = Vec3.scale(Vec3(), options.forces.forceA, FORCE_FACTOR / options.forces.inertiaA.mass);
-            const transVecB = Vec3.scale(Vec3(), options.forces.forceB, FORCE_FACTOR / options.forces.inertiaB.mass);
-            const rotVecA = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueA, Mat3.invert(_mat, options.forces.inertiaA.tensor)), TORQUE_FACTOR);
-            const rotVecB = Vec3.scale(Vec3(), Vec3.transformMat3(_vec, options.forces.torqueB, Mat3.invert(_mat, options.forces.inertiaB.tensor)), TORQUE_FACTOR);
-            // TODO: move rot, trans computation out of MVS function
+            const transVecA = Vec3.scale(Vec3(), options.impulses.a.linear, FORCE_FACTOR);
+            const transVecB = Vec3.scale(Vec3(), options.impulses.b.linear, FORCE_FACTOR);
+            const rotVecA = Vec3.scale(Vec3(), options.impulses.a.angular, TORQUE_FACTOR);
+            const rotVecB = Vec3.scale(Vec3(), options.impulses.b.angular, TORQUE_FACTOR);
 
             // Limit rotation to axis parallel to interface normal
             const forcedAxis = options.cameraPca.dirC;

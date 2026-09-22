@@ -6,7 +6,7 @@ import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/princi
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
-import { Coords, getCoordsWithin, getForceAndTorque, getStructureCoords, getTrueContactMidpoints } from './computations';
+import { Coords, getCoordsWithin, getForceAndTorque, getImpulse, getStructureCoords, getTrueContacts } from './computations';
 import { mvsDummy, mvsInterface } from './mvs';
 
 
@@ -31,13 +31,12 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const coords1 = getStructureCoords(getSubstructure(structure, partner1));
     const coords2 = getStructureCoords(getSubstructure(structure, partner2));
     const INTERFACE_RADIUS = 8;
-    // const PCA_TYPE: 'box' | 'moments' = 'moments';
     const interface1 = getCoordsWithin(coords1, coords2, INTERFACE_RADIUS);
     const interface2 = getCoordsWithin(coords2, coords1, INTERFACE_RADIUS);
     const interfaceMerged = Coords.concat(interface1, interface2);
 
-    const midpointsContact = getTrueContactMidpoints(interface1, interface2, INTERFACE_RADIUS);
-    const openingPca = PrincipalAxes.calculateNormalizedAxes(PrincipalAxes.calculateMomentsAxes(Coords.flatten(midpointsContact.midpoints)));
+    const contacts = getTrueContacts(interface1, interface2, INTERFACE_RADIUS);
+    const openingPca = PrincipalAxes.calculateNormalizedAxes(PrincipalAxes.calculateMomentsAxes(Coords.flatten(contacts.midpoints)));
     const center1 = Coords.getCenter(interface1);
     const center2 = Coords.getCenter(interface2);
     const centerInterface = Vec3.center(Vec3(), center1, center2);
@@ -67,10 +66,10 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
 
     const inertiaA = Coords.getInertia(coords1);
     const inertiaB = Coords.getInertia(coords2);
-    const forces = {
-        ...getForceAndTorque({ ...midpointsContact, surfaceA: interface1, surfaceB: interface2 }, inertiaA.center, inertiaB.center),
-        inertiaA,
-        inertiaB,
+    const forces = getForceAndTorque(contacts, inertiaA.center, inertiaB.center);
+    const impulses = {
+        a: getImpulse(inertiaA, forces.forceA, forces.torqueA, 1),
+        b: getImpulse(inertiaB, forces.forceB, forces.torqueB, 1),
     };
 
     const descriptionClosed = `### Interface view\n**Close** &mdash; [Open](#opening)`;
@@ -87,7 +86,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             snapshotDescription: descriptionOpen,
             cameraPca: box,
             openingRadius,
-            forces,
+            impulses: impulses,
             anim: 'forward',
         }),
         mvsInterface(pdbId, assemblyId, partner1, partner2, {
@@ -95,7 +94,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             snapshotDescription: descriptionClosed,
             cameraPca: box,
             openingRadius,
-            forces,
+            impulses,
             anim: 'backward',
         }),
     ], {});
