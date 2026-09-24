@@ -1,7 +1,6 @@
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type MVSBuilder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
-import type { Axes3D } from 'molstar/lib/mol-math/geometry';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra'; // TODO: expose in PDBeMolstar
 
 
@@ -32,22 +31,28 @@ const COLOR_A_STRONG = 'royalblue' satisfies ColorT;
 const COLOR_B = 'orange' satisfies ColorT;
 const COLOR_B_STRONG = 'brown' satisfies ColorT;
 
+export interface InterfaceOpeningAxes {
+    /** Center of the interface bounding box, target for camera focus */
+    center: Vec3,
+    /** Direction of opening hinge axis (displayed bottom-up on screen), with size 1/2 of interface bounding box */
+    hingeAxis: Vec3,
+    /** Direction from opening hinge axis towards the interface center (displayed out-from-screen), with size 1/2 of interface bounding box */
+    outAxis: Vec3,
+    /** Direction of partnerB when opening (displayed left-to-right) */
+    movementAxis: Vec3,
+    /** Radius from opening hinge axis to the interface center */
+    openingRadius: number,
+    /** Optional linear and angular impulses for nicer animation */
+    impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
+}
+
 export function mvsInterface(params: {
     pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[],
-    /** Axes3D object, where
-     * `origin` is center of the interface,
-     * `dirA` is the direction of opening animation hinge axis (displayed bottom-up),
-     * `dirB` is the direction from the hinge axis to the interface center (displayed out-from-screen),
-     * `dirC` is direction of partnerB when opening (displayed left-to-right).
-     * Sizes of axis correspond to the bounding box of the interface to be focused. */
-    cameraAxes: Axes3D,
-    /** Radius from opening hinge axis to the interface center */
-    openingRadius?: number,
+    axes: InterfaceOpeningAxes,
     viewportAspectRatio?: number,
     interfaceSelectorA?: ComponentExpressionT[], interfaceSelectorB?: ComponentExpressionT[],
     animation?: 'opening' | 'closing',
     snapshotKey?: string, snapshotDescription?: string,
-    impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
 }) {
     const TRANSITION_DURATION = 2500;
 
@@ -56,15 +61,15 @@ export function mvsInterface(params: {
 
     // Set camera
     const aspectRatio = params.viewportAspectRatio ?? 1;
-    const rX = params.openingRadius !== undefined ? params.openingRadius + Vec3.magnitude(params.cameraAxes.dirB) : 2 * Vec3.magnitude(params.cameraAxes.dirB);
-    const rY = Vec3.magnitude(params.cameraAxes.dirA);
+    const rX = params.axes.openingRadius + Vec3.magnitude(params.axes.outAxis);
+    const rY = Vec3.magnitude(params.axes.hingeAxis);
     const visRadius = Math.max(rX / aspectRatio, rY);
     const dist = 2 * visRadius;
-    const cameraCenter = MvsVector(params.cameraAxes.origin);
+    const cameraCenter = MvsVector(params.axes.center);
     base.root.camera({
         target: cameraCenter,
-        position: MvsVector(Vec3.add(_vec, params.cameraAxes.origin, Vec3.setMagnitude(_vec, params.cameraAxes.dirB, dist))),
-        up: MvsVector(params.cameraAxes.dirA),
+        position: MvsVector(Vec3.add(_vec, params.axes.center, Vec3.setMagnitude(_vec, params.axes.outAxis, dist))),
+        up: MvsVector(params.axes.hingeAxis),
     });
 
     // Apply initial structure transforms
@@ -103,19 +108,19 @@ export function mvsInterface(params: {
     if (params.interfaceSelectorB) reprB.color({ color: COLOR_B_STRONG, selector: params.interfaceSelectorB });
 
     if (params.animation) {
-        if (params.impulses) {
-            // Animation with forces
+        if (params.axes.impulses) {
+            // Animation with impulses
             const anim = base.root.animation();
             const TORQUE_FACTOR = 50;
             const FORCE_FACTOR = TORQUE_FACTOR;
 
-            const transVecA = Vec3.scale(Vec3(), params.impulses.a.linear, FORCE_FACTOR);
-            const transVecB = Vec3.scale(Vec3(), params.impulses.b.linear, FORCE_FACTOR);
-            const rotVecA = Vec3.scale(Vec3(), params.impulses.a.angular, TORQUE_FACTOR);
-            const rotVecB = Vec3.scale(Vec3(), params.impulses.b.angular, TORQUE_FACTOR);
+            const transVecA = Vec3.scale(Vec3(), params.axes.impulses.a.linear, FORCE_FACTOR);
+            const transVecB = Vec3.scale(Vec3(), params.axes.impulses.b.linear, FORCE_FACTOR);
+            const rotVecA = Vec3.scale(Vec3(), params.axes.impulses.a.angular, TORQUE_FACTOR);
+            const rotVecB = Vec3.scale(Vec3(), params.axes.impulses.b.angular, TORQUE_FACTOR);
 
             // Limit rotation to axis parallel to interface normal
-            const forcedAxis = params.cameraAxes.dirC;
+            const forcedAxis = params.axes.movementAxis;
             Vec3.projectOnVector(rotVecA, rotVecA, forcedAxis);
             Vec3.projectOnVector(rotVecB, rotVecB, forcedAxis);
             // Limit translation to interface plane
@@ -135,69 +140,69 @@ export function mvsInterface(params: {
             const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
             const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
 
-            const FORCE_DURATION = 0.2 * TRANSITION_DURATION;
-            const INV_FORCE_DURATION = 0.3 * TRANSITION_DURATION;
-            const common1 = {
-                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - FORCE_DURATION - INV_FORCE_DURATION : 0,
-                duration_ms: params.animation === 'closing' ? INV_FORCE_DURATION : FORCE_DURATION,
+            const IMPULSE_DURATION = 0.2 * TRANSITION_DURATION;
+            const INV_IMPULSE_DURATION = 0.3 * TRANSITION_DURATION;
+            const commonForward = {
+                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - IMPULSE_DURATION - INV_IMPULSE_DURATION : 0,
+                duration_ms: params.animation === 'closing' ? INV_IMPULSE_DURATION : IMPULSE_DURATION,
                 easing: 'sin-in-out',
             } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
-            const common2 = {
-                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - FORCE_DURATION : FORCE_DURATION,
-                duration_ms: params.animation === 'closing' ? FORCE_DURATION : INV_FORCE_DURATION,
+            const commonBackward = {
+                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - IMPULSE_DURATION : IMPULSE_DURATION,
+                duration_ms: params.animation === 'closing' ? IMPULSE_DURATION : INV_IMPULSE_DURATION,
                 easing: 'sin-in-out',
             } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
 
-            if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
+            if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
-                    ...common1,
+                    ...commonForward,
                     target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: eye, end: rotA,
                 });
                 anim.interpolate({
-                    ...common2,
+                    ...commonBackward,
                     target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: rotA, end: eye,
                 });
             }
-            if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
+            if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
-                    ...common1,
+                    ...commonForward,
                     target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: eye, end: rotB,
                 });
                 anim.interpolate({
-                    ...common2,
+                    ...commonBackward,
                     target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: rotB, end: eye,
                 });
             }
             anim.interpolate({
-                ...common1,
+                ...commonForward,
                 target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
                 start: zero, end: transA,
             });
             anim.interpolate({
-                ...common2,
+                ...commonBackward,
                 target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
                 start: transA, end: zero,
             });
             anim.interpolate({
-                ...common1,
+                ...commonForward,
                 target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
                 start: zero, end: transB,
             });
             anim.interpolate({
-                ...common2,
+                ...commonBackward,
                 target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
                 start: transB, end: zero,
             });
         }
         // Animation with hinge
         const anim = base.root.animation();
-        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, params.cameraAxes.dirA);
-        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, params.cameraAxes.dirA);
-        Vec3.setMagnitude(_vec, params.cameraAxes.dirC, params.openingRadius ?? Vec3.magnitude(params.cameraAxes.dirB));
+        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, params.axes.hingeAxis);
+        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, params.axes.hingeAxis);
+        Vec3.setMagnitude(_vec, params.axes.movementAxis, params.axes.openingRadius);
         const transB = MvsVector(_vec);
         Vec3.negate(_vec, _vec);
         const transA = MvsVector(_vec);

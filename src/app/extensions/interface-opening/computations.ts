@@ -2,17 +2,18 @@ import { OrderedSet } from 'molstar/lib/mol-data/int';
 import { GridLookup3D, PositionData, Result } from 'molstar/lib/mol-math/geometry';
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
-import { Structure, StructureElement } from 'molstar/lib/mol-model/structure';
+import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
+import { Structure } from 'molstar/lib/mol-model/structure';
 
 
 /** Cartesian coordinates of points in 3D */
-export interface Coords {
+interface Coords {
     x: Float32Array,
     y: Float32Array,
     z: Float32Array,
 }
 
-export const Coords = {
+const Coords = {
     /** Get number of points in `coords` */
     length(coords: Coords): number {
         return coords.x.length;
@@ -93,7 +94,7 @@ export const Coords = {
 
 
 /** Moments of inertia of an object */
-export interface Inertia {
+interface Inertia {
     /** Center of mass */
     center: Vec3,
     /** Mass of the object */
@@ -108,19 +109,16 @@ export function getStructureCoords(structure: Structure): Coords {
     const x: number[] = [];
     const y: number[] = [];
     const z: number[] = [];
-    const location = StructureElement.Location.create(structure);
-    const position = Vec3.zero();
 
     for (const unit of structure.units) {
-        location.unit = unit;
+        const hierarchy = unit.model.atomicHierarchy;
+        const conformation = unit.model.atomicConformation;
         OrderedSet.forEach(unit.elements, element => {
-            location.element = element;
-            const typeSymbol = unit.model.atomicHierarchy.atoms.type_symbol.value(element);
+            const typeSymbol = hierarchy.atoms.type_symbol.value(element);
             if (typeSymbol !== 'H') {
-                StructureElement.Location.position(position, location);
-                x.push(position[0]);
-                y.push(position[1]);
-                z.push(position[2]);
+                x.push(conformation.x[element]);
+                y.push(conformation.y[element]);
+                z.push(conformation.z[element]);
             }
         });
     }
@@ -129,7 +127,7 @@ export function getStructureCoords(structure: Structure): Coords {
 }
 
 /** Return subset of points from `coords` which lie within `radius` around any point in `target` */
-export function getCoordsWithin(coords: Coords, target: Coords, radius: number): Coords {
+function getCoordsWithin(coords: Coords, target: Coords, radius: number): Coords {
     const nCoords = Coords.length(coords);
     const nTarget = Coords.length(target);
     if (radius < 0 || nTarget === 0) return { x: new Float32Array(0), y: new Float32Array(0), z: new Float32Array(0) };
@@ -156,8 +154,56 @@ export function getCoordsWithin(coords: Coords, target: Coords, radius: number):
     return { x: Float32Array.from(x), y: Float32Array.from(y), z: Float32Array.from(z) };
 }
 
+/** Return axes and measurements for interface opening animation */
+export function getInterfaceOpeningAxes(coordsA: Coords, coordsB: Coords) {
+    const INTERFACE_RADIUS = 8;
+    const interfaceA = getCoordsWithin(coordsA, coordsB, INTERFACE_RADIUS);
+    const interfaceB = getCoordsWithin(coordsB, coordsA, INTERFACE_RADIUS);
+    const interfaceMerged = Coords.concat(interfaceA, interfaceB);
+
+    const contacts = getTrueContacts(interfaceA, interfaceB, INTERFACE_RADIUS);
+    const openingPca = PrincipalAxes.calculateNormalizedAxes(PrincipalAxes.calculateMomentsAxes(Coords.flatten(contacts.midpoints)));
+    const centerA = Coords.getCenter(interfaceA);
+    const centerB = Coords.getCenter(interfaceB);
+    const centerInterface = Vec3.center(Vec3(), centerA, centerB);
+    const centerProteins = Vec3.center(Vec3(), Coords.getCenter(coordsA), Coords.getCenter(coordsB));
+    const _vec = Vec3();
+    if (Vec3.dot(openingPca.dirC, Vec3.sub(_vec, centerB, centerA)) < 0) {
+        Vec3.negate(openingPca.dirC, openingPca.dirC); // right on screen (direction of movement of the second partner)
+    }
+    if (Vec3.dot(openingPca.dirB, Vec3.sub(_vec, centerInterface, centerProteins)) < 0) {
+        Vec3.negate(openingPca.dirB, openingPca.dirB); // out of screen (out of the opening interface)
+    }
+    Vec3.cross(openingPca.dirA, openingPca.dirB, openingPca.dirC); // up on screen (hinge axis)
+
+    const box = PrincipalAxes.calculateBoxAxes(Coords.flatten(interfaceMerged), openingPca);
+    const OPENING_RADIUS_FACTOR = 1.05;
+    const OPENING_RADIUS_EXTRA = 1;
+    const boxWholeA = PrincipalAxes.calculateBoxAxes(Coords.flatten(coordsA), openingPca);
+    const openingRadiusA = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeA.origin, boxWholeA.dirB), box.origin), box.dirB));
+    const boxWholeB = PrincipalAxes.calculateBoxAxes(Coords.flatten(coordsB), openingPca);
+    const openingRadiusB = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeB.origin, boxWholeB.dirB), box.origin), box.dirB));
+    const openingRadius = (openingRadiusA + openingRadiusB) / 2 * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
+
+    const BOX_SIZE_FACTOR = 1.05;
+    const BOX_SIZE_EXTRA = 5;
+    Vec3.setMagnitude(box.dirA, box.dirA, Vec3.magnitude(box.dirA) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
+    Vec3.setMagnitude(box.dirB, box.dirB, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
+    Vec3.setMagnitude(box.dirC, box.dirC, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
+
+    const inertiaA = Coords.getInertia(coordsA);
+    const inertiaB = Coords.getInertia(coordsB);
+    const forces = getForceAndTorque(contacts, inertiaA.center, inertiaB.center);
+    const impulses = {
+        a: getImpulse(inertiaA, forces.forceA, forces.torqueA, 1),
+        b: getImpulse(inertiaB, forces.forceB, forces.torqueB, 1),
+    };
+    return { center: box.origin, hingeAxis: box.dirA, outAxis: box.dirB, movementAxis: box.dirC, openingRadius, impulses };
+}
+
+
 /** Get pairs of points in `a` and `b` which form "true contacts", i.e. the midpoint of the pair is not closer to any other point in `a` or `b`. */
-export function getTrueContacts(a: Coords, b: Coords, radius: number): { midpoints: Coords, pointsInA: Coords, pointsInB: Coords } {
+function getTrueContacts(a: Coords, b: Coords, radius: number): { midpoints: Coords, pointsInA: Coords, pointsInB: Coords } {
     const nA = Coords.length(a);
     const nB = Coords.length(b);
     const aData: PositionData = { ...a, indices: OrderedSet.ofBounds(0, nA) };
@@ -208,7 +254,7 @@ export function getTrueContacts(a: Coords, b: Coords, radius: number): { midpoin
 }
 
 /** Get theoretical force and torque resulting from mutual repulsion of pairs of points */
-export function getForceAndTorque(contacts: ReturnType<typeof getTrueContacts>, pivotA: Vec3, pivotB: Vec3) {
+function getForceAndTorque(contacts: ReturnType<typeof getTrueContacts>, pivotA: Vec3, pivotB: Vec3) {
     const { pointsInA, pointsInB } = contacts;
     const n = Coords.length(pointsInA);
     const u = Vec3(), v = Vec3(), f = Vec3(), t = Vec3();
@@ -229,7 +275,7 @@ export function getForceAndTorque(contacts: ReturnType<typeof getTrueContacts>, 
 }
 
 /** Return linear and angular impulse (change of momentum) resulting from given force and torque applied on an object with given inertia over given time. */
-export function getImpulse(inertia: Inertia, force: Vec3, torque: Vec3, time: number): { linear: Vec3, angular: Vec3 } {
+function getImpulse(inertia: Inertia, force: Vec3, torque: Vec3, time: number): { linear: Vec3, angular: Vec3 } {
     const linear = Vec3.scale(Vec3(), force, time / inertia.mass);
     const angular = Vec3.transformMat3(Vec3(), torque, Mat3.invert(Mat3(), inertia.tensor));
     Vec3.scale(angular, angular, time);
