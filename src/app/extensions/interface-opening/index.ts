@@ -17,8 +17,8 @@ import { mvsDummy, mvsInterface } from './mvs';
 // - 8eiu TA-DA: uglissimo (small protein inserted within ribosomal unit)
 
 
-export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, assemblyId: string | undefined, partner1: ComponentExpressionT[], partner2: ComponentExpressionT[]) {
-    console.log('runInterfaceOpening', plugin, pdbId, assemblyId, partner1, partner2)
+export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[]) {
+    console.log('runInterfaceOpening', plugin, pdbId, assemblyId, partnerA, partnerB)
 
     const mvs0 = mvsDummy(pdbId, assemblyId);
     await loadMVS(plugin, mvs0);
@@ -28,20 +28,20 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const structure = structures[0].cell.obj?.data;
     if (!structure) throw new Error('Failed to retrieve structure data');
 
-    const coords1 = getStructureCoords(getSubstructure(structure, partner1));
-    const coords2 = getStructureCoords(getSubstructure(structure, partner2));
+    const coordsA = getStructureCoords(getSubstructure(structure, partnerA));
+    const coordsB = getStructureCoords(getSubstructure(structure, partnerB));
     const INTERFACE_RADIUS = 8;
-    const interface1 = getCoordsWithin(coords1, coords2, INTERFACE_RADIUS);
-    const interface2 = getCoordsWithin(coords2, coords1, INTERFACE_RADIUS);
-    const interfaceMerged = Coords.concat(interface1, interface2);
+    const interfaceA = getCoordsWithin(coordsA, coordsB, INTERFACE_RADIUS);
+    const interfaceB = getCoordsWithin(coordsB, coordsA, INTERFACE_RADIUS);
+    const interfaceMerged = Coords.concat(interfaceA, interfaceB);
 
-    const contacts = getTrueContacts(interface1, interface2, INTERFACE_RADIUS);
+    const contacts = getTrueContacts(interfaceA, interfaceB, INTERFACE_RADIUS);
     const openingPca = PrincipalAxes.calculateNormalizedAxes(PrincipalAxes.calculateMomentsAxes(Coords.flatten(contacts.midpoints)));
-    const center1 = Coords.getCenter(interface1);
-    const center2 = Coords.getCenter(interface2);
-    const centerInterface = Vec3.center(Vec3(), center1, center2);
-    const centerProteins = Vec3.center(Vec3(), Coords.getCenter(coords1), Coords.getCenter(coords2));
-    if (Vec3.dot(openingPca.dirC, Vec3.sub(_vec, center2, center1)) < 0) {
+    const centerA = Coords.getCenter(interfaceA);
+    const centerB = Coords.getCenter(interfaceB);
+    const centerInterface = Vec3.center(Vec3(), centerA, centerB);
+    const centerProteins = Vec3.center(Vec3(), Coords.getCenter(coordsA), Coords.getCenter(coordsB));
+    if (Vec3.dot(openingPca.dirC, Vec3.sub(_vec, centerB, centerA)) < 0) {
         Vec3.negate(openingPca.dirC, openingPca.dirC); // right on screen (direction of movement of the second partner)
     }
     if (Vec3.dot(openingPca.dirB, Vec3.sub(_vec, centerInterface, centerProteins)) < 0) {
@@ -52,9 +52,9 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const box = PrincipalAxes.calculateBoxAxes(Coords.flatten(interfaceMerged), openingPca);
     const OPENING_RADIUS_FACTOR = 1.05;
     const OPENING_RADIUS_EXTRA = 1;
-    const boxWholeA = PrincipalAxes.calculateBoxAxes(Coords.flatten(coords1), openingPca);
+    const boxWholeA = PrincipalAxes.calculateBoxAxes(Coords.flatten(coordsA), openingPca);
     const openingRadiusA = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeA.origin, boxWholeA.dirB), box.origin), box.dirB));
-    const boxWholeB = PrincipalAxes.calculateBoxAxes(Coords.flatten(coords2), openingPca);
+    const boxWholeB = PrincipalAxes.calculateBoxAxes(Coords.flatten(coordsB), openingPca);
     const openingRadiusB = Vec3.magnitude(Vec3.projectOnVector(_vec, Vec3.sub(_vec, Vec3.sub(_vec, boxWholeB.origin, boxWholeB.dirB), box.origin), box.dirB));
     const openingRadius = (openingRadiusA + openingRadiusB) / 2 * OPENING_RADIUS_FACTOR + OPENING_RADIUS_EXTRA;
 
@@ -64,8 +64,8 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     Vec3.setMagnitude(box.dirB, box.dirB, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
     Vec3.setMagnitude(box.dirC, box.dirC, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
 
-    const inertiaA = Coords.getInertia(coords1);
-    const inertiaB = Coords.getInertia(coords2);
+    const inertiaA = Coords.getInertia(coordsA);
+    const inertiaB = Coords.getInertia(coordsB);
     const forces = getForceAndTorque(contacts, inertiaA.center, inertiaB.center);
     const impulses = {
         a: getImpulse(inertiaA, forces.forceA, forces.torqueA, 1),
@@ -75,30 +75,33 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const descriptionClosed = `### Interface view\n**Close** &mdash; [Open](#opening)`;
     const descriptionOpen = `### Interface view\n[Close](#closing) &mdash; **Open**`;
 
-    const mvs1 = MVSData.createMultistate([
-        mvsInterface(pdbId, assemblyId, partner1, partner2, {
+    const mvs = MVSData.createMultistate([
+        mvsInterface({
+            pdbId, assemblyId, partnerA, partnerB,
             snapshotDescription: descriptionClosed,
-            cameraPca: box,
+            cameraAxes: box,
             openingRadius,
         }),
-        mvsInterface(pdbId, assemblyId, partner1, partner2, {
+        mvsInterface({
+            pdbId, assemblyId, partnerA, partnerB,
             snapshotKey: 'opening',
             snapshotDescription: descriptionOpen,
-            cameraPca: box,
-            openingRadius,
-            impulses: impulses,
-            anim: 'forward',
-        }),
-        mvsInterface(pdbId, assemblyId, partner1, partner2, {
-            snapshotKey: 'closing',
-            snapshotDescription: descriptionClosed,
-            cameraPca: box,
+            cameraAxes: box,
             openingRadius,
             impulses,
-            anim: 'backward',
+            animation: 'opening',
+        }),
+        mvsInterface({
+            pdbId, assemblyId, partnerA, partnerB,
+            snapshotKey: 'closing',
+            snapshotDescription: descriptionClosed,
+            cameraAxes: box,
+            openingRadius,
+            impulses,
+            animation: 'closing',
         }),
     ], {});
-    await loadMVS(plugin, mvs1);
+    await loadMVS(plugin, mvs);
 }
 
 

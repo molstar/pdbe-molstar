@@ -1,12 +1,9 @@
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type MVSBuilder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
-import { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
-import { Axes3D } from 'molstar/lib/mol-math/geometry';
-import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
-import { range } from 'molstar/lib/mol-util/array';
-import { Coords } from './computations';
+import type { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import type { Axes3D } from 'molstar/lib/mol-math/geometry';
+import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra'; // TODO: expose in PDBeMolstar
 
-// TODO: prune unused functions
 
 const _vec = Vec3();
 
@@ -15,15 +12,18 @@ function mvsBase(pdbId: string, assemblyId: string | undefined, nStructureCopies
     const model = root
         .download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}.bcif` })
         .parse({ format: 'bcif' });
-    const structs = range(nStructureCopies).map(
-        i => assemblyId ? model.assemblyStructure({ assembly_id: assemblyId, ref: `struct-${i}` }) : model.modelStructure({ ref: `struct-${i}` })
-    );
+    const structs: MVSBuilder.Structure[] = [];
+    for (let i = 0; i < nStructureCopies; i++) {
+        const struct = assemblyId ?
+            model.assemblyStructure({ assembly_id: assemblyId, ref: `struct-${i}` })
+            : model.modelStructure({ ref: `struct-${i}` });
+        structs.push(struct);
+    }
     return { root, structs };
 }
 
 export function mvsDummy(pdbId: string, assemblyId: string | undefined) {
     const base = mvsBase(pdbId, assemblyId, 1);
-    base.structs[0].component().representation({ type: 'putty', size_factor: 0.25 }); // DEBUG
     return base.root.getState();
 }
 
@@ -31,158 +31,91 @@ const COLOR_A = 'skyblue' satisfies ColorT;
 const COLOR_A_STRONG = 'royalblue' satisfies ColorT;
 const COLOR_B = 'orange' satisfies ColorT;
 const COLOR_B_STRONG = 'brown' satisfies ColorT;
-const COLOR_OTHER = 'magenta' satisfies ColorT;
-const COLOR_OTHER2 = 'cyan' satisfies ColorT;
 
-
-export function mvsInterface(pdbId: string, assemblyId: string | undefined, partner1: ComponentExpressionT[], partner2: ComponentExpressionT[],
-    options?: {
-        interfaceSelector1?: ComponentExpressionT[], interfaceSelector2?: ComponentExpressionT[], interface1?: Coords, interface2?: Coords, pca1?: Axes3D, pca2?: Axes3D,
-        translate?: Vec3, otherPoints?: Coords, otherPoints2?: Coords, otherPca?: Axes3D, translateAxis?: { origin: Vec3, dir: Vec3 }, cameraPca?: Axes3D, openingRadius?: number, aspectRatio?: number,
-        anim?: 'forward' | 'backward', snapshotKey?: string, snapshotDescription?: string,
-        impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
-    }
-) {
+export function mvsInterface(params: {
+    pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[],
+    /** Axes3D object, where
+     * `origin` is center of the interface,
+     * `dirA` is the direction of opening animation hinge axis (displayed bottom-up),
+     * `dirB` is the direction from the hinge axis to the interface center (displayed out-from-screen),
+     * `dirC` is direction of partnerB when opening (displayed left-to-right).
+     * Sizes of axis correspond to the bounding box of the interface to be focused. */
+    cameraAxes: Axes3D,
+    /** Radius from opening hinge axis to the interface center */
+    openingRadius?: number,
+    viewportAspectRatio?: number,
+    interfaceSelectorA?: ComponentExpressionT[], interfaceSelectorB?: ComponentExpressionT[],
+    animation?: 'opening' | 'closing',
+    snapshotKey?: string, snapshotDescription?: string,
+    impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
+}) {
     const TRANSITION_DURATION = 2500;
 
-    const base = mvsBase(pdbId, assemblyId, 2);
+    const base = mvsBase(params.pdbId, params.assemblyId, 2);
     const [structA, structB] = base.structs;
 
     // Set camera
-    if (options?.cameraPca) {
-        const aspectRatio = options.aspectRatio ?? 1;
-        const rX = options.openingRadius !== undefined ? options.openingRadius + Vec3.magnitude(options.cameraPca.dirB) : 2 * Vec3.magnitude(options.cameraPca.dirB);
-        const rY = Vec3.magnitude(options.cameraPca.dirA);
-        const visRadius = Math.max(rX / aspectRatio, rY);
-        const dist = 2 * visRadius;
-        base.root.camera({
-            target: MvsVector(options.cameraPca.origin),
-            position: MvsVector(Vec3.add(_vec, options.cameraPca.origin, Vec3.setMagnitude(_vec, options.cameraPca.dirB, dist))),
-            up: MvsVector(options.cameraPca.dirA),
-        });
-    }
+    const aspectRatio = params.viewportAspectRatio ?? 1;
+    const rX = params.openingRadius !== undefined ? params.openingRadius + Vec3.magnitude(params.cameraAxes.dirB) : 2 * Vec3.magnitude(params.cameraAxes.dirB);
+    const rY = Vec3.magnitude(params.cameraAxes.dirA);
+    const visRadius = Math.max(rX / aspectRatio, rY);
+    const dist = 2 * visRadius;
+    const cameraCenter = MvsVector(params.cameraAxes.origin);
+    base.root.camera({
+        target: cameraCenter,
+        position: MvsVector(Vec3.add(_vec, params.cameraAxes.origin, Vec3.setMagnitude(_vec, params.cameraAxes.dirB, dist))),
+        up: MvsVector(params.cameraAxes.dirA),
+    });
 
     // Apply initial structure transforms
     const zero: Vector3 = [0, 0, 0];
     const eye = [1, 0, 0, 0, 1, 0, 0, 0, 1];
     structA.transform({
-        ref: 'transformA',
-        translation: zero,
-    });
-    structB.transform({
-        ref: 'transformB',
-        translation: zero,
-    });
-    structA.transform({
-        ref: 'rotateA-force',
-        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        ref: 'rotateA-impulses',
+        rotation_center: cameraCenter,
         rotation: eye,
         translation: zero,
     });
     structB.transform({
-        ref: 'rotateB-force',
-        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        ref: 'rotateB-impulses',
+        rotation_center: cameraCenter,
         rotation: eye,
         translation: zero,
     });
     structA.transform({
-        ref: 'rotateA',
-        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        ref: 'rotateA-hinge',
+        rotation_center: cameraCenter,
         rotation: eye,
         translation: zero,
-        // TODO: fix init transforms in backwards animation
     });
     structB.transform({
-        ref: 'rotateB',
-        rotation_center: options?.cameraPca ? MvsVector(options.cameraPca.origin) : zero,
+        ref: 'rotateB-hinge',
+        rotation_center: cameraCenter,
         rotation: eye,
         translation: zero,
     });
 
     // Structure representations
-    const reprParams: Parameters<MVSBuilder.Component['representation']>[0] = {
-        type: 'surface',
-        // surface_type: 'gaussian',
-        // type: 'ball_and_stick', size_factor: 0.25,
-    }; // TODO: fall back to gaussian surface when structures big?
-    const reprA = structA.component({ selector: partner1 }).representation(reprParams).color({ color: COLOR_A });
-    const reprB = structB.component({ selector: partner2 }).representation(reprParams).color({ color: COLOR_B });
-    if (options?.interfaceSelector1) reprA.color({ color: COLOR_A_STRONG, selector: options.interfaceSelector1 });
-    if (options?.interfaceSelector2) reprB.color({ color: COLOR_B_STRONG, selector: options.interfaceSelector2 });
+    const reprParams: Parameters<MVSBuilder.Component['representation']>[0] = { type: 'surface' }; // TODO: fall back to gaussian surface when structures big?
+    const reprA = structA.component({ selector: params.partnerA }).representation(reprParams).color({ color: COLOR_A });
+    const reprB = structB.component({ selector: params.partnerB }).representation(reprParams).color({ color: COLOR_B });
+    if (params.interfaceSelectorA) reprA.color({ color: COLOR_A_STRONG, selector: params.interfaceSelectorA });
+    if (params.interfaceSelectorB) reprB.color({ color: COLOR_B_STRONG, selector: params.interfaceSelectorB });
 
-    // DEBUG primitives:
-    const primitives = base.root.primitives();
-    if (options?.interface1) addPoints(primitives, options.interface1, COLOR_A_STRONG);
-    if (options?.interface2) addPoints(primitives, options.interface2, COLOR_B_STRONG);
-    if (options?.otherPoints) addPoints(primitives, options.otherPoints, COLOR_OTHER);
-    if (options?.otherPoints2) addPoints(primitives, options.otherPoints2, COLOR_OTHER2);
-    if (options?.pca1) addAxes(primitives, options.pca1, COLOR_A_STRONG);
-    if (options?.pca2) addAxes(primitives, options.pca2, COLOR_B_STRONG);
-    if (options?.otherPca) addAxes(primitives, options.otherPca, COLOR_OTHER);
-
-    const primitivesTransparent = base.root.primitives({ opacity: 0.5, custom: { molstar_mesh_params: { xrayShaded: true } } });
-    // if (options?.pca1) addEllipsoid(primitivesTransparent, options.pca1, COLOR_A_STRONG);
-    // if (options?.pca2) addEllipsoid(primitivesTransparent, options.pca2, COLOR_B_STRONG);
-    // if (options?.otherPca) addEllipsoid(primitivesTransparent, options.otherPca, COLOR_OTHER);
-    // addBoundingSphere(primitivesTransparent, 'struct-0', partner1, COLOR_A);
-    // addBoundingSphere(primitivesTransparent, 'struct-1', partner2, COLOR_B);
-    if (options?.translateAxis) {
-        primitives.arrow({
-            start: MvsVector(options.translateAxis.origin),
-            end: MvsVector(Vec3.add(_vec, options.translateAxis.origin, options.translateAxis.dir)),
-            tube_radius: 0.2,
-            show_end_cap: true,
-            color: COLOR_OTHER,
-        });
-        const ellipseAxes = getPerpendicular(options.translateAxis.dir);
-        primitivesTransparent.ellipse({
-            center: MvsVector(options.translateAxis.origin),
-            major_axis: MvsVector(ellipseAxes[0]),
-            minor_axis: MvsVector(ellipseAxes[1]),
-            radius_major: 20,
-            as_circle: true,
-            color: COLOR_OTHER,
-        });
-    }
-
-    if (options?.anim) {
-        if (options.translate) {
-            // Animation translate
-            const anim = base.root.animation();
-            const translateA = MvsVector(Vec3.negate(_vec, options.translate));
-            const translateB = MvsVector(options.translate);
-            anim.interpolate({
-                target_ref: 'transformA',
-                property: 'translation',
-                kind: 'vec3',
-                start: options.anim === 'backward' ? translateA : zero,
-                end: options.anim === 'backward' ? zero : translateA,
-                start_ms: 0,
-                duration_ms: TRANSITION_DURATION,
-            });
-            anim.interpolate({
-                target_ref: 'transformB',
-                property: 'translation',
-                kind: 'vec3',
-                start: options.anim === 'backward' ? translateB : zero,
-                end: options.anim === 'backward' ? zero : translateB,
-                start_ms: 0,
-                duration_ms: TRANSITION_DURATION,
-            });
-        } else if (options.impulses) {
+    if (params.animation) {
+        if (params.impulses) {
             // Animation with forces
-            if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
             const anim = base.root.animation();
             const TORQUE_FACTOR = 50;
             const FORCE_FACTOR = TORQUE_FACTOR;
 
-            const transVecA = Vec3.scale(Vec3(), options.impulses.a.linear, FORCE_FACTOR);
-            const transVecB = Vec3.scale(Vec3(), options.impulses.b.linear, FORCE_FACTOR);
-            const rotVecA = Vec3.scale(Vec3(), options.impulses.a.angular, TORQUE_FACTOR);
-            const rotVecB = Vec3.scale(Vec3(), options.impulses.b.angular, TORQUE_FACTOR);
+            const transVecA = Vec3.scale(Vec3(), params.impulses.a.linear, FORCE_FACTOR);
+            const transVecB = Vec3.scale(Vec3(), params.impulses.b.linear, FORCE_FACTOR);
+            const rotVecA = Vec3.scale(Vec3(), params.impulses.a.angular, TORQUE_FACTOR);
+            const rotVecB = Vec3.scale(Vec3(), params.impulses.b.angular, TORQUE_FACTOR);
 
             // Limit rotation to axis parallel to interface normal
-            const forcedAxis = options.cameraPca.dirC;
+            const forcedAxis = params.cameraAxes.dirC;
             Vec3.projectOnVector(rotVecA, rotVecA, forcedAxis);
             Vec3.projectOnVector(rotVecB, rotVecB, forcedAxis);
             // Limit translation to interface plane
@@ -205,67 +138,66 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
             const FORCE_DURATION = 0.2 * TRANSITION_DURATION;
             const INV_FORCE_DURATION = 0.3 * TRANSITION_DURATION;
             const common1 = {
-                start_ms: options.anim === 'backward' ? TRANSITION_DURATION - FORCE_DURATION - INV_FORCE_DURATION : 0,
-                duration_ms: options.anim === 'backward' ? INV_FORCE_DURATION : FORCE_DURATION,
+                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - FORCE_DURATION - INV_FORCE_DURATION : 0,
+                duration_ms: params.animation === 'closing' ? INV_FORCE_DURATION : FORCE_DURATION,
                 easing: 'sin-in-out',
             } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
             const common2 = {
-                start_ms: options.anim === 'backward' ? TRANSITION_DURATION - FORCE_DURATION : FORCE_DURATION,
-                duration_ms: options.anim === 'backward' ? FORCE_DURATION : INV_FORCE_DURATION,
+                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - FORCE_DURATION : FORCE_DURATION,
+                duration_ms: params.animation === 'closing' ? FORCE_DURATION : INV_FORCE_DURATION,
                 easing: 'sin-in-out',
             } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
 
             if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
                     ...common1,
-                    target_ref: 'rotateA-force', property: 'rotation', kind: 'rotation_matrix',
+                    target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: eye, end: rotA,
                 });
                 anim.interpolate({
                     ...common2,
-                    target_ref: 'rotateA-force', property: 'rotation', kind: 'rotation_matrix',
+                    target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: rotA, end: eye,
                 });
             }
             if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do apply small rotations as they may be interpolated incorrectly
                 anim.interpolate({
                     ...common1,
-                    target_ref: 'rotateB-force', property: 'rotation', kind: 'rotation_matrix',
+                    target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: eye, end: rotB,
                 });
                 anim.interpolate({
                     ...common2,
-                    target_ref: 'rotateB-force', property: 'rotation', kind: 'rotation_matrix',
+                    target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
                     start: rotB, end: eye,
                 });
             }
             anim.interpolate({
                 ...common1,
-                target_ref: 'rotateA-force', property: 'translation', kind: 'vec3',
+                target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
                 start: zero, end: transA,
             });
             anim.interpolate({
                 ...common2,
-                target_ref: 'rotateA-force', property: 'translation', kind: 'vec3',
+                target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
                 start: transA, end: zero,
             });
             anim.interpolate({
                 ...common1,
-                target_ref: 'rotateB-force', property: 'translation', kind: 'vec3',
+                target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
                 start: zero, end: transB,
             });
             anim.interpolate({
                 ...common2,
-                target_ref: 'rotateB-force', property: 'translation', kind: 'vec3',
+                target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
                 start: transB, end: zero,
             });
         }
         // Animation with hinge
-        if (!options.cameraPca) throw new Error('cameraPca must be provided with anim');
         const anim = base.root.animation();
-        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, options.cameraPca.dirA);
-        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, options.cameraPca.dirA);
-        Vec3.setMagnitude(_vec, options.cameraPca.dirC, options.openingRadius ?? Vec3.magnitude(options.cameraPca.dirB));
+        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, params.cameraAxes.dirA);
+        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, params.cameraAxes.dirA);
+        Vec3.setMagnitude(_vec, params.cameraAxes.dirC, params.openingRadius ?? Vec3.magnitude(params.cameraAxes.dirB));
         const transB = MvsVector(_vec);
         Vec3.negate(_vec, _vec);
         const transA = MvsVector(_vec);
@@ -278,41 +210,41 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
 
         anim.interpolate({
             ...common,
-            target_ref: 'rotateA',
+            target_ref: 'rotateA-hinge',
             property: 'rotation',
             kind: 'rotation_matrix',
-            start: options.anim === 'backward' ? rotA : eye,
-            end: options.anim === 'backward' ? eye : rotA,
+            start: params.animation === 'closing' ? rotA : eye,
+            end: params.animation === 'closing' ? eye : rotA,
         });
         anim.interpolate({
             ...common,
-            target_ref: 'rotateB',
+            target_ref: 'rotateB-hinge',
             property: 'rotation',
             kind: 'rotation_matrix',
-            start: options.anim === 'backward' ? rotB : eye,
-            end: options.anim === 'backward' ? eye : rotB,
+            start: params.animation === 'closing' ? rotB : eye,
+            end: params.animation === 'closing' ? eye : rotB,
         });
         anim.interpolate({
             ...common,
-            target_ref: 'rotateA',
+            target_ref: 'rotateA-hinge',
             property: 'translation',
             kind: 'vec3',
-            start: options.anim === 'backward' ? transA : zero,
-            end: options.anim === 'backward' ? zero : transA,
+            start: params.animation === 'closing' ? transA : zero,
+            end: params.animation === 'closing' ? zero : transA,
         });
         anim.interpolate({
             ...common,
-            target_ref: 'rotateB',
+            target_ref: 'rotateB-hinge',
             property: 'translation',
             kind: 'vec3',
-            start: options.anim === 'backward' ? transB : zero,
-            end: options.anim === 'backward' ? zero : transB,
+            start: params.animation === 'closing' ? transB : zero,
+            end: params.animation === 'closing' ? zero : transB,
         });
     }
 
     return base.root.getSnapshot({
-        key: options?.snapshotKey,
-        description: options?.snapshotDescription,
+        key: params.snapshotKey,
+        description: params.snapshotDescription,
         description_format: 'markdown',
         linger_duration_ms: 1000,
         transition_duration_ms: TRANSITION_DURATION,
@@ -320,60 +252,6 @@ export function mvsInterface(pdbId: string, assemblyId: string | undefined, part
 }
 
 
-function addPoints(primitives: MVSBuilder.Primitives, points: Coords, color: ColorT) {
-    for (let i = 0; i < points.x.length; i++) {
-        primitives.sphere({
-            center: [points.x[i], points.y[i], points.z[i]],
-            radius: 0.2,
-            color,
-        });
-    }
-}
-
-function addEllipsoid(primitives: MVSBuilder.Primitives, pca: Axes3D, color: ColorT) {
-    primitives.ellipsoid({
-        center: MvsVector(pca.origin),
-        major_axis: MvsVector(pca.dirA),
-        minor_axis: MvsVector(pca.dirB),
-        radius: [Vec3.magnitude(pca.dirA), Vec3.magnitude(pca.dirB), Vec3.magnitude(pca.dirC)],
-        color,
-    });
-}
-
-function addAxes(primitives: MVSBuilder.Primitives, axis: Axes3D, color: ColorT) {
-    function addAxis(origin: Vec3, dir: Vec3, dash: 'full' | 'dash') {
-        primitives.arrow({
-            start: MvsVector(Vec3.add(_vec, origin, dir)),
-            end: MvsVector(Vec3.sub(_vec, origin, dir)),
-            tube_radius: 0.2,
-            show_start_cap: true,
-            show_end_cap: true,
-            tube_dash_length: dash === 'dash' ? 0.2 : undefined,
-            color,
-        });
-    }
-    addAxis(axis.origin, axis.dirA, 'full');
-    addAxis(axis.origin, axis.dirB, 'full');
-    addAxis(axis.origin, axis.dirC, 'dash');
-}
-
-function addBoundingSphere(primitives: MVSBuilder.Primitives, structRef: string, selector: ComponentExpressionT[], color: ColorT) {
-    primitives.sphere({
-        center: { structure_ref: structRef, expressions: selector, expression_schema: 'all_atomic' },
-        color,
-    });
-}
-
 function MvsVector(vec3: Vec3): Vector3 {
     return [vec3[0], vec3[1], vec3[2]];
-}
-
-function getPerpendicular(vec: Vec3): [Vec3, Vec3] {
-    Vec3.cross(_vec, vec, Vec3.unitX);
-    if (Vec3.magnitude(_vec) < 0.00001) {
-        Vec3.cross(_vec, vec, Vec3.unitY);
-    }
-    const first = Vec3.normalize(Vec3(), _vec);
-    const second = Vec3.normalize(Vec3(), Vec3.cross(_vec, vec, first));
-    return [first, second];
 }
