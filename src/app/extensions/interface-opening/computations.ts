@@ -154,6 +154,21 @@ function getCoordsWithin(coords: Coords, target: Coords, radius: number): Coords
     return { x: Float32Array.from(x), y: Float32Array.from(y), z: Float32Array.from(z) };
 }
 
+export interface InterfaceOpeningAxes {
+    /** Center of the interface bounding box, target for camera focus */
+    center: Vec3,
+    /** Direction of opening hinge axis (displayed bottom-up on screen), with size 1/2 of interface bounding box */
+    hingeAxis: Vec3,
+    /** Direction from opening hinge axis towards the interface center (displayed out-from-screen), with size 1/2 of interface bounding box */
+    outAxis: Vec3,
+    /** Direction of partnerB when opening (displayed left-to-right) */
+    movementAxis: Vec3,
+    /** Radius from opening hinge axis to the interface center */
+    openingRadius: number,
+    /** Optional linear and angular impulses for nicer animation */
+    impulses?: { a: { linear: Vec3, angular: Vec3, pivot: Vec3 }, b: { linear: Vec3, angular: Vec3, pivot: Vec3 } },
+}
+
 /** Return axes and measurements for interface opening animation */
 export function getInterfaceOpeningAxes(coordsA: Coords, coordsB: Coords) {
     const INTERFACE_RADIUS = 8;
@@ -275,11 +290,11 @@ function getForceAndTorque(contacts: ReturnType<typeof getTrueContacts>, pivotA:
 }
 
 /** Return linear and angular impulse (change of momentum) resulting from given force and torque applied on an object with given inertia over given time. */
-function getImpulse(inertia: Inertia, force: Vec3, torque: Vec3, time: number): { linear: Vec3, angular: Vec3 } {
+function getImpulse(inertia: Inertia, force: Vec3, torque: Vec3, time: number): { linear: Vec3, angular: Vec3, pivot: Vec3 } {
     const linear = Vec3.scale(Vec3(), force, time / inertia.mass);
     const angular = Vec3.transformMat3(Vec3(), torque, Mat3.invert(Mat3(), inertia.tensor));
     Vec3.scale(angular, angular, time);
-    return { linear, angular };
+    return { linear, angular, pivot: inertia.center };
 }
 
 /** Return true if the lookup result contains any index other than `otherThan` */

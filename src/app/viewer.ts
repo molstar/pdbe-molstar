@@ -1172,11 +1172,17 @@ export class PDBeMolstarPlugin {
 
     /** Helper functions related to specific views or use cases */
     static extensions = {
+        /** Complex superposition library */
         Complexes: Complexes,
+        /** Foldseek result superposition library */
         Foldseek: Foldseek,
+        /** Atom interactions visualization library */
         Interactions: Interactions,
+        /** Complex interface opening animation library */
         InterfaceOpening: InterfaceOpening,
+        /** MolViewSpec library */
         MVS: { MVSData, loadMVS },
+        /** 3D State Gallery library (Browse pre-computed 3D states for a PDB entry) */
         StateGallery: StateGalleryExtensionFunctions,
     };
 
