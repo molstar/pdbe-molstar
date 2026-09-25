@@ -46,12 +46,17 @@ export interface InterfaceOpeningAxes {
     impulses?: { a: { linear: Vec3, angular: Vec3 }, b: { linear: Vec3, angular: Vec3 } },
 }
 
+const zero: Vector3 = [0, 0, 0];
+const eye = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+type AnimationType = 'opening' | 'open' | 'closing' | 'closed';
+
 export function mvsInterface(params: {
     pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[],
     axes: InterfaceOpeningAxes,
     viewportAspectRatio?: number,
     interfaceSelectorA?: ComponentExpressionT[], interfaceSelectorB?: ComponentExpressionT[],
-    animation?: 'opening' | 'closing',
+    animation: AnimationType,
     snapshotKey?: string, snapshotDescription?: string,
 }) {
     const TRANSITION_DURATION = 2500;
@@ -72,34 +77,6 @@ export function mvsInterface(params: {
         up: MvsVector(params.axes.hingeAxis),
     });
 
-    // Apply initial structure transforms
-    const zero: Vector3 = [0, 0, 0];
-    const eye = [1, 0, 0, 0, 1, 0, 0, 0, 1];
-    structA.transform({
-        ref: 'rotateA-impulses',
-        rotation_center: cameraCenter,
-        rotation: eye,
-        translation: zero,
-    });
-    structB.transform({
-        ref: 'rotateB-impulses',
-        rotation_center: cameraCenter,
-        rotation: eye,
-        translation: zero,
-    });
-    structA.transform({
-        ref: 'rotateA-hinge',
-        rotation_center: cameraCenter,
-        rotation: eye,
-        translation: zero,
-    });
-    structB.transform({
-        ref: 'rotateB-hinge',
-        rotation_center: cameraCenter,
-        rotation: eye,
-        translation: zero,
-    });
-
     // Structure representations
     const reprParams: Parameters<MVSBuilder.Component['representation']>[0] = { type: 'surface' }; // TODO: fall back to gaussian surface when structures big?
     const reprA = structA.component({ selector: params.partnerA }).representation(reprParams).color({ color: COLOR_A });
@@ -107,145 +84,11 @@ export function mvsInterface(params: {
     if (params.interfaceSelectorA) reprA.color({ color: COLOR_A_STRONG, selector: params.interfaceSelectorA });
     if (params.interfaceSelectorB) reprB.color({ color: COLOR_B_STRONG, selector: params.interfaceSelectorB });
 
-    if (params.animation) {
-        if (params.axes.impulses) {
-            // Animation with impulses
-            const anim = base.root.animation();
-            const TORQUE_FACTOR = 50;
-            const FORCE_FACTOR = TORQUE_FACTOR;
+    // Animation with impulses
+    animateImpulses({ root: base.root, structA, structB, axes: params.axes, animation: params.animation, animationDurationMs: TRANSITION_DURATION });
 
-            const transVecA = Vec3.scale(Vec3(), params.axes.impulses.a.linear, FORCE_FACTOR);
-            const transVecB = Vec3.scale(Vec3(), params.axes.impulses.b.linear, FORCE_FACTOR);
-            const rotVecA = Vec3.scale(Vec3(), params.axes.impulses.a.angular, TORQUE_FACTOR);
-            const rotVecB = Vec3.scale(Vec3(), params.axes.impulses.b.angular, TORQUE_FACTOR);
-
-            // Limit rotation to axis parallel to interface normal
-            const forcedAxis = params.axes.movementAxis;
-            Vec3.projectOnVector(rotVecA, rotVecA, forcedAxis);
-            Vec3.projectOnVector(rotVecB, rotVecB, forcedAxis);
-            // Limit translation to interface plane
-            Vec3.projectOnPlane(transVecA, transVecA, forcedAxis);
-            Vec3.projectOnPlane(transVecB, transVecB, forcedAxis);
-
-            // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
-            const MAX_ROT = .99 * Math.PI;
-            const safeguardFactor = 1 / Math.max(Vec3.magnitude(rotVecA) / MAX_ROT, Vec3.magnitude(rotVecB) / MAX_ROT, 1);
-            if (safeguardFactor !== 1) {
-                Vec3.scale(rotVecA, rotVecA, safeguardFactor);
-                Vec3.scale(rotVecB, rotVecB, safeguardFactor);
-            }
-
-            const transA = MvsVector(transVecA);
-            const transB = MvsVector(transVecB);
-            const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
-            const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
-
-            const IMPULSE_DURATION = 0.2 * TRANSITION_DURATION;
-            const INV_IMPULSE_DURATION = 0.3 * TRANSITION_DURATION;
-            const commonForward = {
-                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - IMPULSE_DURATION - INV_IMPULSE_DURATION : 0,
-                duration_ms: params.animation === 'closing' ? INV_IMPULSE_DURATION : IMPULSE_DURATION,
-                easing: 'sin-in-out',
-            } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
-            const commonBackward = {
-                start_ms: params.animation === 'closing' ? TRANSITION_DURATION - IMPULSE_DURATION : IMPULSE_DURATION,
-                duration_ms: params.animation === 'closing' ? IMPULSE_DURATION : INV_IMPULSE_DURATION,
-                easing: 'sin-in-out',
-            } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
-
-            if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
-                anim.interpolate({
-                    ...commonForward,
-                    target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
-                    start: eye, end: rotA,
-                });
-                anim.interpolate({
-                    ...commonBackward,
-                    target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
-                    start: rotA, end: eye,
-                });
-            }
-            if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
-                anim.interpolate({
-                    ...commonForward,
-                    target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
-                    start: eye, end: rotB,
-                });
-                anim.interpolate({
-                    ...commonBackward,
-                    target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
-                    start: rotB, end: eye,
-                });
-            }
-            anim.interpolate({
-                ...commonForward,
-                target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
-                start: zero, end: transA,
-            });
-            anim.interpolate({
-                ...commonBackward,
-                target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
-                start: transA, end: zero,
-            });
-            anim.interpolate({
-                ...commonForward,
-                target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
-                start: zero, end: transB,
-            });
-            anim.interpolate({
-                ...commonBackward,
-                target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
-                start: transB, end: zero,
-            });
-        }
-        // Animation with hinge
-        const anim = base.root.animation();
-        const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, params.axes.hingeAxis);
-        const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, params.axes.hingeAxis);
-        Vec3.setMagnitude(_vec, params.axes.movementAxis, params.axes.openingRadius);
-        const transB = MvsVector(_vec);
-        Vec3.negate(_vec, _vec);
-        const transA = MvsVector(_vec);
-
-        const common = {
-            start_ms: 0,
-            duration_ms: TRANSITION_DURATION,
-            easing: 'sin-in-out',
-        } satisfies Partial<Parameters<typeof anim['interpolate']>[0]>;
-
-        anim.interpolate({
-            ...common,
-            target_ref: 'rotateA-hinge',
-            property: 'rotation',
-            kind: 'rotation_matrix',
-            start: params.animation === 'closing' ? rotA : eye,
-            end: params.animation === 'closing' ? eye : rotA,
-        });
-        anim.interpolate({
-            ...common,
-            target_ref: 'rotateB-hinge',
-            property: 'rotation',
-            kind: 'rotation_matrix',
-            start: params.animation === 'closing' ? rotB : eye,
-            end: params.animation === 'closing' ? eye : rotB,
-        });
-        anim.interpolate({
-            ...common,
-            target_ref: 'rotateA-hinge',
-            property: 'translation',
-            kind: 'vec3',
-            start: params.animation === 'closing' ? transA : zero,
-            end: params.animation === 'closing' ? zero : transA,
-        });
-        anim.interpolate({
-            ...common,
-            target_ref: 'rotateB-hinge',
-            property: 'translation',
-            kind: 'vec3',
-            start: params.animation === 'closing' ? transB : zero,
-            end: params.animation === 'closing' ? zero : transB,
-        });
-    }
+    // Animation with hinge
+    animateHingeOpening({ root: base.root, structA, structB, axes: params.axes, animation: params.animation, animationDurationMs: TRANSITION_DURATION });
 
     return base.root.getSnapshot({
         key: params.snapshotKey,
@@ -259,4 +102,182 @@ export function mvsInterface(params: {
 
 function MvsVector(vec3: Vec3): Vector3 {
     return [vec3[0], vec3[1], vec3[2]];
+}
+
+function animateHingeOpening(params: { root: MVSBuilder.Root, structA: MVSBuilder.Structure, structB: MVSBuilder.Structure, axes: InterfaceOpeningAxes, animation: AnimationType, animationDurationMs: number }) {
+    const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, params.axes.hingeAxis);
+    const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, params.axes.hingeAxis);
+    Vec3.setMagnitude(_vec, params.axes.movementAxis, params.axes.openingRadius);
+    const transB = MvsVector(_vec);
+    Vec3.negate(_vec, _vec);
+    const transA = MvsVector(_vec);
+
+    const startsOpen = params.animation === 'open' || params.animation === 'closing';
+    const endsOpen = params.animation === 'open' || params.animation === 'opening';
+    const isAnimated = params.animation === 'opening' || params.animation === 'closing';
+
+    params.structA.transform({
+        ref: 'rotateA-hinge',
+        rotation_center: MvsVector(params.axes.center),
+        rotation: startsOpen ? rotA : eye,
+        translation: startsOpen ? transA : zero,
+    });
+    params.structB.transform({
+        ref: 'rotateB-hinge',
+        rotation_center: MvsVector(params.axes.center),
+        rotation: startsOpen ? rotB : eye,
+        translation: startsOpen ? transB : zero,
+    });
+
+    if (!isAnimated) return;
+
+    const animation = params.root.animation();
+    const common = {
+        start_ms: 0,
+        duration_ms: params.animationDurationMs,
+        easing: 'sin-in-out',
+    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
+
+    animation.interpolate({
+        ...common,
+        target_ref: 'rotateA-hinge',
+        property: 'rotation',
+        kind: 'rotation_matrix',
+        start: startsOpen ? rotA : eye,
+        end: endsOpen ? rotA : eye,
+    });
+    animation.interpolate({
+        ...common,
+        target_ref: 'rotateB-hinge',
+        property: 'rotation',
+        kind: 'rotation_matrix',
+        start: startsOpen ? rotB : eye,
+        end: endsOpen ? rotB : eye,
+    });
+    animation.interpolate({
+        ...common,
+        target_ref: 'rotateA-hinge',
+        property: 'translation',
+        kind: 'vec3',
+        start: startsOpen ? transA : zero,
+        end: endsOpen ? transA : zero,
+    });
+    animation.interpolate({
+        ...common,
+        target_ref: 'rotateB-hinge',
+        property: 'translation',
+        kind: 'vec3',
+        start: startsOpen ? transB : zero,
+        end: endsOpen ? transB : zero,
+    });
+}
+
+function animateImpulses(params: { root: MVSBuilder.Root, structA: MVSBuilder.Structure, structB: MVSBuilder.Structure, axes: InterfaceOpeningAxes, animation: AnimationType, animationDurationMs: number }) {
+    if (!params.axes.impulses) return;
+
+    // Apply structure transforms (even in static state, to ensure correct state tree reconciliation)
+    params.structA.transform({
+        ref: 'rotateA-impulses',
+        rotation_center: MvsVector(params.axes.center),
+        rotation: eye,
+        translation: zero,
+    });
+    params.structB.transform({
+        ref: 'rotateB-impulses',
+        rotation_center: MvsVector(params.axes.center),
+        rotation: eye,
+        translation: zero,
+    });
+
+    const isAnimated = params.animation === 'opening' || params.animation === 'closing';
+    if (!isAnimated) return;
+
+    const TORQUE_FACTOR = 50;
+    const FORCE_FACTOR = TORQUE_FACTOR;
+
+    const transVecA = Vec3.scale(Vec3(), params.axes.impulses.a.linear, FORCE_FACTOR);
+    const transVecB = Vec3.scale(Vec3(), params.axes.impulses.b.linear, FORCE_FACTOR);
+    const rotVecA = Vec3.scale(Vec3(), params.axes.impulses.a.angular, TORQUE_FACTOR);
+    const rotVecB = Vec3.scale(Vec3(), params.axes.impulses.b.angular, TORQUE_FACTOR);
+
+    // Limit rotation to axis parallel to interface normal
+    const forcedAxis = params.axes.movementAxis;
+    Vec3.projectOnVector(rotVecA, rotVecA, forcedAxis);
+    Vec3.projectOnVector(rotVecB, rotVecB, forcedAxis);
+    // Limit translation to interface plane
+    Vec3.projectOnPlane(transVecA, transVecA, forcedAxis);
+    Vec3.projectOnPlane(transVecB, transVecB, forcedAxis);
+
+    // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
+    const MAX_ROT = .99 * Math.PI;
+    const safeguardFactor = 1 / Math.max(Vec3.magnitude(rotVecA) / MAX_ROT, Vec3.magnitude(rotVecB) / MAX_ROT, 1);
+    if (safeguardFactor !== 1) {
+        Vec3.scale(rotVecA, rotVecA, safeguardFactor);
+        Vec3.scale(rotVecB, rotVecB, safeguardFactor);
+    }
+
+    const transA = MvsVector(transVecA);
+    const transB = MvsVector(transVecB);
+    const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
+    const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
+
+    const IMPULSE_DURATION = 0.2 * params.animationDurationMs;
+    const INV_IMPULSE_DURATION = 0.3 * params.animationDurationMs;
+    const animation = params.root.animation();
+    const commonForward = {
+        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION - INV_IMPULSE_DURATION : 0,
+        duration_ms: params.animation === 'closing' ? INV_IMPULSE_DURATION : IMPULSE_DURATION,
+        easing: 'sin-in-out',
+    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
+    const commonBackward = {
+        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION : IMPULSE_DURATION,
+        duration_ms: params.animation === 'closing' ? IMPULSE_DURATION : INV_IMPULSE_DURATION,
+        easing: 'sin-in-out',
+    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
+    // TODO: continue here implementing for animation === 'open', animation === 'closed'
+
+    if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
+        animation.interpolate({
+            ...commonForward,
+            target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
+            start: eye, end: rotA,
+        });
+        animation.interpolate({
+            ...commonBackward,
+            target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
+            start: rotA, end: eye,
+        });
+    }
+    if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
+        animation.interpolate({
+            ...commonForward,
+            target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
+            start: eye, end: rotB,
+        });
+        animation.interpolate({
+            ...commonBackward,
+            target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
+            start: rotB, end: eye,
+        });
+    }
+    animation.interpolate({
+        ...commonForward,
+        target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
+        start: zero, end: transA,
+    });
+    animation.interpolate({
+        ...commonBackward,
+        target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
+        start: transA, end: zero,
+    });
+    animation.interpolate({
+        ...commonForward,
+        target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
+        start: zero, end: transB,
+    });
+    animation.interpolate({
+        ...commonBackward,
+        target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
+        start: transB, end: zero,
+    });
 }

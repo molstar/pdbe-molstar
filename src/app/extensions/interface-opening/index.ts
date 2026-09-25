@@ -32,6 +32,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
             pdbId, assemblyId, partnerA, partnerB,
             snapshotDescription: descriptionClosed,
             axes: openingAxes,
+            animation: 'closed',
         }),
         mvsInterface({
             pdbId, assemblyId, partnerA, partnerB,
