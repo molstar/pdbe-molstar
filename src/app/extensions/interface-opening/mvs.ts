@@ -49,6 +49,7 @@ export interface InterfaceOpeningAxes {
 const zero: Vector3 = [0, 0, 0];
 const eye = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
+/** 'open', 'closed' refer to static states without animation; 'opening', 'closing' refer to animated states */
 type AnimationType = 'opening' | 'open' | 'closing' | 'closed';
 
 export function mvsInterface(params: {
@@ -136,7 +137,7 @@ function animateHingeOpening(params: { root: MVSBuilder.Root, structA: MVSBuilde
         start_ms: 0,
         duration_ms: params.animationDurationMs,
         easing: 'sin-in-out',
-    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
+    } satisfies Partial<Parameters<MVSBuilder.Animation['interpolate']>[0]>;
 
     animation.interpolate({
         ...common,
@@ -221,63 +222,38 @@ function animateImpulses(params: { root: MVSBuilder.Root, structA: MVSBuilder.St
     const rotA = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecA), rotVecA);
     const rotB = Mat3.fromRotation(Mat3(), Vec3.magnitude(rotVecB), rotVecB);
 
-    const IMPULSE_DURATION = 0.2 * params.animationDurationMs;
-    const INV_IMPULSE_DURATION = 0.3 * params.animationDurationMs;
     const animation = params.root.animation();
-    const commonForward = {
-        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION - INV_IMPULSE_DURATION : 0,
-        duration_ms: params.animation === 'closing' ? INV_IMPULSE_DURATION : IMPULSE_DURATION,
+    const IMPULSE_DURATION = 0.5 * params.animationDurationMs;
+    const common = {
+        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION : 0,
+        duration_ms: IMPULSE_DURATION,
         easing: 'sin-in-out',
-    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
-    const commonBackward = {
-        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION : IMPULSE_DURATION,
-        duration_ms: params.animation === 'closing' ? IMPULSE_DURATION : INV_IMPULSE_DURATION,
-        easing: 'sin-in-out',
-    } satisfies Partial<Parameters<typeof animation['interpolate']>[0]>;
-    // TODO: continue here implementing for animation === 'open', animation === 'closed'
+        frequency: 2,
+        alternate_direction: true,
+    } satisfies Partial<Parameters<MVSBuilder.Animation['interpolate']>[0]>;
 
     if (Vec3.magnitude(rotVecA) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
         animation.interpolate({
-            ...commonForward,
+            ...common,
             target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
             start: eye, end: rotA,
-        });
-        animation.interpolate({
-            ...commonBackward,
-            target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
-            start: rotA, end: eye,
         });
     }
     if (Vec3.magnitude(rotVecB) >= 1e-3) { // Do not apply small rotations as they may be interpolated incorrectly
         animation.interpolate({
-            ...commonForward,
+            ...common,
             target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
             start: eye, end: rotB,
         });
-        animation.interpolate({
-            ...commonBackward,
-            target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
-            start: rotB, end: eye,
-        });
     }
     animation.interpolate({
-        ...commonForward,
+        ...common,
         target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
         start: zero, end: transA,
     });
     animation.interpolate({
-        ...commonBackward,
-        target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
-        start: transA, end: zero,
-    });
-    animation.interpolate({
-        ...commonForward,
+        ...common,
         target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
         start: zero, end: transB,
-    });
-    animation.interpolate({
-        ...commonBackward,
-        target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
-        start: transB, end: zero,
     });
 }
