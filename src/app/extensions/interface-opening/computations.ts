@@ -3,7 +3,7 @@ import { GridLookup3D, PositionData, Result } from 'molstar/lib/mol-math/geometr
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
-import { Structure } from 'molstar/lib/mol-model/structure';
+import type { Structure } from 'molstar/lib/mol-model/structure';
 
 
 /** Cartesian coordinates of points in 3D */
@@ -37,14 +37,10 @@ const Coords = {
     },
     /** Concatenate two `Coords` */
     concat(a: Coords, b: Coords): Coords {
-        function concatArray(p: Float32Array, q: Float32Array): Float32Array {
-            return new Float32Array(Array.from(p).concat(Array.from(q))); // thank you javascript for making this easy for me
-            // TODO: do this smarter
-        }
         return {
-            x: concatArray(a.x, b.x),
-            y: concatArray(a.y, b.y),
-            z: concatArray(a.z, b.z),
+            x: concatArrays(a.x, b.x),
+            y: concatArrays(a.y, b.y),
+            z: concatArrays(a.z, b.z),
         };
     },
     /** Get center of mass of `Coords` */
@@ -91,6 +87,13 @@ const Coords = {
         return { center, tensor, mass: n };
     },
 };
+
+function concatArrays(p: Float32Array, q: Float32Array): Float32Array {
+    const out = new Float32Array(p.length + q.length);
+    out.set(p, 0);
+    out.set(q, p.length);
+    return out;
+}
 
 
 /** Moments of inertia of an object */

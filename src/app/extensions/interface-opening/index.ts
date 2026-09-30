@@ -1,7 +1,7 @@
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
-import type { ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import { ComponentExpressionT, MolQLExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { StructureQuery, StructureSelection, type Structure } from 'molstar/lib/mol-model/structure';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
@@ -18,20 +18,23 @@ import { mvsDummy, mvsInterface, type InterfaceAnimationTransforms } from './mvs
 
 
 export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[]) {
-    console.log('runInterfaceOpening', plugin, pdbId, assemblyId, partnerA, partnerB)
+    console.log('runInterfaceOpening', plugin, pdbId, assemblyId, partnerA, partnerB);
 
     const structure = await getStructureDataViaMvs(plugin, pdbId, assemblyId);
     const coordsA = getStructureCoords(getSubstructure(structure, partnerA));
     const coordsB = getStructureCoords(getSubstructure(structure, partnerB));
 
+    const viewportAspectRatio = plugin.canvas3d ? (plugin.canvas3d.camera.viewport.width / plugin.canvas3d.camera.viewport.height) : 1;
     const openingAxes = getInterfaceOpeningAxes(coordsA, coordsB);
-    const camera = getInterfaceOpeningCamera(openingAxes);
+    const camera = getInterfaceOpeningCamera(openingAxes, { viewportAspectRatio });
     const hingeOpeningTransforms = getInterfaceOpeningTransforms(openingAxes);
-    const impulseTransforms = getInterfaceOpeningImpulseTransforms(openingAxes);
+    const impulseTransforms = getInterfaceOpeningImpulseTransforms(openingAxes, { rotationFactor: 40, translationFactor: 40 });
 
     const snapshots = (['closed', 'opening', 'open', 'closing'] as const).map(
         animation => mvsInterface({
             pdbId, assemblyId, partnerA, partnerB,
+            interfaceSelectorA: molqlChainSurrounding('B', 5),
+            interfaceSelectorB: molqlChainSurrounding('A', 5),
             camera,
             hingeOpeningTransforms,
             impulseTransforms,
@@ -42,6 +45,17 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     await loadMVS(plugin, mvs);
 }
 
+import { MolScriptBuilder } from 'molstar/lib/commonjs/mol-script/language/builder';
+
+function molqlChainSurrounding(targetLabelAsymId: string, radius: number): MolQLExpressionT {
+    const targetChainExpr = MolScriptBuilder.struct.generator.atomGroups({
+        'chain-test': MolScriptBuilder.core.rel.eq([MolScriptBuilder.struct.atomProperty.macromolecular.label_asym_id(), targetLabelAsymId]),
+    });
+    const surroundingExpr = MolScriptBuilder.struct.modifier.includeSurroundings({
+        0: targetChainExpr, 'radius': radius, 'as-whole-residues': true,
+    });
+    return { molql: surroundingExpr };
+}
 
 async function getStructureDataViaMvs(plugin: PluginContext, pdbId: string, assemblyId: string | undefined) {
     const mvs = mvsDummy(pdbId, assemblyId);
@@ -89,16 +103,16 @@ export function getInterfaceOpeningTransforms(axes: InterfaceOpeningAxes): Inter
     };
 }
 
-export function getInterfaceOpeningImpulseTransforms(axes: InterfaceOpeningAxes, options?: { torqueFactor?: number, forceFactor?: number }): InterfaceAnimationTransforms | undefined {
+export function getInterfaceOpeningImpulseTransforms(axes: InterfaceOpeningAxes, options?: { rotationFactor?: number, translationFactor?: number }): InterfaceAnimationTransforms | undefined {
     if (!axes.impulses) return undefined;
 
-    const TORQUE_FACTOR = options?.torqueFactor ?? 40;
-    const FORCE_FACTOR = options?.forceFactor ?? 40;
+    const rotationFactor = options?.rotationFactor ?? 40;
+    const translationFactor = options?.translationFactor ?? 40;
 
-    const transVecA = Vec3.scale(Vec3(), axes.impulses.a.linear, FORCE_FACTOR);
-    const transVecB = Vec3.scale(Vec3(), axes.impulses.b.linear, FORCE_FACTOR);
-    const rotVecA = Vec3.scale(Vec3(), axes.impulses.a.angular, TORQUE_FACTOR);
-    const rotVecB = Vec3.scale(Vec3(), axes.impulses.b.angular, TORQUE_FACTOR);
+    const transVecA = Vec3.scale(Vec3(), axes.impulses.a.linear, translationFactor);
+    const transVecB = Vec3.scale(Vec3(), axes.impulses.b.linear, translationFactor);
+    const rotVecA = Vec3.scale(Vec3(), axes.impulses.a.angular, rotationFactor);
+    const rotVecB = Vec3.scale(Vec3(), axes.impulses.b.angular, rotationFactor);
 
     // Limit rotation to axis parallel to interface normal
     Vec3.projectOnVector(rotVecA, rotVecA, axes.movementAxis);

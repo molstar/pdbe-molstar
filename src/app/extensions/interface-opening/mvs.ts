@@ -1,7 +1,7 @@
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type MVSBuilder from 'molstar/lib/extensions/mvs/tree/mvs/mvs-builder';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
-import type { ColorT, ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
+import { MolQLExpressionT, type ColorT, type ComponentExpressionT, type Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 
 
 function mvsBase(pdbId: string, assemblyId: string | undefined, nStructureCopies: number) {
@@ -50,7 +50,7 @@ export function mvsInterface(params: {
     camera: MVSNodeParams<'camera'>,
     hingeOpeningTransforms: InterfaceAnimationTransforms,
     impulseTransforms?: InterfaceAnimationTransforms,
-    interfaceSelectorA?: ComponentExpressionT[], interfaceSelectorB?: ComponentExpressionT[],
+    interfaceSelectorA?: ComponentExpressionT[] | MolQLExpressionT, interfaceSelectorB?: ComponentExpressionT[] | MolQLExpressionT,
     animation: AnimationType,
 }) {
     const TRANSITION_DURATION = 2500;
