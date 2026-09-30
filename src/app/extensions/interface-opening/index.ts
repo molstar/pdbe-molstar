@@ -1,3 +1,4 @@
+import { MolScriptBuilder } from 'molstar/lib/commonjs/mol-script/language/builder';
 import { loadMVS } from 'molstar/lib/extensions/mvs/load';
 import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
@@ -30,11 +31,18 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const hingeOpeningTransforms = getInterfaceOpeningTransforms(openingAxes);
     const impulseTransforms = getInterfaceOpeningImpulseTransforms(openingAxes, { rotationFactor: 40, translationFactor: 40 });
 
+    // Get interface residue selectors - TEMPORARY SOLUTION
+    // TODO: get list of interface residues from an API
+    const partnerA_labelAsymId = partnerA[0]?.label_asym_id;
+    const partnerB_labelAsymId = partnerB[0]?.label_asym_id;
+    if (!partnerA_labelAsymId || !partnerB_labelAsymId) throw new Error('partnerA and partnerB selectors must contain label_asym_id');
+    const interfaceSelectorA = molqlChainSurrounding(partnerB_labelAsymId, 5);
+    const interfaceSelectorB = molqlChainSurrounding(partnerA_labelAsymId, 5);
+
     const snapshots = (['closed', 'opening', 'open', 'closing'] as const).map(
         animation => mvsInterface({
             pdbId, assemblyId, partnerA, partnerB,
-            interfaceSelectorA: molqlChainSurrounding('B', 5),
-            interfaceSelectorB: molqlChainSurrounding('A', 5),
+            interfaceSelectorA, interfaceSelectorB,
             camera,
             hingeOpeningTransforms,
             impulseTransforms,
@@ -44,8 +52,6 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const mvs = MVSData.createMultistate(snapshots, {});
     await loadMVS(plugin, mvs);
 }
-
-import { MolScriptBuilder } from 'molstar/lib/commonjs/mol-script/language/builder';
 
 function molqlChainSurrounding(targetLabelAsymId: string, radius: number): MolQLExpressionT {
     const targetChainExpr = MolScriptBuilder.struct.generator.atomGroups({
