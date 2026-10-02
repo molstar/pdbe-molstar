@@ -4,10 +4,11 @@ import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
 import { ComponentExpressionT, MolQLExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
-import { StructureQuery, StructureSelection, type Structure } from 'molstar/lib/mol-model/structure';
+import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
 import { QueryHelper } from '../../helpers';
 import { getInterfaceOpeningAxes, getStructureCoords, type InterfaceOpeningAxes } from './computations';
+import { addInterfaceInteractionsHighlightBehavior } from './interactions-highlight-behavior';
 import { mvsDummy, mvsInterface, type InterfaceAnimationTransforms } from './mvs';
 
 
@@ -33,11 +34,12 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
 
     // Get interface residue selectors - TEMPORARY SOLUTION
     // TODO: get list of interface residues from an API
+    const INTERFACE_RADIUS = 5;
     const partnerA_labelAsymId = partnerA[0]?.label_asym_id;
     const partnerB_labelAsymId = partnerB[0]?.label_asym_id;
     if (!partnerA_labelAsymId || !partnerB_labelAsymId) throw new Error('partnerA and partnerB selectors must contain label_asym_id');
-    const interfaceSelectorA = molqlChainSurrounding(partnerB_labelAsymId, 5);
-    const interfaceSelectorB = molqlChainSurrounding(partnerA_labelAsymId, 5);
+    const interfaceSelectorA = molqlChainSurrounding(partnerB_labelAsymId, INTERFACE_RADIUS);
+    const interfaceSelectorB = molqlChainSurrounding(partnerA_labelAsymId, INTERFACE_RADIUS);
 
     const snapshots = (['closed', 'opening', 'open', 'closing'] as const).map(
         animation => mvsInterface({
@@ -51,7 +53,13 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     );
     const mvs = MVSData.createMultistate(snapshots, {});
     await loadMVS(plugin, mvs);
+
+    await addInterfaceInteractionsHighlightBehavior(plugin);
+    // await removeInterfaceInteractionsHighlightBehavior(plugin);
+    // console.log('has', plugin.state.hasBehavior(InterfaceInteractionsHighlight))
+    // plugin.managers.interactivity.lociHighlights.addProvider(interfaceInteractionsHighlightProvider(plugin, INTERFACE_RADIUS));
 }
+
 
 function molqlChainSurrounding(targetLabelAsymId: string, radius: number): MolQLExpressionT {
     const targetChainExpr = MolScriptBuilder.struct.generator.atomGroups({
@@ -68,7 +76,7 @@ async function getStructureDataViaMvs(plugin: PluginContext, pdbId: string, asse
     await loadMVS(plugin, mvs);
 
     const structures = plugin.managers.structure.hierarchy.current.structures;
-    if (structures.length !== 1) throw new Error('Failed to retrieve structure plugin state object');
+    // if (structures.length !== 1) throw new Error('Failed to retrieve structure plugin state object');  // DEBUG TODO: uncomment
 
     const structureData = structures[0].cell.obj?.data;
     if (!structureData) throw new Error('Failed to retrieve structure data');

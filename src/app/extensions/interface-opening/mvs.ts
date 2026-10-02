@@ -7,8 +7,7 @@ import { MolQLExpressionT, type ColorT, type ComponentExpressionT, type Vector3 
 function mvsBase(pdbId: string, assemblyId: string | undefined, nStructureCopies: number) {
     const root = MVSData.createBuilder();
     const model = root
-        // .download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}.bcif` })
-        .download({ url: `./tmp/${pdbId}.bcif` }) // DEBUG TODO: revert
+        .download({ url: `https://www.ebi.ac.uk/pdbe/entry-files/download/${pdbId}.bcif` })
         .parse({ format: 'bcif' });
     const structs: MVSBuilder.Structure[] = [];
     for (let i = 0; i < nStructureCopies; i++) {
