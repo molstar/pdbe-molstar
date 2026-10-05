@@ -16,15 +16,15 @@ import { PluginLayoutStateParams, PluginLayoutStateProps } from 'molstar/lib/mol
 import { MolScriptBuilder as MS } from 'molstar/lib/mol-script/language/builder';
 import { Expression } from 'molstar/lib/mol-script/language/expression';
 import { compile } from 'molstar/lib/mol-script/runtime/query/compiler';
-import { StateSelection } from 'molstar/lib/mol-state';
+import { StateSelection, StateTransformer } from 'molstar/lib/mol-state';
 import { Task } from 'molstar/lib/mol-task';
 import { Overpaint } from 'molstar/lib/mol-theme/overpaint';
+import { Transparency } from 'molstar/lib/mol-theme/transparency';
 import { Color } from 'molstar/lib/mol-util/color';
 import { ColorName, ColorNames } from 'molstar/lib/mol-util/color/names';
 import { sleep } from 'molstar/lib/mol-util/sleep';
 import { SIFTSMapping, SIFTSMappingMapping } from './sifts-mapping';
 import { AnyColor, InitParams } from './spec';
-import { Transparency } from 'molstar/lib/mol-theme/transparency';
 
 
 export type SupportedFormats = 'mmcif' | 'bcif' | 'cif' | 'pdb' | 'sdf';
@@ -894,4 +894,24 @@ export function getRotationMat4(view: 'front' | 'back' | 'right' | 'left' | 'top
             return out;
         }
     }
+}
+
+
+/** Add or update behavior on `plugin` */
+export async function addOrUpdateExtensionBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T, params?: StateTransformer.Params<T> | ((old: StateTransformer.Params<T>) => StateTransformer.Params<T>)) {
+    if (!params) {
+        await plugin.state.updateBehavior(behavior, p => p);
+    } else if (typeof params === 'function') {
+        await plugin.state.updateBehavior(behavior, params);
+    } else {
+        await plugin.state.updateBehavior(behavior, () => params);
+    }
+}
+
+/** Remove behavior from `plugin`, if present */
+export async function removeExtensionBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T) {
+    if (!plugin.state.hasBehavior(behavior)) return;
+    const tree = plugin.state.behaviors.build();
+    tree.delete(behavior.id);
+    await plugin.runTask(plugin.state.behaviors.updateTree(tree));
 }

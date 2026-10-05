@@ -10,25 +10,32 @@ import { ParamDefinition as PD } from 'molstar/lib/mol-util/param-definition';
 
 
 const InterfaceInteractionsHighlightParams = {
-    radius: PD.Numeric(5, { min: 0, max: 20, step: 1 }),
+    radius: PD.Numeric(5, { min: 0 }),
 };
 type InterfaceInteractionsHighlightProps = PD.Values<typeof InterfaceInteractionsHighlightParams>;
 
 
-const RADIUS = 5;
-
-export const InterfaceInteractionsHighlight = PluginBehavior.create<InterfaceInteractionsHighlightProps>({
+export const InterfaceInteractionsHighlight: StateTransformer<any, any, InterfaceInteractionsHighlightProps> = PluginBehavior.create<InterfaceInteractionsHighlightProps>({
     name: 'interface-interaction-highlight',
     category: 'interaction',
     ctor: class extends PluginBehavior.Handler<InterfaceInteractionsHighlightProps> {
-        private readonly provider = interfaceInteractionsHighlightProvider(this.ctx, RADIUS);
+        private readonly highlighter = createInterfaceInteractionsHighlighter(this.ctx, this.params.radius);
+
         register() {
-            console.log('registering InterfaceInteractionsHighlight', this.params);
-            this.ctx.managers.interactivity.lociHighlights.addProvider(this.provider);
+            this.ctx.managers.interactivity.lociHighlights.addProvider(this.highlighter.lociMarkProvider);
+        }
+        update(p: InterfaceInteractionsHighlightProps) {
+            let updated = false;
+            if (this.params.radius !== p.radius) {
+                this.params.radius = p.radius;
+                this.highlighter.radius = p.radius;
+                updated = true;
+            }
+            return updated;
         }
         unregister() {
-            console.log('unregistering InterfaceInteractionsHighlight');
-            this.ctx.managers.interactivity.lociHighlights.removeProvider(this.provider);
+            this.highlighter.dispose();
+            this.ctx.managers.interactivity.lociHighlights.removeProvider(this.highlighter.lociMarkProvider);
         }
     },
     params: () => InterfaceInteractionsHighlightParams,
@@ -36,37 +43,21 @@ export const InterfaceInteractionsHighlight = PluginBehavior.create<InterfaceInt
 });
 
 
-/** Add behavior to `plugin` */
-export async function addBehavior(plugin: PluginContext, behavior: StateTransformer) {
-    if (plugin.state.hasBehavior(behavior)) return;
-    await plugin.state.updateBehavior(behavior, p => p);
-}
-/** Remove behavior from `plugin`, if present */
-export async function removeBehavior(plugin: PluginContext, behavior: StateTransformer) {
-    if (!plugin.state.hasBehavior(behavior)) return;
-    const tree = plugin.state.behaviors.build();
-    tree.delete(behavior.id);
-    await plugin.runTask(plugin.state.behaviors.updateTree(tree));
-}
-
-export function addInterfaceInteractionsHighlightBehavior(plugin: PluginContext) {
-    return addBehavior(plugin, InterfaceInteractionsHighlight);
-}
-export function removeInterfaceInteractionsHighlightBehavior(plugin: PluginContext) {
-    return removeBehavior(plugin, InterfaceInteractionsHighlight);
-}
-
-
-
-export function interfaceInteractionsHighlightProvider(plugin: PluginContext, radius: number): InteractivityManager.LociMarkProvider {
+function createInterfaceInteractionsHighlighter(plugin: PluginContext, initialRadius: number) {
+    let radius = initialRadius;
     let previous: StructureElement.Loci[] | undefined = undefined;
 
-    return async (loci, action) => {
-        if ((action === MarkerAction.Highlight || action === MarkerAction.RemoveHighlight) && previous) {
-            for (const l of previous) {
-                plugin.canvas3d?.mark({ loci: l }, MarkerAction.Clear);
-            }
-            previous = undefined;
+    const clearPrevious = () => {
+        if (!previous) return;
+        for (const loci of previous) {
+            plugin.canvas3d?.mark({ loci }, MarkerAction.Clear);
+        }
+        previous = undefined;
+    };
+
+    const lociMarkProvider: InteractivityManager.LociMarkProvider = async (loci, action) => {
+        if (action === MarkerAction.Highlight || action === MarkerAction.RemoveHighlight) {
+            clearPrevious();
         }
         if (action === MarkerAction.Highlight && StructureElement.Loci.is(loci.loci)) {
             const interactingLoci = getInteractingLociInAllStructures(plugin, loci.loci, radius);
@@ -75,6 +66,15 @@ export function interfaceInteractionsHighlightProvider(plugin: PluginContext, ra
             }
             previous = interactingLoci;
         }
+    };
+
+    return {
+        lociMarkProvider,
+        get radius() { return radius; },
+        set radius(value: number) { radius = value; },
+        dispose() {
+            clearPrevious();
+        },
     };
 }
 

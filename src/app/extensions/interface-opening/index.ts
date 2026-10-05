@@ -6,9 +6,9 @@ import { ComponentExpressionT, MolQLExpressionT, Vector3 } from 'molstar/lib/ext
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { Structure, StructureQuery, StructureSelection } from 'molstar/lib/mol-model/structure';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { QueryHelper } from '../../helpers';
+import { QueryHelper, addOrUpdateExtensionBehavior, removeExtensionBehavior } from '../../helpers';
 import { getInterfaceOpeningAxes, getStructureCoords, type InterfaceOpeningAxes } from './computations';
-import { addInterfaceInteractionsHighlightBehavior } from './interactions-highlight-behavior';
+import { InterfaceInteractionsHighlight } from './interactions-highlight-behavior';
 import { mvsDummy, mvsInterface, type InterfaceAnimationTransforms } from './mvs';
 
 
@@ -54,10 +54,10 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const mvs = MVSData.createMultistate(snapshots, {});
     await loadMVS(plugin, mvs);
 
-    await addInterfaceInteractionsHighlightBehavior(plugin);
-    // await removeInterfaceInteractionsHighlightBehavior(plugin);
-    // console.log('has', plugin.state.hasBehavior(InterfaceInteractionsHighlight))
-    // plugin.managers.interactivity.lociHighlights.addProvider(interfaceInteractionsHighlightProvider(plugin, INTERFACE_RADIUS));
+    await addOrUpdateExtensionBehavior(plugin, InterfaceInteractionsHighlight);
+    setTimeout(() => addOrUpdateExtensionBehavior(plugin, InterfaceInteractionsHighlight, { radius: 15 }), 5_000);
+    setTimeout(() => removeExtensionBehavior(plugin, InterfaceInteractionsHighlight), 7_500);
+    setTimeout(() => addOrUpdateExtensionBehavior(plugin, InterfaceInteractionsHighlight), 10_000);
 }
 
 
