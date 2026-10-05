@@ -1,9 +1,13 @@
+import type { MVSNodeParams } from 'molstar/lib/extensions/mvs/tree/mvs/mvs-tree';
+import type { ComponentExpressionT, Vector3 } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import { OrderedSet } from 'molstar/lib/mol-data/int';
 import { GridLookup3D, PositionData, Result } from 'molstar/lib/mol-math/geometry';
 import { getBoundary } from 'molstar/lib/mol-math/geometry/boundary';
 import { Mat3, Vec3 } from 'molstar/lib/mol-math/linear-algebra';
 import { PrincipalAxes } from 'molstar/lib/mol-math/linear-algebra/matrix/principal-axes';
-import type { Structure } from 'molstar/lib/mol-model/structure';
+import { StructureQuery, StructureSelection, type Structure } from 'molstar/lib/mol-model/structure';
+import { QueryHelper } from '../../helpers';
+import type { InterfaceAnimationTransforms } from './mvs';
 
 
 /** Cartesian coordinates of points in 3D */
@@ -108,7 +112,7 @@ interface Inertia {
 
 
 /** Get atom coordinates from a structure, ignore hydrogens */
-export function getStructureCoords(structure: Structure): Coords {
+function getStructureCoords(structure: Structure): Coords {
     const x: number[] = [];
     const y: number[] = [];
     const z: number[] = [];
@@ -127,6 +131,12 @@ export function getStructureCoords(structure: Structure): Coords {
     }
 
     return { x: Float32Array.from(x), y: Float32Array.from(y), z: Float32Array.from(z) };
+}
+
+function getSubstructure(structure: Structure, selector: ComponentExpressionT[]): Structure {
+    const expr = QueryHelper.getQueryObject(selector, structure);
+    const selection = StructureQuery.run(expr as StructureQuery, structure);
+    return StructureSelection.unionStructure(selection);
 }
 
 /** Return subset of points from `coords` which lie within `radius` around any point in `target` */
@@ -173,7 +183,10 @@ export interface InterfaceOpeningAxes {
 }
 
 /** Return axes and measurements for interface opening animation */
-export function getInterfaceOpeningAxes(coordsA: Coords, coordsB: Coords) {
+export function getInterfaceOpeningAxes(structure: Structure, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[]) {
+    const coordsA = getStructureCoords(getSubstructure(structure, partnerA));
+    const coordsB = getStructureCoords(getSubstructure(structure, partnerB));
+
     const INTERFACE_RADIUS = 8;
     const interfaceA = getCoordsWithin(coordsA, coordsB, INTERFACE_RADIUS);
     const interfaceB = getCoordsWithin(coordsB, coordsA, INTERFACE_RADIUS);
@@ -306,4 +319,83 @@ function lookupResultHasOtherThan<T>(result: Result<T>, otherThan: T) {
         if (result.indices[i] !== otherThan) return true;
     }
     return false;
+}
+
+
+export function getInterfaceOpeningCamera(axes: InterfaceOpeningAxes, options?: { viewportAspectRatio?: number }): MVSNodeParams<'camera'> {
+    const viewportAspectRatio = options?.viewportAspectRatio ?? 1;
+    const rX = axes.openingRadius + Vec3.magnitude(axes.outAxis);
+    const rY = Vec3.magnitude(axes.hingeAxis);
+    const visRadius = Math.max(rX / viewportAspectRatio, rY);
+    const dist = 2 * visRadius;
+
+    return {
+        target: MvsVector(axes.center),
+        position: MvsVector(Vec3.add(Vec3(), axes.center, Vec3.setMagnitude(Vec3(), axes.outAxis, dist))),
+        up: MvsVector(axes.hingeAxis),
+    };
+}
+
+export function getInterfaceOpeningTransforms(axes: InterfaceOpeningAxes): InterfaceAnimationTransforms {
+    const rotation_center = MvsVector(axes.center);
+    const rotA = Mat3.fromRotation(Mat3(), -0.5 * Math.PI, axes.hingeAxis);
+    const rotB = Mat3.fromRotation(Mat3(), 0.5 * Math.PI, axes.hingeAxis);
+    const translation = Vec3.setMagnitude(Vec3(), axes.movementAxis, axes.openingRadius);
+    const transA: Vector3 = MvsVector(Vec3.negate(Vec3(), translation));
+    const transB: Vector3 = MvsVector(translation);
+
+    return {
+        a: { rotation_center, rotation: rotA, translation: transA },
+        b: { rotation_center, rotation: rotB, translation: transB },
+    };
+}
+
+export function getInterfaceOpeningImpulseTransforms(axes: InterfaceOpeningAxes, options?: { rotationFactor?: number, translationFactor?: number }): InterfaceAnimationTransforms | undefined {
+    if (!axes.impulses) return undefined;
+
+    const rotationFactor = options?.rotationFactor ?? 40;
+    const translationFactor = options?.translationFactor ?? 40;
+
+    const transVecA = Vec3.scale(Vec3(), axes.impulses.a.linear, translationFactor);
+    const transVecB = Vec3.scale(Vec3(), axes.impulses.b.linear, translationFactor);
+    const rotVecA = Vec3.scale(Vec3(), axes.impulses.a.angular, rotationFactor);
+    const rotVecB = Vec3.scale(Vec3(), axes.impulses.b.angular, rotationFactor);
+
+    // Limit rotation to axis parallel to interface normal
+    Vec3.projectOnVector(rotVecA, rotVecA, axes.movementAxis);
+    Vec3.projectOnVector(rotVecB, rotVecB, axes.movementAxis);
+    // Limit translation to interface plane
+    Vec3.projectOnPlane(transVecA, transVecA, axes.movementAxis);
+    Vec3.projectOnPlane(transVecB, transVecB, axes.movementAxis);
+
+    // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
+    const MAX_ROT = .99 * Math.PI;
+    const safeguardFactor = 1 / Math.max(Vec3.magnitude(rotVecA) / MAX_ROT, Vec3.magnitude(rotVecB) / MAX_ROT, 1);
+    if (safeguardFactor !== 1) {
+        Vec3.scale(rotVecA, rotVecA, safeguardFactor);
+        Vec3.scale(rotVecB, rotVecB, safeguardFactor);
+    }
+
+    const rotAngleA = Vec3.magnitude(rotVecA);
+    const rotAngleB = Vec3.magnitude(rotVecB);
+    // Do not apply small rotations as they may be interpolated incorrectly
+    const rotA = rotAngleA >= 1e-3 ? Mat3.fromRotation(Mat3(), rotAngleA, rotVecA) : undefined;
+    const rotB = rotAngleB >= 1e-3 ? Mat3.fromRotation(Mat3(), rotAngleB, rotVecB) : undefined;
+
+    return {
+        a: {
+            rotation_center: MvsVector(axes.impulses.a.pivot),
+            rotation: rotA,
+            translation: MvsVector(transVecA),
+        },
+        b: {
+            rotation_center: MvsVector(axes.impulses.b.pivot),
+            rotation: rotB,
+            translation: MvsVector(transVecB),
+        },
+    };
+}
+
+function MvsVector(vec3: Vec3): Vector3 {
+    return [vec3[0], vec3[1], vec3[2]];
 }

@@ -898,18 +898,18 @@ export function getRotationMat4(view: 'front' | 'back' | 'right' | 'left' | 'top
 
 
 /** Add or update behavior on `plugin` */
-export async function addOrUpdateExtensionBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T, params?: StateTransformer.Params<T> | ((old: StateTransformer.Params<T>) => StateTransformer.Params<T>)) {
-    if (!params) {
+export async function addOrUpdatePluginBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T, props?: StateTransformer.Params<T> | ((old: StateTransformer.Params<T>) => StateTransformer.Params<T>)) {
+    if (!props) {
         await plugin.state.updateBehavior(behavior, p => p);
-    } else if (typeof params === 'function') {
-        await plugin.state.updateBehavior(behavior, params);
+    } else if (typeof props === 'function') {
+        await plugin.state.updateBehavior(behavior, props);
     } else {
-        await plugin.state.updateBehavior(behavior, () => params);
+        await plugin.state.updateBehavior(behavior, () => props);
     }
 }
 
 /** Remove behavior from `plugin`, if present */
-export async function removeExtensionBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T) {
+export async function removePluginBehavior<T extends StateTransformer>(plugin: PluginContext, behavior: T) {
     if (!plugin.state.hasBehavior(behavior)) return;
     const tree = plugin.state.behaviors.build();
     tree.delete(behavior.id);

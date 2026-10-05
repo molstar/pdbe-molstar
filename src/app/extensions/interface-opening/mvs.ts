@@ -24,10 +24,19 @@ export function mvsDummy(pdbId: string, assemblyId: string | undefined) {
     return base.root.getState();
 }
 
-const COLOR_A = 'skyblue' satisfies ColorT;
-const COLOR_A_STRONG = 'royalblue' satisfies ColorT;
-const COLOR_B = 'orange' satisfies ColorT;
-const COLOR_B_STRONG = 'brown' satisfies ColorT;
+const COLOR_A = '#b9d4f1' satisfies ColorT; // PDBe Blue-100
+// const COLOR_A = '#8bb8e8' satisfies ColorT; // PDBe Blue-200
+// const COLOR_A = '#77a6dc' satisfies ColorT; // PDBe Blue-300
+const COLOR_A_STRONG = '#4f81c3' satisfies ColorT; // PDBe Blue-500
+
+
+// const COLOR_B = '#fae1b6' satisfies ColorT; // PDBe Orange-100
+const COLOR_B = '#f4d092' satisfies ColorT; // PDBe Orange-200
+// const COLOR_B = '#efc06e' satisfies ColorT; // PDBe Orange-300
+// const COLOR_B_STRONG = '#f2af43' satisfies ColorT; // PDBe Orange-400
+// const COLOR_B_STRONG = '#f49e17' satisfies ColorT; // PDBe Orange-500
+const COLOR_B_STRONG = '#e58c17' satisfies ColorT; // PDBe Orange-600
+
 
 interface TransformParams {
     rotation_center: Vector3,
@@ -51,9 +60,10 @@ export function mvsInterface(params: {
     hingeOpeningTransforms: InterfaceAnimationTransforms,
     impulseTransforms?: InterfaceAnimationTransforms,
     interfaceSelectorA?: ComponentExpressionT[] | MolQLExpressionT, interfaceSelectorB?: ComponentExpressionT[] | MolQLExpressionT,
-    animation: AnimationType,
+    animationType: AnimationType,
+    transitionDuration?: number,
 }) {
-    const TRANSITION_DURATION = 2500;
+    const transitionDuration = params.transitionDuration ?? 2500;
 
     const base = mvsBase(params.pdbId, params.assemblyId, 2);
     const [structA, structB] = base.structs;
@@ -69,14 +79,14 @@ export function mvsInterface(params: {
 
     // Animation with impulses
     if (params.impulseTransforms) {
-        animateImpulses({ root: base.root, structA, structB, transforms: params.impulseTransforms, animation: params.animation, animationDurationMs: TRANSITION_DURATION });
+        animateImpulses({ root: base.root, structA, structB, transforms: params.impulseTransforms, animation: params.animationType, animationDurationMs: transitionDuration });
     }
 
     // Animation with hinge
-    animateHingeOpening({ root: base.root, structA, structB, transforms: params.hingeOpeningTransforms, animation: params.animation, animationDurationMs: TRANSITION_DURATION });
+    animateHingeOpening({ root: base.root, structA, structB, transforms: params.hingeOpeningTransforms, animation: params.animationType, animationDurationMs: transitionDuration });
 
-    const snapshotKey = params.animation;
-    const description = (params.animation === 'opening' || params.animation === 'open') ?
+    const snapshotKey = params.animationType;
+    const description = (params.animationType === 'opening' || params.animationType === 'open') ?
         `### Interface view\n[Close](#closing) &mdash; **Open**`
         : `### Interface view\n**Close** &mdash; [Open](#opening)`;
 
@@ -85,7 +95,7 @@ export function mvsInterface(params: {
         description,
         description_format: 'markdown',
         linger_duration_ms: 1000,
-        transition_duration_ms: TRANSITION_DURATION,
+        transition_duration_ms: transitionDuration,
     });
 }
 
