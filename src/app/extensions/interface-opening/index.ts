@@ -3,7 +3,7 @@ import { MVSData } from 'molstar/lib/extensions/mvs/mvs-data';
 import type { ComponentExpressionT, MolQLExpressionT } from 'molstar/lib/extensions/mvs/tree/mvs/param-types';
 import type { Structure } from 'molstar/lib/mol-model/structure';
 import type { PluginContext } from 'molstar/lib/mol-plugin/context';
-import { getInterfaceOpeningAxes, getInterfaceOpeningCamera, getInterfaceOpeningImpulseTransforms, getInterfaceOpeningTransforms } from './computations';
+import { getInterfaceOpeningAxes, getInterfaceOpeningCamera, getInterfaceOpeningTransforms } from './computations';
 import { InterfaceInteractionsHighlight } from './interactions-highlight-behavior';
 import { mvsDummy, mvsInterface } from './mvs'; // TODO: to PDBconnect
 
@@ -22,7 +22,7 @@ export async function runInterfaceOpening(plugin: PluginContext, pdbId: string, 
     const structure = await getStructureDataViaMvs(plugin, pdbId, assemblyId);
 
     const viewportAspectRatio = plugin.canvas3d ? (plugin.canvas3d.camera.viewport.width / plugin.canvas3d.camera.viewport.height) : 1;
-    const cameraAndTransforms = getInterfaceOpeningCameraAndTransforms(structure, partnerA, partnerB, { viewportAspectRatio, impulseRotationFactor: 40, impulseTranslationFactor: 40 });
+    const cameraAndTransforms = getInterfaceOpeningCameraAndTransforms(structure, partnerA, partnerB, { viewportAspectRatio });
 
     // Get interface residue selectors - TEMPORARY SOLUTION
     // TODO: get list of interface residues from an API
@@ -101,10 +101,9 @@ async function getStructureDataViaMvs(plugin: PluginContext, pdbId: string, asse
     return structureData;
 }
 
-export function getInterfaceOpeningCameraAndTransforms(structure: Structure, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[], options: { viewportAspectRatio?: number, impulseRotationFactor?: number, impulseTranslationFactor?: number }) {
+export function getInterfaceOpeningCameraAndTransforms(structure: Structure, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[], options: { viewportAspectRatio?: number }) {
     const openingAxes = getInterfaceOpeningAxes(structure, partnerA, partnerB);
     const camera = getInterfaceOpeningCamera(openingAxes, { viewportAspectRatio: options.viewportAspectRatio });
-    const hingeOpeningTransforms = getInterfaceOpeningTransforms(openingAxes);
-    const impulseTransforms = getInterfaceOpeningImpulseTransforms(openingAxes, { rotationFactor: options.impulseRotationFactor, translationFactor: options.impulseTranslationFactor });
-    return { camera, hingeOpeningTransforms, impulseTransforms };
+    const openingTransforms = getInterfaceOpeningTransforms(openingAxes);
+    return { camera, openingTransforms };
 }

@@ -56,39 +56,11 @@ const Coords = {
         return Vec3.create(sumX / n, sumY / n, sumZ / n);
     },
     /** Get vector position of point `i` in `coords` and store it to `out` */
-    toVector(out: Vec3, coords: Coords, i: number) {
+    toVector(out: Vec3, coords: Coords, i: number): Vec3 {
         out[0] = coords.x[i];
         out[1] = coords.y[i];
         out[2] = coords.z[i];
         return out;
-    },
-    /** Get moments of inertia of a set of points, assuming unit mass of each point */
-    getInertia(coords: Coords): Inertia {
-        const center = Coords.getCenter(coords);
-        let ixx = 0;
-        let iyy = 0;
-        let izz = 0;
-        let ixy = 0;
-        let ixz = 0;
-        let iyz = 0;
-        const n = Coords.length(coords);
-        for (let i = 0; i < n; i++) {
-            const x = coords.x[i] - center[0];
-            const y = coords.y[i] - center[1];
-            const z = coords.z[i] - center[2];
-            ixx += y * y + z * z;
-            iyy += x * x + z * z;
-            izz += x * x + y * y;
-            ixy -= x * y;
-            ixz -= x * z;
-            iyz -= y * z;
-        }
-        const tensor = Mat3.create(
-            ixx, ixy, ixz,
-            ixy, iyy, iyz,
-            ixz, iyz, izz,
-        );
-        return { center, tensor, mass: n };
     },
 };
 
@@ -97,17 +69,6 @@ function concatArrays(p: Float32Array, q: Float32Array): Float32Array {
     out.set(p, 0);
     out.set(q, p.length);
     return out;
-}
-
-
-/** Moments of inertia of an object */
-interface Inertia {
-    /** Center of mass */
-    center: Vec3,
-    /** Mass of the object */
-    mass: number,
-    /** Tensor of moments of inertia of the object (always symmetric) */
-    tensor: Mat3,
 }
 
 
@@ -178,8 +139,6 @@ export interface InterfaceOpeningAxes {
     movementAxis: Vec3,
     /** Radius from opening hinge axis to the interface center */
     openingRadius: number,
-    /** Optional linear and angular impulses for nicer animation */
-    impulses?: { a: { linear: Vec3, angular: Vec3, pivot: Vec3 }, b: { linear: Vec3, angular: Vec3, pivot: Vec3 } },
 }
 
 /** Return axes and measurements for interface opening animation */
@@ -222,14 +181,7 @@ export function getInterfaceOpeningAxes(structure: Structure, partnerA: Componen
     Vec3.setMagnitude(box.dirB, box.dirB, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
     Vec3.setMagnitude(box.dirC, box.dirC, Vec3.magnitude(box.dirB) * BOX_SIZE_FACTOR + BOX_SIZE_EXTRA);
 
-    const inertiaA = Coords.getInertia(coordsA);
-    const inertiaB = Coords.getInertia(coordsB);
-    const forces = getForceAndTorque(contacts, inertiaA.center, inertiaB.center);
-    const impulses = {
-        a: getImpulse(inertiaA, forces.forceA, forces.torqueA, 1),
-        b: getImpulse(inertiaB, forces.forceB, forces.torqueB, 1),
-    };
-    return { center: box.origin, hingeAxis: box.dirA, outAxis: box.dirB, movementAxis: box.dirC, openingRadius, impulses };
+    return { center: box.origin, hingeAxis: box.dirA, outAxis: box.dirB, movementAxis: box.dirC, openingRadius };
 }
 
 
@@ -284,35 +236,6 @@ function getTrueContacts(a: Coords, b: Coords, radius: number): { midpoints: Coo
     };
 }
 
-/** Get theoretical force and torque resulting from mutual repulsion of pairs of points */
-function getForceAndTorque(contacts: ReturnType<typeof getTrueContacts>, pivotA: Vec3, pivotB: Vec3) {
-    const { pointsInA, pointsInB } = contacts;
-    const n = Coords.length(pointsInA);
-    const u = Vec3(), v = Vec3(), f = Vec3(), t = Vec3();
-    const forceA = Vec3.zero(), torqueA = Vec3.zero(), forceB = Vec3.zero(), torqueB = Vec3.zero();
-    for (let i = 0; i < n; i++) {
-        Coords.toVector(u, pointsInA, i);
-        Coords.toVector(v, pointsInB, i);
-        Vec3.normalize(f, Vec3.sub(f, v, u));
-        Vec3.cross(t, Vec3.sub(t, v, pivotB), f);
-        Vec3.add(forceB, forceB, f);
-        Vec3.add(torqueB, torqueB, t);
-        Vec3.negate(f, f);
-        Vec3.cross(t, Vec3.sub(t, u, pivotA), f);
-        Vec3.add(forceA, forceA, f);
-        Vec3.add(torqueA, torqueA, t);
-    }
-    return { forceA, torqueA, forceB, torqueB };
-}
-
-/** Return linear and angular impulse (change of momentum) resulting from given force and torque applied on an object with given inertia over given time. */
-function getImpulse(inertia: Inertia, force: Vec3, torque: Vec3, time: number): { linear: Vec3, angular: Vec3, pivot: Vec3 } {
-    const linear = Vec3.scale(Vec3(), force, time / inertia.mass);
-    const angular = Vec3.transformMat3(Vec3(), torque, Mat3.invert(Mat3(), inertia.tensor));
-    Vec3.scale(angular, angular, time);
-    return { linear, angular, pivot: inertia.center };
-}
-
 /** Return true if the lookup result contains any index other than `otherThan` */
 function lookupResultHasOtherThan<T>(result: Result<T>, otherThan: T) {
     for (let i = 0; i < result.count; i++) {
@@ -347,52 +270,6 @@ export function getInterfaceOpeningTransforms(axes: InterfaceOpeningAxes): Inter
     return {
         a: { rotation_center, rotation: rotA, translation: transA },
         b: { rotation_center, rotation: rotB, translation: transB },
-    };
-}
-
-export function getInterfaceOpeningImpulseTransforms(axes: InterfaceOpeningAxes, options?: { rotationFactor?: number, translationFactor?: number }): InterfaceAnimationTransforms | undefined {
-    if (!axes.impulses) return undefined;
-
-    const rotationFactor = options?.rotationFactor ?? 40;
-    const translationFactor = options?.translationFactor ?? 40;
-
-    const transVecA = Vec3.scale(Vec3(), axes.impulses.a.linear, translationFactor);
-    const transVecB = Vec3.scale(Vec3(), axes.impulses.b.linear, translationFactor);
-    const rotVecA = Vec3.scale(Vec3(), axes.impulses.a.angular, rotationFactor);
-    const rotVecB = Vec3.scale(Vec3(), axes.impulses.b.angular, rotationFactor);
-
-    // Limit rotation to axis parallel to interface normal
-    Vec3.projectOnVector(rotVecA, rotVecA, axes.movementAxis);
-    Vec3.projectOnVector(rotVecB, rotVecB, axes.movementAxis);
-    // Limit translation to interface plane
-    Vec3.projectOnPlane(transVecA, transVecA, axes.movementAxis);
-    Vec3.projectOnPlane(transVecB, transVecB, axes.movementAxis);
-
-    // Ensure rotations do not exceed half turn (would cause incorrect interpolation)
-    const MAX_ROT = .99 * Math.PI;
-    const safeguardFactor = 1 / Math.max(Vec3.magnitude(rotVecA) / MAX_ROT, Vec3.magnitude(rotVecB) / MAX_ROT, 1);
-    if (safeguardFactor !== 1) {
-        Vec3.scale(rotVecA, rotVecA, safeguardFactor);
-        Vec3.scale(rotVecB, rotVecB, safeguardFactor);
-    }
-
-    const rotAngleA = Vec3.magnitude(rotVecA);
-    const rotAngleB = Vec3.magnitude(rotVecB);
-    // Do not apply small rotations as they may be interpolated incorrectly
-    const rotA = rotAngleA >= 1e-3 ? Mat3.fromRotation(Mat3(), rotAngleA, rotVecA) : undefined;
-    const rotB = rotAngleB >= 1e-3 ? Mat3.fromRotation(Mat3(), rotAngleB, rotVecB) : undefined;
-
-    return {
-        a: {
-            rotation_center: MvsVector(axes.impulses.a.pivot),
-            rotation: rotA,
-            translation: MvsVector(transVecA),
-        },
-        b: {
-            rotation_center: MvsVector(axes.impulses.b.pivot),
-            rotation: rotB,
-            translation: MvsVector(transVecB),
-        },
     };
 }
 

@@ -40,7 +40,7 @@ const COLOR_B_STRONG = '#e58c17' satisfies ColorT; // PDBe Orange-600
 
 interface TransformParams {
     rotation_center: Vector3,
-    rotation: number[] | undefined,
+    rotation: number[],
     translation: Vector3,
 }
 export interface InterfaceAnimationTransforms {
@@ -57,8 +57,7 @@ type AnimationType = 'opening' | 'open' | 'closing' | 'closed';
 export function mvsInterface(params: {
     pdbId: string, assemblyId: string | undefined, partnerA: ComponentExpressionT[], partnerB: ComponentExpressionT[],
     camera: MVSNodeParams<'camera'>,
-    hingeOpeningTransforms: InterfaceAnimationTransforms,
-    impulseTransforms?: InterfaceAnimationTransforms,
+    openingTransforms: InterfaceAnimationTransforms,
     interfaceSelectorA?: ComponentExpressionT[] | MolQLExpressionT, interfaceSelectorB?: ComponentExpressionT[] | MolQLExpressionT,
     animationType: AnimationType,
     transitionDuration?: number,
@@ -77,13 +76,8 @@ export function mvsInterface(params: {
     if (params.interfaceSelectorA) reprA.color({ color: COLOR_A_STRONG, selector: params.interfaceSelectorA });
     if (params.interfaceSelectorB) reprB.color({ color: COLOR_B_STRONG, selector: params.interfaceSelectorB });
 
-    // Animation with impulses
-    if (params.impulseTransforms) {
-        animateImpulses({ root: base.root, structA, structB, transforms: params.impulseTransforms, animation: params.animationType, animationDurationMs: transitionDuration });
-    }
-
     // Animation with hinge
-    animateHingeOpening({ root: base.root, structA, structB, transforms: params.hingeOpeningTransforms, animation: params.animationType, animationDurationMs: transitionDuration });
+    animateHingeOpening({ root: base.root, structA, structB, transforms: params.openingTransforms, animation: params.animationType, animationDurationMs: transitionDuration });
 
     const snapshotKey = params.animationType;
     const description = (params.animationType === 'opening' || params.animationType === 'open') ?
@@ -104,22 +98,19 @@ function animateHingeOpening(params: { root: MVSBuilder.Root, structA: MVSBuilde
     const startsOpen = params.animation === 'open' || params.animation === 'closing';
     const endsOpen = params.animation === 'open' || params.animation === 'opening';
     const isAnimated = params.animation === 'opening' || params.animation === 'closing';
-
     const { a, b } = params.transforms;
-    const aRotation = a.rotation ?? eye;
-    const bRotation = b.rotation ?? eye;
 
     // Apply structure transforms (even in static state, to ensure correct state tree reconciliation)
     params.structA.transform({
         ref: 'rotateA-hinge',
         rotation_center: a.rotation_center,
-        rotation: startsOpen ? aRotation : eye,
+        rotation: startsOpen ? a.rotation : eye,
         translation: startsOpen ? a.translation : zero,
     });
     params.structB.transform({
         ref: 'rotateB-hinge',
         rotation_center: b.rotation_center,
-        rotation: startsOpen ? bRotation : eye,
+        rotation: startsOpen ? b.rotation : eye,
         translation: startsOpen ? b.translation : zero,
     });
 
@@ -137,16 +128,16 @@ function animateHingeOpening(params: { root: MVSBuilder.Root, structA: MVSBuilde
         target_ref: 'rotateA-hinge',
         property: 'rotation',
         kind: 'rotation_matrix',
-        start: startsOpen ? aRotation : eye,
-        end: endsOpen ? aRotation : eye,
+        start: startsOpen ? a.rotation : eye,
+        end: endsOpen ? a.rotation : eye,
     });
     animation.interpolate({
         ...common,
         target_ref: 'rotateB-hinge',
         property: 'rotation',
         kind: 'rotation_matrix',
-        start: startsOpen ? bRotation : eye,
-        end: endsOpen ? bRotation : eye,
+        start: startsOpen ? b.rotation : eye,
+        end: endsOpen ? b.rotation : eye,
     });
     animation.interpolate({
         ...common,
@@ -163,61 +154,5 @@ function animateHingeOpening(params: { root: MVSBuilder.Root, structA: MVSBuilde
         kind: 'vec3',
         start: startsOpen ? b.translation : zero,
         end: endsOpen ? b.translation : zero,
-    });
-}
-
-function animateImpulses(params: { root: MVSBuilder.Root, structA: MVSBuilder.Structure, structB: MVSBuilder.Structure, transforms: InterfaceAnimationTransforms, animation: AnimationType, animationDurationMs: number }) {
-    const { a, b } = params.transforms;
-
-    // Apply structure transforms (even in static state, to ensure correct state tree reconciliation)
-    params.structA.transform({
-        ref: 'rotateA-impulses',
-        rotation_center: a.rotation_center,
-        rotation: eye,
-        translation: zero,
-    });
-    params.structB.transform({
-        ref: 'rotateB-impulses',
-        rotation_center: b.rotation_center,
-        rotation: eye,
-        translation: zero,
-    });
-
-    const isAnimated = params.animation === 'opening' || params.animation === 'closing';
-    if (!isAnimated) return;
-
-    const animation = params.root.animation();
-    const IMPULSE_DURATION = 0.5 * params.animationDurationMs;
-    const common = {
-        start_ms: params.animation === 'closing' ? params.animationDurationMs - IMPULSE_DURATION : 0,
-        duration_ms: IMPULSE_DURATION,
-        easing: 'sin-in-out',
-        frequency: 2,
-        alternate_direction: true,
-    } satisfies Partial<Parameters<MVSBuilder.Animation['interpolate']>[0]>;
-
-    if (a.rotation) { // Do not apply small rotations as they may be interpolated incorrectly
-        animation.interpolate({
-            ...common,
-            target_ref: 'rotateA-impulses', property: 'rotation', kind: 'rotation_matrix',
-            start: eye, end: a.rotation,
-        });
-    }
-    if (b.rotation) { // Do not apply small rotations as they may be interpolated incorrectly
-        animation.interpolate({
-            ...common,
-            target_ref: 'rotateB-impulses', property: 'rotation', kind: 'rotation_matrix',
-            start: eye, end: b.rotation,
-        });
-    }
-    animation.interpolate({
-        ...common,
-        target_ref: 'rotateA-impulses', property: 'translation', kind: 'vec3',
-        start: zero, end: a.translation,
-    });
-    animation.interpolate({
-        ...common,
-        target_ref: 'rotateB-impulses', property: 'translation', kind: 'vec3',
-        start: zero, end: b.translation,
     });
 }
