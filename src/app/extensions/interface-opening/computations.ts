@@ -119,13 +119,13 @@ function getStructureCoords(structure: Structure): Coords {
 
     for (const unit of structure.units) {
         const hierarchy = unit.model.atomicHierarchy;
-        const conformation = unit.model.atomicConformation;
+        const conformation = unit.conformation;
         OrderedSet.forEach(unit.elements, element => {
             const typeSymbol = hierarchy.atoms.type_symbol.value(element);
             if (typeSymbol !== 'H') {
-                x.push(conformation.x[element]);
-                y.push(conformation.y[element]);
-                z.push(conformation.z[element]);
+                x.push(conformation.x(element));
+                y.push(conformation.y(element));
+                z.push(conformation.z(element));
             }
         });
     }

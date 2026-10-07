@@ -77,12 +77,14 @@
         }
 
         async function main() {
-            const { pdb_id, assembly_id, label_asym_id_1, label_asym_id_2 } = getParams({
+            const { pdb_id, assembly_id, label_asym_id_1, instance_id_1, label_asym_id_2, instance_id_2 } = getParams({
                 // Defaults:
                 pdb_id: '1hda',
                 assembly_id: '',
                 label_asym_id_1: 'A',
+                instance_id_1: '',
                 label_asym_id_2: 'B',
+                instance_id_2: '',
             });
 
             // Create plugin instance
@@ -93,14 +95,6 @@
                 bgColor: 'white',
                 alphafoldView: true,
                 sequencePanel: true,
-                // hideControls: true,
-                // expanded: true,
-                // visualStyle: {
-                //     polymer: { type: 'putty', size: 'uniform' },
-                //     het: 'ball-and-stick',
-                //     nonStandard: 'ball-and-stick',
-                //     carbs: 'carbohydrate',
-                // },
                 hideStructure: ['water'],
             };
             const options = { ...defaultOptions, ...getJsonParam('options') };
@@ -108,14 +102,12 @@
             // Call render method to display the 3D view
             await viewerInstance.render(viewerContainer, options);
 
-            console.log('Params:', pdb_id, assembly_id, label_asym_id_1, label_asym_id_2);
-
             await PDBeMolstarPlugin.extensions.InterfaceOpening.runInterfaceOpening(
                 viewerInstance.plugin,
                 pdb_id,
-                assembly_id,
-                [{ label_asym_id: label_asym_id_1 }],
-                [{ label_asym_id: label_asym_id_2 }],
+                assembly_id || undefined,
+                [{ label_asym_id: label_asym_id_1, instance_id: instance_id_1 || undefined }],
+                [{ label_asym_id: label_asym_id_2, instance_id: instance_id_2 || undefined }],
             );
         }
 
